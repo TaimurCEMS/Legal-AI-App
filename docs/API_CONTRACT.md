@@ -29,7 +29,7 @@ All endpoints are hosted under a single HTTPS Cloud Function (recommended):
 
 ### 1.2 Required headers
 - `Authorization: Bearer <FIREBASE_ID_TOKEN>`
-- `X-App-Check: <FIREBASE_APP_CHECK_TOKEN>` (required in prod, optional in dev)
+- `X-Firebase-AppCheck: <FIREBASE_APP_CHECK_TOKEN>` (required in prod, optional in dev)
 
 ### 1.3 Response envelope
 Success:
