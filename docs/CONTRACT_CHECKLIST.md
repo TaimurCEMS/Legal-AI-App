@@ -1,6 +1,6 @@
 # CONTRACT_CHECKLIST.md
 
-Contract Version: v1.0.0
+Contract Version: v1.0.1
 Last Updated: 2026-01-07
 Status: Implementation Gate (must pass before deploy)
 
@@ -16,9 +16,9 @@ Scope: Legal AI Assistant V1 (Docs: TECH_SPEC, DATA_MODEL, SECURITY, API_CONTRAC
   - [ ] `/docs/DATA_MODEL.md`
   - [ ] `/docs/SECURITY.md`
   - [ ] `/docs/API_CONTRACT.md`
-- [ ] All 4 docs show the same `Contract Version: v1.0.0`
+- [ ] All 4 docs show the same `Contract Version: v1.0.1`
 - [ ] No duplicate “revised/final/v2” docs are being referenced in prompts or code
-- [ ] Git tag exists for this contract version (example: `v1.0.0`)
+- [ ] Git tag exists for this contract version (example: `v1.0.1`)
 
 ---
 
@@ -92,7 +92,7 @@ Scope: Legal AI Assistant V1 (Docs: TECH_SPEC, DATA_MODEL, SECURITY, API_CONTRAC
 ## H) Release Notes (Fill before deploy)
 
 Release Tag:
-- v1.0.0
+- v1.0.1
 
 What changed:
 - -

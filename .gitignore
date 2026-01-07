@@ -1,9 +1,5 @@
-﻿# Local helper scripts (Cursor wrappers)
+﻿# Local helper scripts (not part of the codebase)
 commit-and-push.ps1
 commit-and-push.bat
 git-setup.ps1
 setup-git.bat
-
-# Common noise
-.DS_Store
-Thumbs.db

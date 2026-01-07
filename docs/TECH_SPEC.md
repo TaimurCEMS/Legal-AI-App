@@ -1,6 +1,6 @@
 # TECH_SPEC.md
 
-Contract Version: v1.0.0
+Contract Version: v1.0.1
 Last Updated: 2026-01-07
 Status: Frozen for implementation (Phase-1+)
 
