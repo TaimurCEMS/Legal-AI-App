@@ -1,0 +1,52 @@
+﻿rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function signedIn() { return request.auth != null; }
+
+    function memberRef(orgId) {
+      return /databases/(default)/documents/org_members/$(orgId + "_" + request.auth.uid);
+    }
+
+    function isActiveMember(orgId) {
+      return signedIn()
+        && firestore.exists(memberRef(orgId))
+        && firestore.get(memberRef(orgId)).data.status == "active"
+        && firestore.get(memberRef(orgId)).data.deletedAt == null;
+    }
+
+    function isOrgAdmin(orgId) {
+      return isActiveMember(orgId)
+        && firestore.get(memberRef(orgId)).data.role in ["owner", "admin"];
+    }
+
+    function docRef(docId) {
+      return /databases/(default)/documents/documents/$(docId);
+    }
+
+    // Client uploads original files here (returned by /documents/init-upload)
+    match /{orgId}/{caseId}/documents/{docId}/{fileName} {
+
+      allow write: if isActiveMember(orgId)
+        && firestore.exists(docRef(docId))
+        && firestore.get(docRef(docId)).data.orgId == orgId
+        && firestore.get(docRef(docId)).data.caseId == caseId
+        && (
+          firestore.get(docRef(docId)).data.createdBy == request.auth.uid
+          || isOrgAdmin(orgId)
+        )
+        // optional safety cap (50 MB)
+        && request.resource.size < 50 * 1024 * 1024;
+
+      allow read: if isActiveMember(orgId)
+        && firestore.exists(docRef(docId))
+        && firestore.get(docRef(docId)).data.orgId == orgId
+        && firestore.get(docRef(docId)).data.caseId == caseId;
+    }
+
+    // Default deny
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

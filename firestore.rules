@@ -1,0 +1,112 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function: Check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function: Get orgId from document
+    function getOrgId(doc) {
+      return doc.data.orgId;
+    }
+    
+    // Helper function: Check if user is active member of org
+    function isActiveMember(orgId) {
+      let memberId = orgId + '_' + request.auth.uid;
+      let memberDoc = get(/databases/$(database)/documents/org_members/$(memberId));
+      return memberDoc != null 
+        && memberDoc.data.status == 'active'
+        && (!('deletedAt' in memberDoc.data) || memberDoc.data.deletedAt == null);
+    }
+    
+    // Helper function: Get user role in org
+    function getUserRole(orgId) {
+      let memberId = orgId + '_' + request.auth.uid;
+      let memberDoc = get(/databases/$(database)/documents/org_members/$(memberId));
+      return memberDoc != null ? memberDoc.data.role : null;
+    }
+    
+    // Helper function: Check if user has admin or owner role
+    function isAdminOrOwner(orgId) {
+      let role = getUserRole(orgId);
+      return role == 'admin' || role == 'owner';
+    }
+    
+    // Hard deny: doc_chunks is server-only
+    match /doc_chunks/{chunkId} {
+      allow read, write: if false;
+    }
+    
+    // orgs: read-only for active members
+    match /orgs/{orgId} {
+      allow read: if isAuthenticated() && isActiveMember(orgId);
+      allow write: if false; // Server-only via Admin SDK
+    }
+    
+    // org_members: read-only for active members of that org
+    match /org_members/{memberId} {
+      // memberId format: {orgId}_{userId}
+      allow read: if isAuthenticated() && 
+        (memberId.matches('.*_' + request.auth.uid) || 
+         (resource.data.orgId != null && isActiveMember(resource.data.orgId)));
+      allow write: if false; // Server-only via Admin SDK
+    }
+    
+    // cases: read-only for active members
+    match /cases/{caseId} {
+      allow read: if isAuthenticated() && 
+        resource.data.orgId != null &&
+        isActiveMember(resource.data.orgId);
+      allow write: if false; // Server-only via Admin SDK
+    }
+    
+    // documents: read-only for active members
+    match /documents/{docId} {
+      allow read: if isAuthenticated() && 
+        resource.data.orgId != null &&
+        isActiveMember(resource.data.orgId);
+      allow write: if false; // Server-only via Admin SDK
+    }
+    
+    // ai_requests: read-only for active members
+    match /ai_requests/{reqId} {
+      allow read: if isAuthenticated() && 
+        resource.data.orgId != null &&
+        isActiveMember(resource.data.orgId);
+      allow write: if false; // Server-only via Admin SDK
+    }
+    
+    // ai_outputs: read-only for active members
+    match /ai_outputs/{outId} {
+      allow read: if isAuthenticated() && 
+        resource.data.orgId != null &&
+        isActiveMember(resource.data.orgId);
+      allow write: if false; // Server-only via Admin SDK
+      
+      // ai_outputs parts subcollection: read-only for members of output's org
+      match /parts/{partId} {
+        allow read: if isAuthenticated() && 
+          get(/databases/$(database)/documents/ai_outputs/$(outId)).data.orgId != null &&
+          isActiveMember(get(/databases/$(database)/documents/ai_outputs/$(outId)).data.orgId);
+        allow write: if false; // Server-only via Admin SDK
+      }
+    }
+    
+    // audit_logs: read-only for owner/admin roles only
+    match /audit_logs/{logId} {
+      allow read: if isAuthenticated() && 
+        resource.data.orgId != null &&
+        isAdminOrOwner(resource.data.orgId);
+      allow write: if false; // Server-only via Admin SDK
+    }
+    
+    // Default deny for all other paths
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+
