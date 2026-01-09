@@ -20,16 +20,12 @@ const app = express();
 app.use(cors());
 
 // Health endpoint with auth
-app.get("/health/auth", requireAuth({requireAppCheck: true}), (req, res) => {
-  if (!req.user) {
-    res.status(500).json({error: {code: "INTERNAL", message: "User not set"}});
-    return;
-  }
+app.get("/health/auth", requireAuth({requireAppCheck: false}), (req, res) => {
   res.json({
     ok: true,
-    uid: req.user.uid,
-    orgId: req.user.orgId,
-    role: req.user.role,
+    uid: req.user?.uid,
+    orgId: req.user?.orgId,
+    role: req.user?.role,
   });
 });
 
