@@ -1,0 +1,74 @@
+/**
+ * Plan Features Matrix
+ * Must match Master Spec Section 4.7 (Entitlements Matrix)
+ */
+
+export const PLAN_FEATURES = {
+  FREE: {
+    CASES: true,
+    CLIENTS: true,
+    TEAM_MEMBERS: false,
+    TASKS: false,
+    DOCUMENT_UPLOAD: true,
+    OCR_EXTRACTION: false,
+    AI_RESEARCH: false,
+    AI_DRAFTING: false,
+    EXPORTS: false,
+    AUDIT_TRAIL: false,
+    NOTIFICATIONS: false,
+    ADVANCED_SEARCH: false,
+    BILLING_SUBSCRIPTION: true,
+    ADMIN_PANEL: false,
+  },
+  BASIC: {
+    CASES: true,
+    CLIENTS: true,
+    TEAM_MEMBERS: true,
+    TASKS: true,
+    DOCUMENT_UPLOAD: true,
+    OCR_EXTRACTION: true,
+    AI_RESEARCH: true,
+    AI_DRAFTING: false,
+    EXPORTS: true,
+    AUDIT_TRAIL: false,
+    NOTIFICATIONS: true,
+    ADVANCED_SEARCH: false,
+    BILLING_SUBSCRIPTION: true,
+    ADMIN_PANEL: true,
+  },
+  PRO: {
+    CASES: true,
+    CLIENTS: true,
+    TEAM_MEMBERS: true,
+    TASKS: true,
+    DOCUMENT_UPLOAD: true,
+    OCR_EXTRACTION: true,
+    AI_RESEARCH: true,
+    AI_DRAFTING: true,
+    EXPORTS: true,
+    AUDIT_TRAIL: true,
+    NOTIFICATIONS: true,
+    ADVANCED_SEARCH: true,
+    BILLING_SUBSCRIPTION: true,
+    ADMIN_PANEL: true,
+  },
+  ENTERPRISE: {
+    CASES: true,
+    CLIENTS: true,
+    TEAM_MEMBERS: true,
+    TASKS: true,
+    DOCUMENT_UPLOAD: true,
+    OCR_EXTRACTION: true,
+    AI_RESEARCH: true,
+    AI_DRAFTING: true,
+    EXPORTS: true,
+    AUDIT_TRAIL: true,
+    NOTIFICATIONS: true,
+    ADVANCED_SEARCH: true,
+    BILLING_SUBSCRIPTION: true,
+    ADMIN_PANEL: true,
+  },
+} as const;
+
+export type PlanTier = keyof typeof PLAN_FEATURES;
+export type FeatureKey = keyof typeof PLAN_FEATURES['FREE'];
