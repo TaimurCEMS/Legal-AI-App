@@ -1,0 +1,11 @@
+docs: update Master Spec to v1.3.2 with repository structure guidelines
+
+- Add Section 2.7: Repository Structure & Organization
+- Document root directory rules, folder structure, and file organization
+- Update version to 1.3.2
+- Update README to reference new version
+- Add update summary document
+
+This establishes repository structure as a non-negotiable principle
+and provides clear guidelines for maintaining a clean, professional
+repository structure going forward.
