@@ -62,6 +62,14 @@ firebase deploy --only functions
 ### Implementation Details
 - **[Slice 0 Complete](docs/slices/SLICE_0_COMPLETE.md)** - Slice 0 implementation summary
 - **[Slice 0 Implementation](docs/slices/SLICE_0_IMPLEMENTATION.md)** - Detailed implementation notes
+- **[Slice 1 Complete](docs/slices/SLICE_1_COMPLETE.md)** - Slice 1 implementation summary
+
+### Development Learnings
+- **[Development Learnings](docs/DEVELOPMENT_LEARNINGS.md)** - Key learnings, insights, and solutions discovered during development
+  - Firebase & Cloud Functions learnings
+  - Flutter development insights
+  - Common pitfalls and solutions
+  - Best practices
 
 ## 🧪 Testing
 
@@ -96,10 +104,19 @@ Test results are saved to `functions/lib/__tests__/slice0-test-results.json`
 
 See [Slice Status](docs/status/SLICE_STATUS.md) for details.
 
-### Next: Slice 1
-- Flutter UI Shell
-- Firebase Auth integration
-- Organization selection/gate
+### Slice 1: Navigation Shell + UI System ✅ COMPLETE
+- **Status:** Complete & Tested
+- **Features:**
+  - Flutter UI Shell with navigation
+  - Firebase Auth integration
+  - Organization management
+  - Theme system & reusable widgets
+- **Tests:** ✅ All passing
+
+### Next: Slice 2
+- Case Hub
+- Case management UI
+- Case-client relationships
 
 ## 🔐 Security
 
