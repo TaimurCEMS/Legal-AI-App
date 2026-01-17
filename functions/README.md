@@ -1,8 +1,13 @@
 # Legal AI App - Cloud Functions
 
-## Slice 0: Foundation (Auth + Org + Entitlements Engine)
+## Slice 0: Foundation (Auth + Org + Entitlements Engine) ✅ LOCKED
+
+**Status:** ✅ Complete & Locked  
+**Tests:** ✅ All passing (3/3)
 
 This directory contains the Cloud Functions implementation for Slice 0.
+
+> ⚠️ **Slice 0 is LOCKED** - Business logic should not be modified without approval.
 
 ## Structure
 
@@ -34,6 +39,10 @@ npm run build
 
 3. Run tests:
 ```bash
+# Run Slice 0 terminal tests (recommended)
+npm run test:slice0
+
+# Or run Jest tests (if configured)
 npm test
 ```
 

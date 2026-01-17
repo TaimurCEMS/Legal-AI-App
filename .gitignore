@@ -65,6 +65,11 @@ node_modules/
 # dotenv environment variables file
 .env
 
+# Firebase service account keys (NEVER commit these!)
+firebase-service-account.json
+*-firebase-adminsdk-*.json
+service-account*.json
+
 # dataconnect generated files
 .dataconnect
 
@@ -72,11 +77,13 @@ node_modules/
 functions/lib/
 *.js.map
 *.d.ts.map
+# Allow test results file
+!functions/lib/__tests__/slice0-test-results.json
 
-# Test files (we'll add tests back later)
-functions/src/__tests__/
-**/*.test.ts
-**/*.spec.ts
+# Test files (exclude unit tests, but allow terminal test script)
+functions/src/__tests__/**/*.test.ts
+functions/src/__tests__/**/*.spec.ts
+!functions/src/__tests__/slice0-terminal-test.ts
 
 # Local verification scripts
 functions/verify-functions.js

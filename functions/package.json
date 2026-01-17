@@ -11,6 +11,7 @@
     "deploy": "firebase deploy --only functions",
     "logs": "firebase functions:log",
     "test": "jest",
+    "test:slice0": "npm run build && node lib/__tests__/slice0-terminal-test.js",
     "verify": "node verify-functions.js"
   },
   "engines": {

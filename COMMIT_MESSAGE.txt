@@ -1,0 +1,53 @@
+Cleanup: remove legacy api function; lock Slice 0 foundation
+
+This commit completes the cleanup and hardening pass for Slice 0 without
+modifying business logic or breaking tests.
+
+## Code Cleanup
+
+- Verified no legacy "api" function exists in codebase
+- Confirmed clean exports: index.ts only exports 3 Slice 0 callable functions
+  - orgCreate
+  - orgJoin
+  - memberGetMyMembership
+- Fixed linting errors in test file:
+  - Replaced require() with fs.readFileSync + JSON.parse
+  - Removed unused error variables (2 instances)
+- Repository structure verified clean (no Express routes, no unused code)
+
+## Deployment Cleanup
+
+- Deleted legacy "api" function from Firebase (v2, https trigger)
+- Verified only Slice 0 functions remain deployed:
+  - orgCreate (v1, callable)
+  - orgJoin (v1, callable)
+  - memberGetMyMembership (v1, callable)
+
+## Documentation
+
+- Added SLICE_STATUS.md: Comprehensive slice status and testing guide
+- Updated functions/README.md: Added LOCKED status and test instructions
+- Added CLEANUP_REPORT.md: Full cleanup report with verification results
+
+## Verification
+
+- ✅ Lint: Passing (all errors fixed)
+- ✅ Build: Passing
+- ✅ Tests: All passing (3/3)
+- ✅ Deployment: Clean (only Slice 0 functions)
+
+## Files Changed
+
+Created:
+- SLICE_STATUS.md
+- CLEANUP_REPORT.md
+- check-deployed-functions.bat
+- check-deployed-functions.ps1
+- delete-legacy-api.bat
+- delete-legacy-api.ps1
+
+Modified:
+- functions/README.md
+- functions/src/__tests__/slice0-terminal-test.ts
+
+Slice 0 is now locked, clean, and ready for Slice 1 development.
