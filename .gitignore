@@ -67,3 +67,34 @@ node_modules/
 
 # dataconnect generated files
 .dataconnect
+
+# TypeScript compiled output
+functions/lib/
+*.js.map
+*.d.ts.map
+
+# Test files (we'll add tests back later)
+functions/src/__tests__/
+**/*.test.ts
+**/*.spec.ts
+
+# Local verification scripts
+functions/verify-functions.js
+setup-git.ps1
+setup-git.bat
+GIT_SETUP_INSTRUCTIONS.md
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Temporary files
+*.tmp
+*.temp
+VERIFICATION_RESULTS.md
+TEST_SLICE_0.md
+SLICE_0_IMPLEMENTATION.md
