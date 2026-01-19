@@ -83,10 +83,14 @@ Test results are saved to `functions/lib/__tests__/slice0-test-results.json`
 
 ## 🔧 Development Scripts
 
-### Git Operations
-- `scripts/dev/setup-git.bat` - Initialize git and connect to GitHub
+### Git Operations & Sync
+- `sync-to-github.bat` - **Full sync** (pull, commit, push) with prompts
+- `quick-sync.bat` - **Quick sync** (minimal prompts, fast)
+- `check-sync-status.bat` - **Check status** (no changes, just shows info)
 - `scripts/dev/push-to-github.bat` - Push changes to GitHub
 - `scripts/dev/verify-push.bat` - Verify git push status
+
+**📖 See [Sync Workflow Guide](scripts/dev/sync-workflow.md) for detailed sync strategies**
 
 ### Operations
 - `scripts/ops/check-deployed-functions.bat` - Check deployed Firebase functions

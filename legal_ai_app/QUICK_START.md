@@ -1,9 +1,33 @@
 # Quick Start Guide - Slice 1 Testing
 
-## 🚀 Fastest Way to Test
+## 🚀 Fastest Way to Run the App
 
-### Step 1: Run the Test Script
+### Option 1: Quick Run (Recommended)
+**Double-click this file:**
+```
+legal_ai_app\quick-run.bat
+```
+Runs the app immediately with minimal checks.
 
+### Option 2: Run with Setup Check
+**Double-click this file:**
+```
+legal_ai_app\run-app-with-setup.bat
+```
+Checks Flutter, dependencies, Firebase, and web setup before running.
+
+### Option 3: Simple Run
+**Double-click this file:**
+```
+legal_ai_app\run-app.bat
+```
+Runs the app with basic checks.
+
+---
+
+## 🧪 Testing & Setup Scripts
+
+### Run Setup Checks
 **Double-click this file:**
 ```
 legal_ai_app\test-slice1-verbose.bat
@@ -27,7 +51,7 @@ Press `Win + R`, type `cmd`, press Enter
 
 ### 2. Navigate to Flutter App
 ```cmd
-cd "C:\Users\Taimur Ahmad\OneDrive - CEMS\Taimur's In Progress Tasks\App Dev\Legal AI App\legal_ai_app"
+cd "C:\Users\Taimur Ahmad\OneDrive - CEMS\Taimur's In Progress Tasks\Software Development\Github-cems-suite\Legal-AI-App\legal_ai_app"
 ```
 
 ### 3. Install Dependencies
