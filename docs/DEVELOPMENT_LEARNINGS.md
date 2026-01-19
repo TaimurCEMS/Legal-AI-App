@@ -44,6 +44,168 @@
 
 ---
 
+### Learning 17: Explicit Soft Delete Endpoints
+**Date:** 2026-01-19  
+**Context:** Slice 2 - Case Hub design review
+
+**Issue:**
+- Soft delete was modeled via `deletedAt` field and UI delete button
+- But no dedicated backend endpoint (`case.delete`) was defined
+- Risk of overloading `case.update` with hidden delete semantics
+
+**Solution:**
+- Introduce a dedicated `caseDelete` callable function (`case.delete`)
+- Keep delete behavior explicit and auditable:
+  - Validates orgId + caseId
+  - Enforces entitlements (`case.delete` permission)
+  - Applies visibility rules (only creator for PRIVATE in Slice 2)
+  - Sets `deletedAt`, updates `updatedAt`/`updatedBy`
+  - Writes a `case.deleted` audit event
+
+**Lesson:**
+- **Never hide soft delete inside generic update logic**
+- Critical lifecycle transitions (create / update / delete) deserve explicit endpoints
+- Makes permissions, audit logs, and UI flows much clearer and safer
+
+**Files:**
+- `functions/src/functions/case.ts` - `caseDelete` implementation
+- `functions/src/constants/permissions.ts` - `case.delete` role permissions
+- `docs/SLICE_2_BUILD_CARD.md` - Section 5.5
+
+---
+
+### Learning 18: Firestore OR Logic via Two-Query Merge
+**Date:** 2026-01-19  
+**Context:** Slice 2 - Listing ORG_WIDE + PRIVATE cases
+
+**Issue:**
+- Requirement: show both:
+  - ORG_WIDE cases (visible to all org members)
+  - PRIVATE cases (visible only to creator in Slice 2)
+- Naïve spec said: \"visibility == ORG_WIDE OR (visibility == PRIVATE AND createdBy == uid)\"
+- Firestore cannot express this as a single query
+
+**Solution:**
+- Lock the design to a **two-query merge**:
+  1. Query ORG_WIDE cases with filters + updatedAt sort
+  2. Query PRIVATE cases where `createdBy == uid` with same filters + sort
+  3. Merge both result sets in memory, sort by updatedAt desc, then paginate
+
+**Lesson:**
+- When spec’ing Firestore queries, **design for its constraints explicitly**:
+  - No naive OR conditions across fields
+  - Document the exact multi-query and merge strategy
+- Locking this pattern early prevents inconsistent implementations later
+
+**Files:**
+- `docs/SLICE_2_BUILD_CARD.md` - Section 5.3 `case.list`
+- Future: `functions/src/functions/case.ts` - `caseList` implementation
+
+---
+
+### Learning 19: Cursor-Based vs Offset Pagination
+**Date:** 2026-01-19  
+**Context:** Slice 2 - Case list pagination strategy
+
+**Issue:**
+- Initial design used `limit/offset` pagination
+- Firestore must scan and skip `offset` docs on every query
+- This becomes expensive and slow as collections grow
+
+**Solution:**
+- Treat **cursor-based pagination** as the primary design:
+  - Use `startAfter(lastUpdatedAt, lastCaseId)` with `orderBy(updatedAt, desc)`
+  - Return `lastCaseId` (and/or `lastUpdatedAt`) from each page
+  - Works well with infinite scroll UX
+- Offset can be kept **only as an MVP fallback** and explicitly marked as tech debt
+
+**Lesson:**
+- For anything that should scale, **design cursor-based pagination from day one**
+- If offset is used for MVP, document the migration path and thresholds (e.g. \"replace when >10k cases\")
+- Think in terms of cursors, not pages, for Firestore/NoSQL
+
+**Files:**
+- `docs/SLICE_2_BUILD_CARD.md` - Pagination note in Section 5.3
+- Future: `legal_ai_app/lib/features/cases/providers/case_provider.dart` - `loadMoreCases` using cursors
+
+---
+
+### Learning 20: Being Honest About Search Scope
+**Date:** 2026-01-19  
+**Context:** Slice 2 - Case search requirements
+
+**Issue:**
+- Spec language implied search across both title and description
+- Firestore only supports simple prefix filtering on a single field without extra infra
+- Risk of overpromising full-text search that doesn't exist
+
+**Solution:**
+- Define Slice 2 search as **title-only prefix search**:
+  - `where('title', '>=', search)` and `where('title', '<=', search + '\\uf8ff')`
+  - Case-sensitive, no fuzzy matching, no description search
+- Explicitly document limitations and plan full-text search as a later slice (e.g. via searchTokens/Algolia)
+
+**Lesson:**
+- Specs must **tell the truth about capabilities**, especially around search
+- Clearly state: what is searchable, how, and what is deferred
+- Avoid vague \"search\" requirements when only prefix match is implemented
+
+**Files:**
+- `docs/SLICE_2_BUILD_CARD.md` - Search section in `case.list`
+- Future: dedicated search slice build card
+
+---
+
+### Learning 21: Security Rules Must Be Concrete, Not Aspirational
+**Date:** 2026-01-19  
+**Context:** Slice 2 - Cases Firestore rules
+
+**Issue:**
+- Slice 0 defined concrete rules for orgs/members/audit_events
+- Slice 2 initially just said \"add security rules for cases\" without specifics
+- Risk: new collections shipped without proper defense-in-depth
+
+**Solution:**
+- Write explicit Firestore rules for `organizations/{orgId}/cases/{caseId}`:
+  - `isOrgMember(orgId)` helper reused from Slice 0
+  - Read allowed iff:\n    - User is org member AND\n    - (visibility == ORG_WIDE OR createdBy == request.auth.uid) AND\n    - deletedAt == null\n  - All client writes denied (Cloud Functions own the writes)
+- Add a testing checklist for rules (member vs non-member, ORG_WIDE vs PRIVATE, soft-deleted, direct write attempts)
+
+**Lesson:**
+- For every new collection, **security rules are part of the spec, not an afterthought**
+- Document rule expressions and test cases alongside the data model
+- Keep Cloud Functions and Firestore rules aligned (defense-in-depth)
+
+**Files:**
+- `firestore.rules` - cases collection rules
+- `docs/SLICE_2_BUILD_CARD.md` - Section 6.2
+
+---
+### Learning 1: Firebase Callable Function Names
+**Date:** 2026-01-17  
+**Context:** Slice 1 - Organization creation failing with CORS errors
+
+**Issue:**
+- Code was calling functions as `org.create`, `org.join`, `member.getMyMembership`
+- Functions are exported as `orgCreate`, `orgJoin`, `memberGetMyMembership`
+- This mismatch caused function not found errors
+
+**Solution:**
+- Firebase callable functions use the **export name directly**, not a custom callable name
+- If you export `export const orgCreate = functions.https.onCall(...)`, call it as `orgCreate`
+- The comment "Callable Name: org.create" is just documentation, not the actual name
+
+**Lesson:**
+- Always check the actual export name in `functions/src/index.ts`
+- Use the exact export name when calling from Flutter
+- Don't rely on comments for function names
+
+**Files:**
+- `functions/src/index.ts` - Check exports
+- `legal_ai_app/lib/core/services/cloud_functions_service.dart` - Use correct names
+
+---
+
 ### Learning 2: Firebase Configuration for Flutter Web
 **Date:** 2026-01-17  
 **Context:** Slice 1 - Login failing with placeholder API keys
