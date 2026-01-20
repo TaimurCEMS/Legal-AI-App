@@ -10,4 +10,7 @@ admin.initializeApp();
 
 // Export Slice 0 callable functions
 export { orgCreate, orgJoin } from './functions/org';
-export { memberGetMyMembership } from './functions/member';
+export { memberGetMyMembership, memberListMyOrgs } from './functions/member';
+
+// Export Slice 2 - Case Hub callable functions
+export { caseCreate, caseGet, caseList, caseUpdate, caseDelete } from './functions/case';

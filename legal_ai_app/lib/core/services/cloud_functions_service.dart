@@ -15,9 +15,6 @@ class CloudFunctionsService {
     Map<String, dynamic> data,
   ) async {
     try {
-      debugPrint('CloudFunctionsService: Calling function: $functionName');
-      debugPrint('CloudFunctionsService: Data: $data');
-      
       // Use us-central1 region (where functions are deployed)
       final callable = _functions.httpsCallable(
         functionName,
@@ -27,8 +24,6 @@ class CloudFunctionsService {
       );
       
       final result = await callable.call(data);
-      
-      debugPrint('CloudFunctionsService: Response received');
       
       // Handle the response
       final responseData = result.data;
@@ -79,6 +74,12 @@ class CloudFunctionsService {
     return await callFunction('memberGetMyMembership', {
       'orgId': orgId,
     });
+  }
+
+  /// Call memberListMyOrgs (Firebase callable function)
+  /// Returns list of all organizations the user is a member of
+  Future<Map<String, dynamic>> listMyOrgs() async {
+    return await callFunction('memberListMyOrgs', {});
   }
 
   /// Handle Cloud Functions exceptions

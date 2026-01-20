@@ -4,6 +4,7 @@ import 'core/theme/app_theme.dart';
 import 'core/routing/app_router.dart';
 import 'features/auth/providers/auth_provider.dart';
 import 'features/home/providers/org_provider.dart';
+import 'features/cases/providers/case_provider.dart';
 
 /// Main app widget
 class MyApp extends StatelessWidget {
@@ -15,6 +16,7 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => OrgProvider()),
+        ChangeNotifierProvider(create: (_) => CaseProvider()),
       ],
       child: MaterialApp.router(
         title: 'Legal AI App',

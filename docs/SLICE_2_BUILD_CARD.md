@@ -1275,11 +1275,12 @@ Based on `docs/DEVELOPMENT_LEARNINGS.md`:
 ## 11) Success Criteria
 
 **Slice 2 is complete when:**
-- ✅ All 4 Cloud Functions deployed and working
+- ✅ All 5 Cloud Functions deployed and working (`case.create`, `case.get`, `case.list`, `case.update`, `case.delete`)
 - ✅ Users can create cases via UI
 - ✅ Users can view case list with filtering
 - ✅ Users can view case details
 - ✅ Users can update cases via UI
+- ✅ Users can delete cases via UI (soft delete)
 - ✅ Case-client relationships work (when clientId provided)
 - ✅ Case visibility enforcement works (ORG_WIDE, PRIVATE)
 - ✅ Entitlement checks work (plan + role permissions)
@@ -1289,9 +1290,20 @@ Based on `docs/DEVELOPMENT_LEARNINGS.md`:
 - ✅ Loading states and error handling work
 - ✅ Empty states display correctly
 - ✅ Navigation integrated with AppShell
+- ✅ **State Persistence Requirements (CRITICAL):**
+  - ✅ Organization persists across browser refresh (F5)
+  - ✅ Organization persists across tab close/reopen
+  - ✅ Cases list persists when switching tabs (Cases → Clients → Cases)
+  - ✅ Cases list reloads from backend after browser refresh
+  - ✅ Cases list reloads from backend after app restart
+  - ✅ Created cases appear immediately in list (no refresh needed)
+  - ✅ Updated cases reflect changes immediately
+  - ✅ Deleted cases disappear immediately
 - ✅ All tests passing
 - ✅ Code follows Flutter/TypeScript best practices
 - ✅ No business logic in UI (all in backend)
+
+**See [Testing & Acceptance Criteria](../TESTING_ACCEPTANCE_CRITERIA.md) for detailed test cases.**
 
 ---
 
@@ -1359,6 +1371,28 @@ Based on `docs/DEVELOPMENT_LEARNINGS.md`:
 - Test pagination
 - Test error handling
 - Test permission checks
+
+### 13.4 State Persistence Tests (CRITICAL)
+**These tests MUST pass for Slice 2 to be considered complete:**
+
+1. **Organization Persistence:**
+   - ✅ Create org → Refresh page (F5) → Org still selected
+   - ✅ Create org → Close tab → Reopen app → Org still selected
+   - ✅ Create org → Logout → Login → Org still selected (same user)
+
+2. **Cases List Persistence:**
+   - ✅ Load cases → Switch to Clients tab → Switch back → Cases still visible
+   - ✅ Load cases → Click case details → Go back → Cases still visible
+   - ✅ Load cases → Refresh page (F5) → Cases reload from backend
+   - ✅ Create case → Case appears in list immediately (no refresh)
+   - ✅ Create case → Switch tabs → Switch back → Case still in list
+
+3. **Data Consistency:**
+   - ✅ Create case → Appears immediately
+   - ✅ Update case → Changes visible immediately
+   - ✅ Delete case → Disappears immediately
+
+**See [Testing & Acceptance Criteria](../TESTING_ACCEPTANCE_CRITERIA.md) for comprehensive test checklist.**
 
 ---
 

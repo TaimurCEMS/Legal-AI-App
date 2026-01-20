@@ -6,6 +6,7 @@ import '../../../core/theme/colors.dart';
 import '../../../core/theme/typography.dart';
 import '../../../core/theme/spacing.dart';
 import '../screens/home_screen.dart';
+import '../../cases/screens/case_list_screen.dart';
 import '../providers/org_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 
@@ -20,10 +21,10 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   int _selectedIndex = 0;
 
+  // Use IndexedStack to preserve widget state when switching tabs
   final List<Widget> _screens = [
     const HomeScreen(),
-    // Placeholder screens for future slices
-    const PlaceholderScreen(title: 'Cases'),
+    const CaseListScreen(),
     const PlaceholderScreen(title: 'Clients'),
     const PlaceholderScreen(title: 'Documents'),
   ];
@@ -35,6 +36,19 @@ class _AppShellState extends State<AppShell> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    // Initialize org provider early to load saved org (only once)
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      final orgProvider = context.read<OrgProvider>();
+      if (!orgProvider.isInitialized) {
+        await orgProvider.initialize();
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
     final orgProvider = context.watch<OrgProvider>();
@@ -42,15 +56,19 @@ class _AppShellState extends State<AppShell> {
     // If user is not authenticated, redirect to login
     if (!authProvider.isAuthenticated) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        context.go(RouteNames.login);
+        if (mounted) {
+          context.go(RouteNames.login);
+        }
       });
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
       );
     }
 
+    // Don't duplicate initialization - it's already done in initState
+
     // If no org selected, redirect to org selection
-    if (!orgProvider.hasOrg) {
+    if (!orgProvider.hasOrg && orgProvider.isInitialized) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         context.go(RouteNames.orgSelection);
       });
@@ -62,11 +80,21 @@ class _AppShellState extends State<AppShell> {
     return Scaffold(
       appBar: AppBar(
         title: Text(orgProvider.selectedOrg?.name ?? 'Legal AI App'),
+        leading: IconButton(
+          icon: const Icon(Icons.business),
+          tooltip: 'Switch Organization',
+          onPressed: () {
+            context.push(RouteNames.orgSelection);
+          },
+        ),
         actions: [
           PopupMenuButton<String>(
             icon: const Icon(Icons.account_circle),
             onSelected: (value) {
               switch (value) {
+                case 'settings':
+                  context.push(RouteNames.settings);
+                  break;
                 case 'org':
                   context.push(RouteNames.orgSelection);
                   break;
@@ -77,6 +105,16 @@ class _AppShellState extends State<AppShell> {
             },
             itemBuilder: (context) => [
               const PopupMenuItem(
+                value: 'settings',
+                child: Row(
+                  children: [
+                    Icon(Icons.settings, size: 20),
+                    SizedBox(width: AppSpacing.sm),
+                    Text('Settings'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
                 value: 'org',
                 child: Row(
                   children: [
@@ -86,6 +124,7 @@ class _AppShellState extends State<AppShell> {
                   ],
                 ),
               ),
+              const PopupMenuDivider(),
               const PopupMenuItem(
                 value: 'logout',
                 child: Row(
@@ -100,7 +139,10 @@ class _AppShellState extends State<AppShell> {
           ),
         ],
       ),
-      body: _screens[_selectedIndex],
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: _screens,
+      ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,

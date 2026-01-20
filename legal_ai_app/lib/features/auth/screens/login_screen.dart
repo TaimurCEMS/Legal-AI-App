@@ -48,7 +48,9 @@ class _LoginScreenState extends State<LoginScreen> {
       // Log to console for debugging
       debugPrint('Login Error: $errorMsg');
       
-      ScaffoldMessenger.of(context).showSnackBar(
+      // Get scaffold messenger before showing snackbar to avoid context issues
+      final scaffoldMessenger = ScaffoldMessenger.of(context);
+      scaffoldMessenger.showSnackBar(
         SnackBar(
           content: Text(
             errorMsg,
@@ -60,7 +62,9 @@ class _LoginScreenState extends State<LoginScreen> {
             label: 'Dismiss',
             textColor: Colors.white,
             onPressed: () {
-              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              if (mounted) {
+                scaffoldMessenger.hideCurrentSnackBar();
+              }
             },
           ),
         ),

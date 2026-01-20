@@ -7,6 +7,10 @@ import '../../features/auth/screens/password_reset_screen.dart';
 import '../../features/home/screens/org_selection_screen.dart';
 import '../../features/home/screens/org_create_screen.dart';
 import '../../features/home/widgets/app_shell.dart';
+import '../../features/cases/screens/case_list_screen.dart';
+import '../../features/cases/screens/case_create_screen.dart';
+import '../../features/cases/screens/case_details_screen.dart';
+import '../../features/home/screens/settings_screen.dart';
 
 /// App router configuration
 class AppRouter {
@@ -42,6 +46,26 @@ class AppRouter {
       GoRoute(
         path: RouteNames.home,
         builder: (context, state) => const AppShell(),
+      ),
+      GoRoute(
+        path: RouteNames.caseList,
+        builder: (context, state) => const CaseListScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.caseCreate,
+        builder: (context, state) => const CaseCreateScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.caseDetails,
+        builder: (context, state) {
+          final caseId = state.extra as String? ??
+              (state.uri.queryParameters['caseId'] ?? '');
+          return CaseDetailsScreen(caseId: caseId);
+        },
+      ),
+      GoRoute(
+        path: RouteNames.settings,
+        builder: (context, state) => const SettingsScreen(),
       ),
     ],
   );

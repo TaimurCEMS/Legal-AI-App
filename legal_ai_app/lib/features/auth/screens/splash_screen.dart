@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/routing/route_names.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/typography.dart';
@@ -47,9 +48,20 @@ class _SplashScreenState extends State<SplashScreen> {
       return;
     }
 
-    // User is authenticated - check if they have an org
-    // For now, we'll check if org is selected
-    // In future, we might want to fetch user's orgs here
+    // Ensure user_id is saved (in case it wasn't saved during sign in)
+    if (authProvider.currentUser != null) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user_id', authProvider.currentUser!.uid);
+    }
+
+    // User is authenticated - initialize org provider (loads saved org)
+    if (!orgProvider.isInitialized) {
+      await orgProvider.initialize();
+    }
+
+    if (!mounted) return;
+
+    // Check if they have an org (either loaded from storage or need to select)
     if (!orgProvider.hasOrg) {
       // No org selected - go to org selection
       if (mounted) {

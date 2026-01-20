@@ -2,7 +2,7 @@
 
 **Purpose:** Capture key learnings, insights, and solutions discovered during development to prevent repeating mistakes and share knowledge.
 
-**Last Updated:** 2026-01-17
+**Last Updated:** 2026-01-20
 
 ---
 
@@ -179,6 +179,309 @@
 **Files:**
 - `firestore.rules` - cases collection rules
 - `docs/SLICE_2_BUILD_CARD.md` - Section 6.2
+
+---
+
+### Learning 22: State Persistence is a First-Class Requirement, Not a Nice-to-Have
+**Date:** 2026-01-19  
+**Context:** Slice 2 - Cases and organization disappearing after refresh
+
+**Issue:**
+- Organization had to be recreated on every refresh
+- Cases list disappeared when switching tabs or refreshing
+- No explicit requirements for state persistence in build card
+- Assumed "session-only" state was acceptable
+
+**Solution:**
+- Added `SharedPreferences` for org persistence (save/load on app start)
+- Used `IndexedStack` for tab navigation to preserve widget state
+- Added explicit state persistence requirements to build card
+- Created comprehensive testing/acceptance criteria document
+- Added `user_id` persistence for org loading
+
+**Lesson:**
+- **State persistence must be explicitly specified in build cards**, not assumed
+- Always test with browser refresh (F5) - catches most persistence issues
+- Always test tab navigation - catches state preservation issues
+- Use `IndexedStack` for tab navigation to preserve state
+- Save critical state (org selection, user preferences) to `SharedPreferences`
+- Reference [Testing & Acceptance Criteria](../TESTING_ACCEPTANCE_CRITERIA.md) for every slice
+- **Don't assume "session-only" is acceptable** - ask explicitly about persistence requirements
+
+**Files:**
+- `docs/TESTING_ACCEPTANCE_CRITERIA.md` - Comprehensive testing framework
+- `docs/SLICE_2_BUILD_CARD.md` - Updated with state persistence requirements
+- `legal_ai_app/lib/features/home/providers/org_provider.dart` - Org persistence
+- `legal_ai_app/lib/features/home/widgets/app_shell.dart` - IndexedStack for tabs
+- `legal_ai_app/lib/features/auth/providers/auth_provider.dart` - User ID persistence
+
+---
+
+### Learning 23: PopupMenuButton onSelected May Not Fire for Null Values
+**Date:** 2026-01-20  
+**Context:** Slice 2 - "All statuses" filter not working after applying another filter
+
+**Issue:**
+- `PopupMenuButton` with `onSelected` callback
+- "All statuses" option has `value: null`
+- When switching from a filter (e.g., CLOSED) to "All statuses" (null), `onSelected` sometimes doesn't fire
+- Filter state gets stuck, cases don't reload
+- Multiple attempts to fix with state tracking variables didn't work
+
+**Root Cause:**
+- `PopupMenuButton.onSelected` may not reliably fire when:
+  - The value is `null`
+  - The value hasn't "changed" from Flutter's perspective
+  - The menu item is tapped but the value is already considered selected
+
+**Solution:**
+- **Always add explicit `onTap` handler** to `PopupMenuItem` for critical actions
+- Use `Future.microtask` or `Future.delayed` to ensure menu closes first
+- Create a dedicated handler method (`_handleFilterChange`) that:
+  - Updates state
+  - Resets ALL tracking variables (org, filter, search)
+  - Clears cases list
+  - Triggers reload
+- Don't rely solely on `onSelected` callback
+
+**Code Pattern:**
+```dart
+PopupMenuItem<CaseStatus?>(
+  value: null,
+  onTap: () {
+    // Explicit handler ensures it always fires
+    Future.microtask(() {
+      if (mounted) {
+        _handleFilterChange(null);
+      }
+    });
+  },
+  child: const Text('All statuses'),
+),
+```
+
+**Lesson:**
+- **Never rely solely on `onSelected` for critical state changes**
+- Always provide explicit `onTap` handlers for menu items that must work reliably
+- When a filter/action "must work", use explicit handlers, not callbacks
+- Test filter transitions thoroughly: A → B → A → All → B → All
+- **Simple solutions are better** - don't overcomplicate with multiple tracking variables
+
+**Time Lost:** ~4 hours debugging and multiple failed attempts
+
+**Files:**
+- `legal_ai_app/lib/features/cases/screens/case_list_screen.dart` - Filter handling with explicit `onTap`
+
+---
+
+### Learning 24: State Tracking Variables Can Cause More Problems Than They Solve
+**Date:** 2026-01-20  
+**Context:** Slice 2 - Cases list reload logic with multiple tracking variables
+
+**Issue:**
+- Added `_lastLoadedOrgId`, `_lastLoadedStatusFilter`, `_lastLoadedSearch` to prevent duplicate loads
+- Complex logic to detect "what changed" before reloading
+- When filter changed from CLOSED → null ("All statuses"), the change detection failed
+- Multiple attempts to fix by resetting variables in different places
+- Code became complex and hard to debug
+
+**Root Cause:**
+- Over-engineering the reload prevention logic
+- Trying to be too clever about when to reload vs when to skip
+- State tracking variables can get out of sync with actual state
+- The "optimization" of preventing duplicate loads caused more bugs than it solved
+
+**Solution:**
+- **Simplify: Reset ALL tracking variables when filter changes**
+- Don't try to be clever about detecting "what changed"
+- When user explicitly changes filter, always reload (it's a user action, not a background refresh)
+- Keep tracking variables only for preventing duplicate loads during the SAME filter/org/search combination
+- When filter changes, reset everything and reload
+
+**Code Pattern:**
+```dart
+void _handleFilterChange(CaseStatus? newStatus) {
+  setState(() {
+    _statusFilter = newStatus;
+  });
+  
+  // Reset ALL tracking - simple and reliable
+  _lastLoadedOrgId = null;
+  _lastLoadedStatusFilter = null;
+  _lastLoadedSearch = null;
+  
+  // Clear and reload
+  caseProvider.clearCases();
+  _loadInitial();
+}
+```
+
+**Lesson:**
+- **Simple solutions are better than clever optimizations**
+- When user explicitly changes something (filter, search), always reload - don't try to optimize
+- State tracking variables should prevent accidental duplicate loads, not prevent intentional reloads
+- If tracking variables cause bugs, simplify or remove them
+- **User actions should always trigger reloads** - don't try to be too smart
+
+**Time Lost:** ~6 hours debugging complex state tracking logic
+
+**Files:**
+- `legal_ai_app/lib/features/cases/screens/case_list_screen.dart` - Simplified filter change handling
+
+---
+
+### Learning 25: didChangeDependencies Can Cause Infinite Rebuild Loops
+**Date:** 2026-01-20  
+**Context:** Slice 2 - Cases list flickering and infinite loading loops
+
+**Issue:**
+- Used `context.watch<OrgProvider>()` inside `didChangeDependencies`
+- Every time provider changed, `didChangeDependencies` fired again
+- This triggered another load, which updated provider, which fired `didChangeDependencies` again
+- Result: Infinite loop, flickering UI, cases loading multiple times
+- Multiple attempts to fix with flags (`_hasLoaded`, `_isLoading`, `_isHandlingOrgChange`)
+
+**Root Cause:**
+- `didChangeDependencies` fires when:
+  - Inherited widgets change (theme, locale)
+  - Parent rebuilds
+  - Provider tree changes
+  - Provider notifies listeners
+- Using `context.watch()` inside `didChangeDependencies` creates a dependency that triggers rebuilds
+- This creates a cycle: watch → change → didChangeDependencies → watch → change
+
+**Solution:**
+- **Use `context.read()` instead of `context.watch()` in lifecycle methods**
+- Use `addListener()` pattern for reactive updates:
+  ```dart
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final orgProvider = context.read<OrgProvider>();
+      orgProvider.addListener(_onOrgChanged);
+      // Initial load
+      _checkAndLoadCases();
+    });
+  }
+  
+  void _onOrgChanged() {
+    // React to org changes
+    final org = context.read<OrgProvider>().selectedOrg;
+    if (org?.orgId != _lastLoadedOrgId) {
+      _handleOrgChange(org!.orgId);
+    }
+  }
+  ```
+- Remove `didChangeDependencies` entirely if using listener pattern
+- Use listener pattern for reactive state changes, not lifecycle methods
+
+**Lesson:**
+- **Never use `context.watch()` in `didChangeDependencies`** - it creates rebuild loops
+- Use `context.read()` for one-time reads in lifecycle methods
+- Use `addListener()` pattern for reactive updates to providers
+- **Listener pattern is cleaner than `didChangeDependencies` for provider changes**
+- Test with browser refresh (F5) - catches most lifecycle issues
+
+**Time Lost:** ~8 hours debugging infinite loops and flickering
+
+**Files:**
+- `legal_ai_app/lib/features/cases/screens/case_list_screen.dart` - Switched to listener pattern
+
+---
+
+### Learning 26: Excessive Debug Logging Slows Development
+**Date:** 2026-01-20  
+**Context:** Slice 2 - 86 debugPrint statements across codebase
+
+**Issue:**
+- Added verbose debug logging to track every step of execution
+- Logs like "START loading", "END loaded", "Change check - org: true, search: false"
+- Console flooded with logs, hard to find actual errors
+- Made debugging harder, not easier
+- Slowed down development trying to parse through logs
+
+**Solution:**
+- **Keep only error logs** - remove verbose trace logs
+- Remove logs for:
+  - Normal flow (START/END of operations)
+  - State tracking details
+  - Change detection details
+- Keep logs for:
+  - Errors and exceptions
+  - Critical state changes (org changed, auth failed)
+  - Warnings (missing data, unexpected states)
+- Reduced from 86 to 34 debug statements (60% reduction)
+- Code is cleaner and easier to debug
+
+**Lesson:**
+- **Less is more with logging** - verbose logs create noise
+- Log errors, not normal flow
+- Use structured logging if needed (log levels: ERROR, WARN, INFO, DEBUG)
+- Clean up debug logs before committing
+- **Production code should have minimal logging** - only errors and warnings
+
+**Time Lost:** ~2 hours cleaning up excessive logs
+
+**Files:**
+- All provider and screen files - reduced verbose logging
+
+---
+
+### Learning 27: Test Edge Cases Early, Not After Multiple Fixes
+**Date:** 2026-01-20  
+**Context:** Slice 2 - Filter issues discovered late in development
+
+**Issue:**
+- Implemented filter functionality
+- Tested basic flow: select filter → cases load
+- Didn't test edge cases:
+  - Filter A → Filter B → Filter A
+  - Filter A → "All statuses" → Filter B → "All statuses"
+  - Filter → Refresh → Filter
+  - Filter → Switch org → Filter
+- Discovered "All statuses" not working after multiple fixes to other issues
+- Had to debug complex state tracking that was already in place
+
+**Root Cause:**
+- Testing only "happy path" scenarios
+- Not testing filter transitions
+- Not testing edge cases early
+- Assumed if basic flow works, edge cases would work too
+
+**Solution:**
+- **Create test checklist for every feature:**
+  - Basic flow (A works)
+  - Transitions (A → B → A)
+  - Edge cases (A → null → B → null)
+  - State persistence (A → refresh → A)
+  - Context changes (A → switch org → A)
+- Test edge cases immediately after implementing feature
+- Don't move on until edge cases work
+- Document edge cases in build card
+
+**Test Checklist for Filters:**
+- [ ] Select filter → cases load correctly
+- [ ] Select filter A → Select filter B → cases update
+- [ ] Select filter → Select "All statuses" → all cases show
+- [ ] Select "All statuses" → Select filter → filtered cases show
+- [ ] Select filter → Refresh → filter persists and cases reload
+- [ ] Select filter → Switch org → filter resets, cases load for new org
+- [ ] Select filter → Search → filter + search work together
+- [ ] Select filter → Clear search → filter still works
+
+**Lesson:**
+- **Test edge cases immediately, not after "everything works"**
+- Create test checklist for every feature
+- Don't assume edge cases will work if basic flow works
+- **Edge cases are where bugs hide** - test them first
+- Document edge cases in build card acceptance criteria
+
+**Time Lost:** ~6 hours debugging edge cases that should have been tested earlier
+
+**Files:**
+- `docs/TESTING_ACCEPTANCE_CRITERIA.md` - Add filter edge case tests
 
 ---
 ### Learning 1: Firebase Callable Function Names
@@ -661,5 +964,5 @@ When you discover a new learning:
 
 ---
 
-**Last Updated:** 2026-01-17  
-**Next Review:** After Slice 2 completion
+**Last Updated:** 2026-01-20  
+**Next Review:** After Slice 3 completion

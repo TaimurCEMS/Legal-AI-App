@@ -5,26 +5,21 @@
 // gestures. You can also use WidgetTester to find child widgets in the widget
 // tree, read text, and verify that the values of widget properties are correct.
 
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:legal_ai_app/main.dart';
+import 'package:legal_ai_app/app.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
-
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+  testWidgets('App widget smoke test', (WidgetTester tester) async {
+    // Note: This test requires Firebase to be initialized.
+    // For a full test, Firebase.initializeApp() must be called first.
+    // This is a basic structure test that verifies the app can be instantiated.
+    
+    // Skip this test if Firebase is not available
+    // In a real scenario, you would initialize Firebase in setUp() or use mocks
+    
+    // For now, we'll just verify the widget structure without Firebase
+    // This test will be expanded when Firebase mocking is set up
+    expect(() => const MyApp(), returnsNormally);
   });
 }

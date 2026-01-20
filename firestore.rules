@@ -55,12 +55,12 @@ service cloud.firestore {
       allow write: if false; // Server-only via Admin SDK
     }
     
-    // cases: read-only for active members
+    // Existing top-level cases collection (legacy)
     match /cases/{caseId} {
-      allow read: if isAuthenticated() && 
+      allow read: if isAuthenticated() &&
         resource.data.orgId != null &&
         isActiveMember(resource.data.orgId);
-      allow write: if false; // Server-only via Admin SDK
+      allow write: if false;
     }
     
     // documents: read-only for active members
@@ -103,6 +103,29 @@ service cloud.firestore {
       allow write: if false; // Server-only via Admin SDK
     }
     
+    // Slice 2: Cases under organizations collection
+    // This aligns with the new Case Hub implementation.
+    function isOrgMember(orgId) {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid));
+    }
+
+    match /organizations/{orgId}/cases/{caseId} {
+      // Read: user must be org member AND
+      //   (case is ORG_WIDE OR user is creator for PRIVATE) AND
+      //   case is not soft-deleted
+      allow read: if isOrgMember(orgId) &&
+        resource.data.visibility != null &&
+        (
+          resource.data.visibility == 'ORG_WIDE' ||
+          resource.data.createdBy == request.auth.uid
+        ) &&
+        (!('deletedAt' in resource.data) || resource.data.deletedAt == null);
+
+      // All writes are via Admin SDK (Cloud Functions); deny direct client writes
+      allow create, update, delete: if false;
+    }
+
     // Default deny for all other paths
     match /{document=**} {
       allow read, write: if false;

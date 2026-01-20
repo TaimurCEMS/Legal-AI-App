@@ -7,4 +7,8 @@ class RouteNames {
   static const String orgSelection = '/org-selection';
   static const String orgCreate = '/org-create';
   static const String home = '/home';
+  static const String caseList = '/cases';
+  static const String caseCreate = '/cases/create';
+  static const String caseDetails = '/cases/details';
+  static const String settings = '/settings';
 }

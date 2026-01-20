@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/models/user_model.dart';
 
@@ -20,8 +21,25 @@ class AuthProvider with ChangeNotifier {
 
   void _init() {
     _currentUser = _authService.currentUser;
+    // Save user ID if user is already authenticated (e.g., on app restart)
+    if (_currentUser != null) {
+      SharedPreferences.getInstance().then((prefs) {
+        prefs.setString('user_id', _currentUser!.uid);
+      });
+    }
     _authService.authStateChanges.listen((user) {
       _currentUser = user;
+      // Save user ID whenever auth state changes
+      if (user != null) {
+        SharedPreferences.getInstance().then((prefs) {
+          prefs.setString('user_id', user.uid);
+        });
+      } else {
+        // Clear user ID on logout
+        SharedPreferences.getInstance().then((prefs) {
+          prefs.remove('user_id');
+        });
+      }
       notifyListeners();
     });
   }
@@ -36,6 +54,12 @@ class AuthProvider with ChangeNotifier {
         email: email,
         password: password,
       );
+
+      // Save user ID for org persistence
+      if (_currentUser != null) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('user_id', _currentUser!.uid);
+      }
 
       _isLoading = false;
       notifyListeners();
@@ -81,6 +105,12 @@ class AuthProvider with ChangeNotifier {
         password: password,
       );
 
+      // Save user ID for org persistence
+      if (_currentUser != null) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('user_id', _currentUser!.uid);
+      }
+
       _isLoading = false;
       notifyListeners();
       return true;
@@ -114,6 +144,9 @@ class AuthProvider with ChangeNotifier {
   Future<void> signOut() async {
     await _authService.signOut();
     _currentUser = null;
+    // Clear saved user ID
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('user_id');
     notifyListeners();
   }
 

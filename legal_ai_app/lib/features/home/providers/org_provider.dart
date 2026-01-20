@@ -1,4 +1,6 @@
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 import '../../../core/services/cloud_functions_service.dart';
 import '../../../core/models/org_model.dart';
 
@@ -9,12 +11,80 @@ class OrgProvider with ChangeNotifier {
   MembershipModel? _currentMembership;
   bool _isLoading = false;
   String? _errorMessage;
+  bool _isInitialized = false;
 
   OrgModel? get selectedOrg => _selectedOrg;
   MembershipModel? get currentMembership => _currentMembership;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   bool get hasOrg => _selectedOrg != null;
+  bool get isInitialized => _isInitialized;
+  
+  // List of all orgs user belongs to
+  final List<OrgModel> _userOrgs = [];
+  List<OrgModel> get userOrgs => List.unmodifiable(_userOrgs);
+
+  bool _isInitializing = false; // Guard against multiple simultaneous initializations
+  
+  /// Initialize provider - load saved org from storage
+  Future<void> initialize() async {
+    if (_isInitialized) {
+      return;
+    }
+    
+    // Prevent multiple simultaneous initializations
+    if (_isInitializing) {
+      return;
+    }
+    
+    _isInitializing = true;
+    
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final orgId = prefs.getString('selected_org_id');
+      final userId = prefs.getString('user_id');
+      
+      // Load user's org list first (this populates _userOrgs)
+      // Only load if not already loading
+      if (!_isLoadingUserOrgs && _userOrgs.isEmpty) {
+        await loadUserOrgs();
+      } else if (_userOrgs.isEmpty) {
+        // Wait for existing load to complete
+        while (_isLoadingUserOrgs) {
+          await Future.delayed(const Duration(milliseconds: 100));
+        }
+      }
+      
+      if (orgId != null && userId != null) {
+        // Verify org exists in the loaded org list before restoring
+        final orgExistsInList = _userOrgs.any((o) => o.orgId == orgId);
+        
+        if (orgExistsInList) {
+          // Org exists in list, try to load full membership details
+          final success = await getMyMembership(orgId: orgId);
+          if (success && _selectedOrg != null) {
+            _isInitialized = true;
+            notifyListeners();
+            return;
+          }
+        }
+      }
+      
+      // No saved org or failed to load - clear stale data
+      await prefs.remove('selected_org');
+      await prefs.remove('selected_org_id');
+      _selectedOrg = null;
+      _currentMembership = null;
+      _isInitialized = true;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('OrgProvider.initialize: ERROR - $e');
+      _isInitialized = true;
+      notifyListeners();
+    } finally {
+      _isInitializing = false;
+    }
+  }
 
   Future<bool> createOrg({
     required String name,
@@ -53,6 +123,12 @@ class OrgProvider with ChangeNotifier {
         // Auto-join the org
         await joinOrg(orgId: _selectedOrg!.orgId, userId: userId);
 
+        // Save to persistent storage
+        await _saveOrgToStorage(_selectedOrg!);
+        
+        // Add to user orgs list
+        _addToUserOrgsList(_selectedOrg!);
+
         _isLoading = false;
         notifyListeners();
         return true;
@@ -86,6 +162,10 @@ class OrgProvider with ChangeNotifier {
       if (response['success'] == true) {
         // Fetch membership details
         await getMyMembership(orgId: orgId);
+        // Add to user orgs list
+        if (_selectedOrg != null) {
+          _addToUserOrgsList(_selectedOrg!);
+        }
         _isLoading = false;
         notifyListeners();
         return true;
@@ -141,6 +221,12 @@ class OrgProvider with ChangeNotifier {
           joinedAt: joinedAt,
         );
 
+        // Save to persistent storage
+        await _saveOrgToStorage(_selectedOrg!);
+        
+        // Add to user orgs list
+        _addToUserOrgsList(_selectedOrg!);
+
         _isLoading = false;
         notifyListeners();
         return true;
@@ -159,14 +245,153 @@ class OrgProvider with ChangeNotifier {
   }
 
   void setSelectedOrg(OrgModel org) {
+    if (_selectedOrg?.orgId == org.orgId) {
+      // Already selected, no need to update
+      return;
+    }
+    
+    // Verify org exists in user's org list before setting (prevents ghost orgs)
+    final existsInList = _userOrgs.any((o) => o.orgId == org.orgId);
+    if (!existsInList) {
+      // Add to list if not present (user might have just created/joined it)
+      _addToUserOrgsList(org);
+    }
+    
     _selectedOrg = org;
+    _saveOrgToStorage(org);
     notifyListeners();
   }
 
   void clearOrg() {
     _selectedOrg = null;
     _currentMembership = null;
+    _clearOrgFromStorage();
     notifyListeners();
+  }
+
+  bool _isLoadingUserOrgs = false; // Guard against multiple simultaneous calls
+  
+  /// Load list of user's organizations from Firebase
+  Future<void> loadUserOrgs() async {
+    // Prevent multiple simultaneous calls
+    if (_isLoadingUserOrgs) {
+      return;
+    }
+    
+    _isLoadingUserOrgs = true;
+    
+    try {
+      _isLoading = true;
+      _errorMessage = null;
+      notifyListeners();
+      try {
+        final response = await _functionsService.listMyOrgs();
+        
+        if (response['success'] == true && response['data'] != null) {
+        final data = response['data'] as Map<String, dynamic>;
+        final orgsList = data['orgs'] as List<dynamic>? ?? [];
+        
+        _userOrgs.clear();
+        
+        for (final orgData in orgsList) {
+          try {
+            final orgMap = orgData as Map<String, dynamic>;
+            
+            // Parse joinedAt if available
+            DateTime createdAt;
+            if (orgMap['joinedAt'] != null && orgMap['joinedAt'] is String) {
+              createdAt = DateTime.parse(orgMap['joinedAt'] as String);
+            } else {
+              createdAt = DateTime.now();
+            }
+            
+            final org = OrgModel(
+              orgId: orgMap['orgId'] as String,
+              name: orgMap['name'] as String,
+              description: orgMap['description'] as String?,
+              plan: orgMap['plan'] as String? ?? 'FREE',
+              createdAt: createdAt,
+              createdBy: '', // Not available from list
+            );
+            
+            _userOrgs.add(org);
+          } catch (e) {
+            // Log parse errors but continue with other orgs
+            debugPrint('OrgProvider.loadUserOrgs: Failed to parse org: $e');
+          }
+        }
+        
+        // Save org IDs to local storage for quick access
+        await _saveUserOrgsList();
+        } else {
+          _errorMessage = response['error']?['message'] ?? 'Failed to load organizations';
+          _userOrgs.clear();
+        }
+      } catch (e) {
+        // If function doesn't exist, show helpful error
+        if (e.toString().contains('not-found') || e.toString().contains('memberListMyOrgs')) {
+          _errorMessage = 'Backend function not deployed. Please deploy memberListMyOrgs function.';
+        } else if (e.toString().contains('index') || e.toString().contains('FAILED_PRECONDITION')) {
+          _errorMessage = 'Firestore index required. Please create index in Firebase Console for collection group "members" on field "uid". See FIREBASE_INDEX_SETUP.md for instructions.';
+        } else {
+          _errorMessage = e.toString();
+        }
+        _userOrgs.clear();
+      }
+      
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('OrgProvider.loadUserOrgs: ERROR - $e');
+      _errorMessage = e.toString();
+      _userOrgs.clear();
+      _isLoading = false;
+      notifyListeners();
+    } finally {
+      _isLoadingUserOrgs = false;
+    }
+  }
+
+  void _addToUserOrgsList(OrgModel org) {
+    if (!_userOrgs.any((o) => o.orgId == org.orgId)) {
+      _userOrgs.add(org);
+      _saveUserOrgsList();
+      notifyListeners();
+    }
+  }
+
+  Future<void> _saveUserOrgsList() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final orgIds = _userOrgs.map((o) => o.orgId).toList();
+      await prefs.setString('user_org_ids', jsonEncode(orgIds));
+    } catch (e) {
+      debugPrint('OrgProvider._saveUserOrgsList error: $e');
+    }
+  }
+
+  Future<void> _saveOrgToStorage(OrgModel org) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('selected_org_id', org.orgId);
+      await prefs.setString('selected_org', jsonEncode({
+        'orgId': org.orgId,
+        'name': org.name,
+        'plan': org.plan,
+      }));
+    } catch (e) {
+      debugPrint('OrgProvider._saveOrgToStorage error: $e');
+    }
+  }
+
+  Future<void> _clearOrgFromStorage() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('selected_org');
+      await prefs.remove('selected_org_id');
+    } catch (e) {
+      debugPrint('OrgProvider._clearOrgFromStorage error: $e');
+    }
   }
 
   void clearError() {

@@ -11,7 +11,9 @@ Legal AI App/
 │   ├── reports/            # Test results, cleanup reports
 │   ├── slices/             # Slice implementation details
 │   ├── MASTER_SPEC V1.3.2.md  # Master specification (source of truth)
-│   └── SLICE_0_BUILD_CARD.md  # Slice 0 build card
+│   ├── SLICE_0_BUILD_CARD.md  # Slice 0 build card
+│   ├── SLICE_1_BUILD_CARD.md  # Slice 1 build card
+│   └── SLICE_2_BUILD_CARD.md  # Slice 2 build card
 ├── scripts/                 # Utility scripts
 │   ├── dev/                # Development scripts (git, commits)
 │   └── ops/                # Operations scripts (deployment, checks)
@@ -54,6 +56,8 @@ firebase deploy --only functions
 
 ### Build Cards
 - **[Slice 0 Build Card](docs/SLICE_0_BUILD_CARD.md)** - Slice 0 implementation details
+- **[Slice 1 Build Card](docs/SLICE_1_BUILD_CARD.md)** - Slice 1 implementation details
+- **[Slice 2 Build Card](docs/SLICE_2_BUILD_CARD.md)** - Slice 2 implementation details
 
 ### Reports
 - **[Cleanup Report](docs/reports/CLEANUP_REPORT.md)** - Slice 0 cleanup and hardening
@@ -117,10 +121,11 @@ See [Slice Status](docs/status/SLICE_STATUS.md) for details.
   - Theme system & reusable widgets
 - **Tests:** ✅ All passing
 
-### Next: Slice 2
-- Case Hub
-- Case management UI
-- Case-client relationships
+### Slice 2: Case Hub 🔄 IN PROGRESS
+- **Status:** 90% Complete
+- **Backend:** ✅ All 5 functions deployed
+- **Frontend:** ✅ All screens implemented
+- **See:** [Slice 2 Build Card](docs/SLICE_2_BUILD_CARD.md) for details
 
 ## 🔐 Security
 
