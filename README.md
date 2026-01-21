@@ -58,15 +58,20 @@ firebase deploy --only functions
 - **[Slice 0 Build Card](docs/SLICE_0_BUILD_CARD.md)** - Slice 0 implementation details
 - **[Slice 1 Build Card](docs/SLICE_1_BUILD_CARD.md)** - Slice 1 implementation details
 - **[Slice 2 Build Card](docs/SLICE_2_BUILD_CARD.md)** - Slice 2 implementation details
+- **[Slice 3 Build Card](docs/SLICE_3_BUILD_CARD.md)** - Slice 3 implementation details
 
 ### Reports
 - **[Cleanup Report](docs/reports/CLEANUP_REPORT.md)** - Slice 0 cleanup and hardening
 - **[Test Results](docs/reports/TEST_SLICE_0.md)** - Testing guide and results
+- **[Slice 2 Completion Report](docs/reports/SLICE_2_COMPLETION_REPORT.md)** - Slice 2 completion summary
+- **[Slice 3 Completion Report](docs/reports/SLICE_3_COMPLETION_REPORT.md)** - Slice 3 completion summary
 
 ### Implementation Details
 - **[Slice 0 Complete](docs/slices/SLICE_0_COMPLETE.md)** - Slice 0 implementation summary
 - **[Slice 0 Implementation](docs/slices/SLICE_0_IMPLEMENTATION.md)** - Detailed implementation notes
 - **[Slice 1 Complete](docs/slices/SLICE_1_COMPLETE.md)** - Slice 1 implementation summary
+- **[Slice 2 Complete](docs/slices/SLICE_2_COMPLETE.md)** - Slice 2 implementation summary
+- **[Slice 3 Complete](docs/slices/SLICE_3_COMPLETE.md)** - Slice 3 implementation summary
 
 ### Development Learnings
 - **[Development Learnings](docs/DEVELOPMENT_LEARNINGS.md)** - Key learnings, insights, and solutions discovered during development
@@ -121,11 +126,18 @@ See [Slice Status](docs/status/SLICE_STATUS.md) for details.
   - Theme system & reusable widgets
 - **Tests:** ✅ All passing
 
-### Slice 2: Case Hub 🔄 IN PROGRESS
-- **Status:** 90% Complete
+### Slice 2: Case Hub ✅ COMPLETE
+- **Status:** Complete & Deployed
 - **Backend:** ✅ All 5 functions deployed
 - **Frontend:** ✅ All screens implemented
 - **See:** [Slice 2 Build Card](docs/SLICE_2_BUILD_CARD.md) for details
+
+### Slice 3: Client Hub ✅ COMPLETE
+- **Status:** Complete & Deployed
+- **Backend:** ✅ All 5 functions deployed
+- **Frontend:** ✅ All screens implemented
+- **Features:** Client management, search, client-case linking
+- **See:** [Slice 3 Build Card](docs/SLICE_3_BUILD_CARD.md) for details
 
 ## 🔐 Security
 
@@ -140,6 +152,6 @@ Proprietary - All rights reserved
 
 ---
 
-**Last Updated:** 2026-01-17  
+**Last Updated:** 2026-01-20  
 **Project:** legal-ai-app-1203e  
 **Region:** us-central1

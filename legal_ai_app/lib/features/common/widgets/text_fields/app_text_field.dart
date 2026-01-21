@@ -20,6 +20,7 @@ class AppTextField extends StatefulWidget {
   final void Function(String)? onChanged;
   final void Function()? onTap;
   final FocusNode? focusNode;
+  final TextInputAction? textInputAction;
 
   const AppTextField({
     super.key,
@@ -38,6 +39,7 @@ class AppTextField extends StatefulWidget {
     this.onChanged,
     this.onTap,
     this.focusNode,
+    this.textInputAction,
   });
 
   @override
@@ -86,6 +88,7 @@ class _AppTextFieldState extends State<AppTextField> {
           enabled: widget.enabled,
           onChanged: widget.onChanged,
           onTap: widget.onTap,
+          textInputAction: widget.textInputAction,
           decoration: InputDecoration(
             hintText: widget.hint,
             prefixIcon: widget.prefixIcon,

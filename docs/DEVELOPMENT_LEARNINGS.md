@@ -964,5 +964,199 @@ When you discover a new learning:
 
 ---
 
+---
+
+### Learning 28: In-Memory Search is Better for MVP Than Firestore Range Queries
+**Date:** 2026-01-20  
+**Context:** Slice 3 - Client search failing due to missing Firestore index
+
+**Issue:**
+- Implemented client search using Firestore range queries (`name >= X AND name <= Y`)
+- Required composite index: `deletedAt ASC, name ASC, updatedAt DESC`
+- Index was deployed but still building (can take minutes)
+- Search failed with "Firestore index required" error
+- User couldn't test search functionality
+
+**Root Cause:**
+- Firestore indexes take time to build (especially for collections with existing data)
+- Range queries on string fields require composite indexes
+- No way to know when index is ready without testing
+- Blocks development and testing
+
+**Solution:**
+- **Switch to in-memory filtering** (same pattern as case search):
+  ```typescript
+  // Fetch all clients (with reasonable limit)
+  const snapshot = await query.limit(1000).get();
+  
+  // Filter in-memory
+  if (search) {
+    const searchTerm = search.trim().toLowerCase();
+    allClients = allClients.filter((client) =>
+      client.name.toLowerCase().includes(searchTerm)
+    );
+  }
+  ```
+- Works immediately, no index wait
+- More flexible (contains search, not just prefix)
+- Case-insensitive by default
+- Better for MVP (most orgs have <1000 clients)
+
+**Lesson:**
+- **For MVP, in-memory search is better than Firestore range queries**
+- Works immediately, no deployment wait
+- More flexible and user-friendly
+- Can optimize later if needed (Algolia, full-text search)
+- **Don't block on index building** - use in-memory for MVP
+- Document the trade-off: in-memory works for <1000 items, optimize later if needed
+
+**Time Saved:** Immediate functionality vs waiting for index build
+
+**Files:**
+- `functions/src/functions/client.ts` - `clientList` with in-memory search
+
+---
+
+### Learning 29: Unique heroTag Required for FABs in IndexedStack
+**Date:** 2026-01-20  
+**Context:** Slice 3 - "Multiple heroes" error when switching tabs
+
+**Issue:**
+- Both `CaseListScreen` and `ClientListScreen` use `FloatingActionButton.extended`
+- Both screens in `IndexedStack` (tab navigation)
+- Error: "There are multiple heroes that share the same tag within a subtree"
+- Error appeared when switching between Cases and Clients tabs
+
+**Root Cause:**
+- Flutter Hero widgets require unique tags when multiple FABs exist in the widget tree
+- `IndexedStack` keeps all screens mounted, so both FABs exist simultaneously
+- Default FAB doesn't have explicit `heroTag`, causing conflicts
+
+**Solution:**
+- **Add unique `heroTag` to each FAB:**
+  ```dart
+  FloatingActionButton.extended(
+    heroTag: 'case_fab',  // Unique for CaseListScreen
+    onPressed: () { ... },
+    label: const Text('New Case'),
+  )
+  
+  FloatingActionButton.extended(
+    heroTag: 'client_fab',  // Unique for ClientListScreen
+    onPressed: () { ... },
+    label: const Text('New Client'),
+  )
+  ```
+
+**Lesson:**
+- **Always add unique `heroTag` to FABs when using IndexedStack**
+- Each FAB in the app needs a unique tag
+- Prevents "multiple heroes" errors
+- Simple fix, but easy to miss
+
+**Files:**
+- `legal_ai_app/lib/features/cases/screens/case_list_screen.dart` - `heroTag: 'case_fab'`
+- `legal_ai_app/lib/features/clients/screens/client_list_screen.dart` - `heroTag: 'client_fab'`
+
+---
+
+### Learning 30: Store Provider References Before super.dispose()
+**Date:** 2026-01-20  
+**Context:** Slice 3 - "Looking up a deactivated widget's ancestor is unsafe" error
+
+**Issue:**
+- Error in `dispose()` method when removing listener from provider
+- Error: "Looking up a deactivated widget's ancestor is unsafe"
+- Occurred in both `CaseListScreen` and `ClientListScreen`
+- Stack trace showed error in `context.read<OrgProvider>()` call
+
+**Root Cause:**
+- `super.dispose()` is called, which deactivates the widget
+- After `super.dispose()`, the widget's context is no longer valid
+- Trying to access `context.read<OrgProvider>()` after deactivation fails
+- The listener removal needs the provider, but context is gone
+
+**Solution:**
+- **Store provider reference BEFORE calling `super.dispose()`:**
+  ```dart
+  @override
+  void dispose() {
+    // Store provider reference while context is still valid
+    final orgProvider = context.read<OrgProvider>();
+    orgProvider.removeListener(_onOrgChanged);
+    
+    // Now safe to call super.dispose()
+    super.dispose();
+    
+    // Clean up other resources
+    _searchController.dispose();
+    _searchDebounce?.cancel();
+  }
+  ```
+
+**Lesson:**
+- **Always store provider references before `super.dispose()`**
+- Context becomes invalid after `super.dispose()`
+- Any `context.read()` or `context.watch()` calls after `super.dispose()` will fail
+- Store references early, use them after disposal
+- This pattern applies to any context-dependent cleanup
+
+**Files:**
+- `legal_ai_app/lib/features/cases/screens/case_list_screen.dart` - Fixed dispose
+- `legal_ai_app/lib/features/clients/screens/client_list_screen.dart` - Fixed dispose
+
+---
+
+### Learning 31: Immediate UI Updates for Related Data
+**Date:** 2026-01-20  
+**Context:** Slice 3 - Client name update not reflected in case list until refresh
+
+**Issue:**
+- User updates client name in `ClientDetailsScreen`
+- Case list still shows old client name
+- Had to refresh browser to see updated name
+- Poor user experience
+
+**Root Cause:**
+- `CaseModel` stores `clientName` as a field (denormalized for performance)
+- When client is updated, case list cache still has old name
+- No mechanism to update case list when client changes
+- Cases are loaded separately from clients
+
+**Solution:**
+- **Add method to update client names in cached cases:**
+  ```dart
+  // In CaseProvider
+  void updateClientName(String clientId, String newName) {
+    // Update all cases with this clientId
+    for (int i = 0; i < _cases.length; i++) {
+      if (_cases[i].clientId == clientId) {
+        _cases[i] = CaseModel(/* ... with updated clientName */);
+      }
+    }
+    // Update selected case if affected
+    if (_selectedCase?.clientId == clientId) {
+      _selectedCase = CaseModel(/* ... with updated clientName */);
+    }
+    notifyListeners();
+  }
+  
+  // In ClientDetailsScreen, after successful update
+  context.read<CaseProvider>().updateClientName(widget.clientId, _nameController.text.trim());
+  ```
+
+**Lesson:**
+- **Update related data immediately when it changes**
+- Don't wait for refresh or reload
+- Denormalized data needs manual updates
+- Better UX - users see changes immediately
+- **Think about data relationships** - what else needs updating?
+
+**Files:**
+- `legal_ai_app/lib/features/cases/providers/case_provider.dart` - `updateClientName` method
+- `legal_ai_app/lib/features/clients/screens/client_details_screen.dart` - Call after update
+
+---
+
 **Last Updated:** 2026-01-20  
-**Next Review:** After Slice 3 completion
+**Next Review:** After Slice 4 completion

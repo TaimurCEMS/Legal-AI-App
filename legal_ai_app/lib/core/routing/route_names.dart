@@ -10,5 +10,8 @@ class RouteNames {
   static const String caseList = '/cases';
   static const String caseCreate = '/cases/create';
   static const String caseDetails = '/cases/details';
+  static const String clientList = '/clients';
+  static const String clientCreate = '/clients/create';
+  static const String clientDetails = '/clients/details';
   static const String settings = '/settings';
 }

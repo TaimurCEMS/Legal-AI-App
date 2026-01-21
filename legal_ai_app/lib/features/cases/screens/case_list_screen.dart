@@ -30,6 +30,7 @@ class _CaseListScreenState extends State<CaseListScreen> {
   String? _lastLoadedOrgId; // Track which org we loaded cases for (prevents reload loops)
   CaseStatus? _lastLoadedStatusFilter; // Track last loaded filter to detect changes
   String? _lastLoadedSearch; // Track last loaded search to detect changes
+  OrgProvider? _orgProvider; // Store reference for safe disposal
 
   @override
   void initState() {
@@ -41,10 +42,10 @@ class _CaseListScreenState extends State<CaseListScreen> {
     // Listen to OrgProvider changes - simple reactive approach
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final orgProvider = context.read<OrgProvider>();
+      _orgProvider = context.read<OrgProvider>();
       
       // Set up listener for org changes
-      orgProvider.addListener(_onOrgChanged);
+      _orgProvider!.addListener(_onOrgChanged);
       
       // Initial load if org is already available
       _checkAndLoadCases();
@@ -72,8 +73,7 @@ class _CaseListScreenState extends State<CaseListScreen> {
   @override
   void dispose() {
     // Remove listener to prevent memory leaks
-    final orgProvider = context.read<OrgProvider>();
-    orgProvider.removeListener(_onOrgChanged);
+    _orgProvider?.removeListener(_onOrgChanged);
     _searchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
@@ -303,6 +303,7 @@ class _CaseListScreenState extends State<CaseListScreen> {
 
     return Scaffold(
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'case_fab',
         onPressed: () {
           context.push(RouteNames.caseCreate);
         },

@@ -7,6 +7,7 @@ import '../../../core/theme/typography.dart';
 import '../../../core/theme/spacing.dart';
 import '../screens/home_screen.dart';
 import '../../cases/screens/case_list_screen.dart';
+import '../../clients/screens/client_list_screen.dart';
 import '../providers/org_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 
@@ -25,7 +26,7 @@ class _AppShellState extends State<AppShell> {
   final List<Widget> _screens = [
     const HomeScreen(),
     const CaseListScreen(),
-    const PlaceholderScreen(title: 'Clients'),
+    const ClientListScreen(),
     const PlaceholderScreen(title: 'Documents'),
   ];
 

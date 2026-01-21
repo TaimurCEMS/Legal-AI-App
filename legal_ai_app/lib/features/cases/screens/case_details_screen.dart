@@ -10,6 +10,8 @@ import '../../../features/common/widgets/error_message.dart';
 import '../../../features/common/widgets/loading/loading_spinner.dart';
 import '../../home/providers/org_provider.dart';
 import '../providers/case_provider.dart';
+import '../../clients/providers/client_provider.dart';
+import '../../../core/models/client_model.dart';
 
 class CaseDetailsScreen extends StatefulWidget {
   final String caseId;
@@ -26,6 +28,8 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
   final _descriptionController = TextEditingController();
   CaseVisibility _visibility = CaseVisibility.orgWide;
   CaseStatus _status = CaseStatus.open;
+  String? _selectedClientId;
+  bool _loadingClients = false;
   bool _editing = false;
   bool _loading = true;
   bool _saving = false;
@@ -36,7 +40,26 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadDetails();
+      _loadClients();
     });
+  }
+
+  Future<void> _loadClients() async {
+    final org = context.read<OrgProvider>().selectedOrg;
+    if (org == null) return;
+
+    setState(() {
+      _loadingClients = true;
+    });
+
+    final clientProvider = context.read<ClientProvider>();
+    await clientProvider.loadClients(org: org);
+
+    if (mounted) {
+      setState(() {
+        _loadingClients = false;
+      });
+    }
   }
 
   Future<void> _loadDetails() async {
@@ -73,6 +96,7 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
       _descriptionController.text = model.description ?? '';
       _visibility = model.visibility;
       _status = model.status;
+      _selectedClientId = model.clientId;
     });
   }
 
@@ -96,6 +120,7 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
       description: _descriptionController.text.trim(),
       visibility: _visibility,
       status: _status,
+      clientId: _selectedClientId,
     );
 
     if (!mounted) return;
@@ -245,6 +270,13 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
                         ),
                         const SizedBox(height: AppSpacing.md),
                         Text(
+                          'Client (optional)',
+                          style: AppTypography.titleMedium,
+                        ),
+                        const SizedBox(height: AppSpacing.xs),
+                        _buildClientDropdown(),
+                        const SizedBox(height: AppSpacing.md),
+                        Text(
                           'Visibility',
                           style: AppTypography.titleMedium,
                         ),
@@ -330,6 +362,46 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
                 ),
               ),
       ),
+    );
+  }
+
+  Widget _buildClientDropdown() {
+    final clientProvider = context.watch<ClientProvider>();
+
+    if (_loadingClients) {
+      return const SizedBox(
+        height: 56,
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final clients = clientProvider.clients;
+
+    return DropdownButtonFormField<String>(
+      value: _selectedClientId,
+      decoration: const InputDecoration(
+        hintText: 'Select a client (optional)',
+        border: OutlineInputBorder(),
+      ),
+      items: [
+        const DropdownMenuItem<String>(
+          value: null,
+          child: Text('No client'),
+        ),
+        ...clients.map((client) {
+          return DropdownMenuItem<String>(
+            value: client.clientId,
+            child: Text(client.name),
+          );
+        }),
+      ],
+      onChanged: _editing && !_saving
+          ? (value) {
+              setState(() {
+                _selectedClientId = value;
+              });
+            }
+          : null,
     );
   }
 }

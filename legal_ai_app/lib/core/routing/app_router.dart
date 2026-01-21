@@ -10,6 +10,9 @@ import '../../features/home/widgets/app_shell.dart';
 import '../../features/cases/screens/case_list_screen.dart';
 import '../../features/cases/screens/case_create_screen.dart';
 import '../../features/cases/screens/case_details_screen.dart';
+import '../../features/clients/screens/client_list_screen.dart';
+import '../../features/clients/screens/client_create_screen.dart';
+import '../../features/clients/screens/client_details_screen.dart';
 import '../../features/home/screens/settings_screen.dart';
 
 /// App router configuration
@@ -66,6 +69,22 @@ class AppRouter {
       GoRoute(
         path: RouteNames.settings,
         builder: (context, state) => const SettingsScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.clientList,
+        builder: (context, state) => const ClientListScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.clientCreate,
+        builder: (context, state) => const ClientCreateScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.clientDetails,
+        builder: (context, state) {
+          final clientId = state.extra as String? ??
+              (state.uri.queryParameters['clientId'] ?? '');
+          return ClientDetailsScreen(clientId: clientId);
+        },
       ),
     ],
   );

@@ -9,6 +9,8 @@ import '../../../features/common/widgets/text_fields/app_text_field.dart';
 import '../../../features/common/widgets/error_message.dart';
 import '../../home/providers/org_provider.dart';
 import '../providers/case_provider.dart';
+import '../../clients/providers/client_provider.dart';
+import '../../../core/models/client_model.dart';
 
 class CaseCreateScreen extends StatefulWidget {
   const CaseCreateScreen({super.key});
@@ -22,9 +24,37 @@ class _CaseCreateScreenState extends State<CaseCreateScreen> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   CaseVisibility _visibility = CaseVisibility.orgWide;
+  String? _selectedClientId;
+  bool _loadingClients = false;
 
   bool _submitting = false;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadClients();
+    });
+  }
+
+  Future<void> _loadClients() async {
+    final org = context.read<OrgProvider>().selectedOrg;
+    if (org == null) return;
+
+    setState(() {
+      _loadingClients = true;
+    });
+
+    final clientProvider = context.read<ClientProvider>();
+    await clientProvider.loadClients(org: org);
+
+    if (mounted) {
+      setState(() {
+        _loadingClients = false;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -58,6 +88,7 @@ class _CaseCreateScreenState extends State<CaseCreateScreen> {
           ? null
           : _descriptionController.text.trim(),
       visibility: _visibility,
+      clientId: _selectedClientId,
     );
 
     if (!mounted) return;
@@ -116,6 +147,13 @@ class _CaseCreateScreenState extends State<CaseCreateScreen> {
                     return null;
                   },
                 ),
+                const SizedBox(height: AppSpacing.md),
+                Text(
+                  'Client (optional)',
+                  style: AppTypography.titleMedium,
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                _buildClientDropdown(),
                 const SizedBox(height: AppSpacing.md),
                 Text(
                   'Visibility',
@@ -180,6 +218,44 @@ class _CaseCreateScreenState extends State<CaseCreateScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildClientDropdown() {
+    final clientProvider = context.watch<ClientProvider>();
+
+    if (_loadingClients) {
+      return const SizedBox(
+        height: 56,
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final clients = clientProvider.clients;
+
+    return DropdownButtonFormField<String>(
+      value: _selectedClientId,
+      decoration: const InputDecoration(
+        hintText: 'Select a client (optional)',
+        border: OutlineInputBorder(),
+      ),
+      items: [
+        const DropdownMenuItem<String>(
+          value: null,
+          child: Text('No client'),
+        ),
+        ...clients.map((client) {
+          return DropdownMenuItem<String>(
+            value: client.clientId,
+            child: Text(client.name),
+          );
+        }),
+      ],
+      onChanged: (value) {
+        setState(() {
+          _selectedClientId = value;
+        });
+      },
     );
   }
 }

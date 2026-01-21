@@ -239,6 +239,57 @@ class CaseProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  /// Update client name for all cases with the given clientId
+  /// This is called when a client's name is updated to immediately reflect the change
+  void updateClientName(String clientId, String newName) {
+    bool updated = false;
+    for (int i = 0; i < _cases.length; i++) {
+      if (_cases[i].clientId == clientId) {
+        // Create a new CaseModel with updated clientName
+        _cases[i] = CaseModel(
+          caseId: _cases[i].caseId,
+          orgId: _cases[i].orgId,
+          title: _cases[i].title,
+          description: _cases[i].description,
+          clientId: _cases[i].clientId,
+          clientName: newName,
+          visibility: _cases[i].visibility,
+          status: _cases[i].status,
+          createdAt: _cases[i].createdAt,
+          updatedAt: _cases[i].updatedAt,
+          createdBy: _cases[i].createdBy,
+          updatedBy: _cases[i].updatedBy,
+          deletedAt: _cases[i].deletedAt,
+        );
+        updated = true;
+      }
+    }
+    
+    // Also update selected case if it matches
+    if (_selectedCase?.clientId == clientId) {
+      _selectedCase = CaseModel(
+        caseId: _selectedCase!.caseId,
+        orgId: _selectedCase!.orgId,
+        title: _selectedCase!.title,
+        description: _selectedCase!.description,
+        clientId: _selectedCase!.clientId,
+        clientName: newName,
+        visibility: _selectedCase!.visibility,
+        status: _selectedCase!.status,
+        createdAt: _selectedCase!.createdAt,
+        updatedAt: _selectedCase!.updatedAt,
+        createdBy: _selectedCase!.createdBy,
+        updatedBy: _selectedCase!.updatedBy,
+        deletedAt: _selectedCase!.deletedAt,
+      );
+      updated = true;
+    }
+    
+    if (updated) {
+      notifyListeners();
+    }
+  }
+
   /// Clear all cases (used when switching organizations)
   void clearCases() {
     _cases.clear();
