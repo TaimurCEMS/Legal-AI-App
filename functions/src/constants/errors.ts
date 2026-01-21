@@ -11,6 +11,7 @@ export enum ErrorCode {
   NOT_FOUND = 'NOT_FOUND',
   INTERNAL_ERROR = 'INTERNAL_ERROR',
   RATE_LIMITED = 'RATE_LIMITED',
+  CONFLICT = 'CONFLICT',
 }
 
 export const ERROR_MESSAGES: Record<ErrorCode, string> = {
@@ -21,6 +22,7 @@ export const ERROR_MESSAGES: Record<ErrorCode, string> = {
   [ErrorCode.NOT_FOUND]: 'Resource not found',
   [ErrorCode.INTERNAL_ERROR]: 'An internal error occurred',
   [ErrorCode.RATE_LIMITED]: 'Too many requests. Please try again later.',
+  [ErrorCode.CONFLICT]: 'Operation conflicts with existing data',
 };
 
 export function getErrorMessage(code: ErrorCode, customMessage?: string): string {
