@@ -13,6 +13,9 @@ export enum ErrorCode {
   RATE_LIMITED = 'RATE_LIMITED',
   CONFLICT = 'CONFLICT',
   SAFETY_ERROR = 'SAFETY_ERROR',
+  INVALID_STATUS_TRANSITION = 'INVALID_STATUS_TRANSITION',
+  INVALID_DUE_DATE = 'INVALID_DUE_DATE',
+  ASSIGNEE_NOT_MEMBER = 'ASSIGNEE_NOT_MEMBER',
 }
 
 export const ERROR_MESSAGES: Record<ErrorCode, string> = {
@@ -25,6 +28,9 @@ export const ERROR_MESSAGES: Record<ErrorCode, string> = {
   [ErrorCode.RATE_LIMITED]: 'Too many requests. Please try again later.',
   [ErrorCode.CONFLICT]: 'Operation conflicts with existing data',
   [ErrorCode.SAFETY_ERROR]: 'Safety check failed',
+  [ErrorCode.INVALID_STATUS_TRANSITION]: 'Invalid status transition',
+  [ErrorCode.INVALID_DUE_DATE]: 'Due date must be today or in the future',
+  [ErrorCode.ASSIGNEE_NOT_MEMBER]: 'Assignee must be a member of the organization',
 };
 
 export function getErrorMessage(code: ErrorCode, customMessage?: string): string {

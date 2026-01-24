@@ -20,3 +20,6 @@ export { clientCreate, clientGet, clientList, clientUpdate, clientDelete } from 
 
 // Export Slice 4 - Document Hub callable functions
 export { documentCreate, documentGet, documentList, documentUpdate, documentDelete } from './functions/document';
+
+// Export Slice 5 - Task Hub callable functions
+export { taskCreate, taskGet, taskList, taskUpdate, taskDelete } from './functions/task';

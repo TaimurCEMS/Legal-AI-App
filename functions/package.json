@@ -12,6 +12,8 @@
     "logs": "firebase functions:log",
     "test": "jest",
     "test:slice0": "npm run build && node lib/__tests__/slice0-terminal-test.js",
+    "test:task": "npm run build && node lib/__tests__/task-terminal-test.js",
+    "verify:task": "npm run build && node lib/verify-task-functions.js",
     "verify": "node verify-functions.js"
   },
   "engines": {

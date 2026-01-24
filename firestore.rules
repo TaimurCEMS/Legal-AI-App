@@ -159,6 +159,16 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Slice 5: Tasks under organizations collection
+    match /organizations/{orgId}/tasks/{taskId} {
+      // Read: org members can read non-deleted tasks
+      allow read: if isOrgMember(orgId) &&
+        (!('deletedAt' in resource.data) || resource.data.deletedAt == null);
+
+      // All writes are via Admin SDK (Cloud Functions); deny direct client writes
+      allow create, update, delete: if false;
+    }
+
     // Default deny for all other paths
     match /{document=**} {
       allow read, write: if false;

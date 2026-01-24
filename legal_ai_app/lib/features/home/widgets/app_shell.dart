@@ -10,11 +10,13 @@ import '../screens/home_screen.dart';
 import '../../cases/screens/case_list_screen.dart';
 import '../../clients/screens/client_list_screen.dart';
 import '../../documents/screens/document_list_screen.dart';
+import '../../tasks/screens/task_list_screen.dart';
 import '../providers/org_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../cases/providers/case_provider.dart';
 import '../../clients/providers/client_provider.dart';
 import '../../documents/providers/document_provider.dart';
+import '../../tasks/providers/task_provider.dart';
 import '../providers/member_provider.dart';
 
 /// Main app shell with navigation
@@ -34,6 +36,7 @@ class _AppShellState extends State<AppShell> {
     const CaseListScreen(),
     const ClientListScreen(),
     const DocumentListScreen(),
+    const TaskListScreen(),
   ];
 
   void _onItemTapped(int index) {
@@ -77,12 +80,14 @@ class _AppShellState extends State<AppShell> {
       final caseProvider = context.read<CaseProvider>();
       final clientProvider = context.read<ClientProvider>();
       final documentProvider = context.read<DocumentProvider>();
+      final taskProvider = context.read<TaskProvider>();
       final memberProvider = context.read<MemberProvider>();
       
       orgProvider.clearOrg();
       caseProvider.clearCases();
       clientProvider.clearClients();
       documentProvider.clearDocuments();
+      taskProvider.clearTasks();
       memberProvider.clearMembers();
       
       // Re-initialize org provider for new user
@@ -98,12 +103,14 @@ class _AppShellState extends State<AppShell> {
       final caseProvider = context.read<CaseProvider>();
       final clientProvider = context.read<ClientProvider>();
       final documentProvider = context.read<DocumentProvider>();
+      final taskProvider = context.read<TaskProvider>();
       final memberProvider = context.read<MemberProvider>();
       
       orgProvider.clearOrg();
       caseProvider.clearCases();
       clientProvider.clearClients();
       documentProvider.clearDocuments();
+      taskProvider.clearTasks();
       memberProvider.clearMembers();
     }
     
@@ -239,6 +246,11 @@ class _AppShellState extends State<AppShell> {
             activeIcon: Icon(Icons.description),
             label: 'Documents',
           ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.task_outlined),
+            activeIcon: Icon(Icons.task),
+            label: 'Tasks',
+          ),
         ],
       ),
     );
@@ -253,12 +265,14 @@ class _AppShellState extends State<AppShell> {
     final caseProvider = context.read<CaseProvider>();
     final clientProvider = context.read<ClientProvider>();
     final documentProvider = context.read<DocumentProvider>();
+    final taskProvider = context.read<TaskProvider>();
     
     // Clear all state
     orgProvider.clearOrg();
     caseProvider.clearCases();
     clientProvider.clearClients();
     documentProvider.clearDocuments();
+    taskProvider.clearTasks();
     
     // Then sign out
     await authProvider.signOut();

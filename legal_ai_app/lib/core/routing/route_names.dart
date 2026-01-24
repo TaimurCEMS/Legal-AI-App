@@ -16,6 +16,9 @@ class RouteNames {
   static const String documentList = '/documents';
   static const String documentUpload = '/documents/upload';
   static const String documentDetails = '/documents/details';
+  static const String taskList = '/tasks';
+  static const String taskCreate = '/tasks/create';
+  static const String taskDetails = '/tasks/details';
   static const String settings = '/settings';
   static const String memberManagement = '/settings/team-members';
 }

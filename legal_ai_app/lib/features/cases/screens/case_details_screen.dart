@@ -16,6 +16,8 @@ import '../../clients/providers/client_provider.dart';
 import '../../../core/models/client_model.dart';
 import '../../documents/providers/document_provider.dart';
 import '../../../core/models/document_model.dart';
+import '../../tasks/providers/task_provider.dart';
+import '../../../core/models/task_model.dart';
 import '../../../core/routing/route_names.dart';
 import 'package:go_router/go_router.dart';
 
@@ -37,14 +39,13 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
   String? _selectedClientId;
   bool _loadingClients = false;
   bool _loadingDocuments = false;
-  bool _isLoadingDocumentsFromProvider = false; // Guard to prevent infinite loop
+  bool _loadingTasks = false;
   bool _editing = false;
   bool _loading = true;
   bool _saving = false;
   String? _error;
   List<DocumentModel> _caseDocuments = [];
-
-  DocumentProvider? _documentProvider;
+  List<TaskModel> _caseTasks = [];
 
   @override
   void initState() {
@@ -53,57 +54,15 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
       _loadDetails();
       _loadClients();
       _loadDocuments();
-      
-      // Listen to document provider changes for auto-refresh
-      // Only listen after initial load to prevent loops
-      Future.delayed(const Duration(milliseconds: 500), () {
-        if (mounted) {
-          _documentProvider = context.read<DocumentProvider>();
-          _documentProvider!.addListener(_onDocumentsChanged);
-        }
-      });
+      _loadTasks();
     });
   }
 
   @override
   void dispose() {
-    _documentProvider?.removeListener(_onDocumentsChanged);
-    _documentsRefreshDebounce?.cancel();
     _titleController.dispose();
     _descriptionController.dispose();
     super.dispose();
-  }
-
-  Timer? _documentsRefreshDebounce;
-
-  void _onDocumentsChanged() {
-    if (!mounted || _isLoadingDocumentsFromProvider || _loadingDocuments) return;
-    
-    final documentProvider = context.read<DocumentProvider>();
-    
-    // Don't reload if:
-    // 1. Provider is currently loading (might be upload progress or initial load)
-    // 2. Upload is in progress (uploadProgress is not null)
-    // 3. Provider was loading documents for a different case (ignore changes from other cases)
-    if (documentProvider.isLoading || 
-        documentProvider.uploadProgress != null ||
-        documentProvider.lastLoadedCaseId != widget.caseId) {
-      return;
-    }
-    
-    // Only reload if this change is relevant to our case
-    // Reduced debounce from 800ms to 300ms for faster updates
-    _documentsRefreshDebounce?.cancel();
-    _documentsRefreshDebounce = Timer(const Duration(milliseconds: 300), () {
-      if (mounted && 
-          !_loadingDocuments && 
-          !_isLoadingDocumentsFromProvider &&
-          !documentProvider.isLoading &&
-          documentProvider.uploadProgress == null &&
-          documentProvider.lastLoadedCaseId == widget.caseId) {
-        _loadDocuments();
-      }
-    });
   }
 
   Future<void> _loadClients() async {
@@ -126,16 +85,34 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
 
   Future<void> _loadDocuments() async {
     if (_loadingDocuments) return; // Prevent concurrent loads
-    
-    final org = context.read<OrgProvider>().selectedOrg;
-    if (org == null) return;
 
     setState(() {
       _loadingDocuments = true;
     });
 
     try {
-      _isLoadingDocumentsFromProvider = true; // Set guard to prevent callback loop
+      // Wait for org to be available (mirrors list screens behaviour)
+      final orgProvider = context.read<OrgProvider>();
+      int retries = 0;
+      const maxRetries = 30;
+      while (orgProvider.selectedOrg == null && retries < maxRetries) {
+        await Future.delayed(const Duration(milliseconds: 200));
+        retries++;
+        if (!mounted) {
+          return;
+        }
+      }
+
+      final org = orgProvider.selectedOrg;
+      if (org == null) {
+        if (mounted) {
+          setState(() {
+            _loadingDocuments = false;
+          });
+        }
+        return;
+      }
+
       final documentProvider = context.read<DocumentProvider>();
       await documentProvider.loadDocuments(
         org: org,
@@ -153,7 +130,75 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
         });
       }
     } finally {
-      _isLoadingDocumentsFromProvider = false; // Clear guard
+      if (mounted && _loadingDocuments) {
+        setState(() {
+          _loadingDocuments = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadTasks() async {
+    if (_loadingTasks) return;
+
+    setState(() {
+      _loadingTasks = true;
+    });
+
+    try {
+      // Wait for org to be available (mirrors list screens behaviour)
+      final orgProvider = context.read<OrgProvider>();
+      int retries = 0;
+      const maxRetries = 30;
+      while (orgProvider.selectedOrg == null && retries < maxRetries) {
+        await Future.delayed(const Duration(milliseconds: 200));
+        retries++;
+        if (!mounted) {
+          return;
+        }
+      }
+
+      final org = orgProvider.selectedOrg;
+      if (org == null) {
+        if (mounted) {
+          setState(() {
+            _loadingTasks = false;
+          });
+        }
+        return;
+      }
+
+      final taskProvider = context.read<TaskProvider>();
+      debugPrint('CaseDetailsScreen._loadTasks: Loading tasks for case ${widget.caseId}');
+      await taskProvider.loadTasks(
+        org: org,
+        caseId: widget.caseId,
+      );
+
+      if (mounted) {
+        // Filter tasks to only show those linked to this case
+        // Note: taskProvider.loadTasks was called with caseId, so tasks should already be filtered
+        // But we do an additional filter here to be safe
+        debugPrint('CaseDetailsScreen._loadTasks: TaskProvider has ${taskProvider.tasks.length} tasks total');
+        final caseTasks = taskProvider.tasks
+            .where((task) => task.caseId == widget.caseId)
+            .toList();
+        debugPrint('CaseDetailsScreen._loadTasks: Filtered to ${caseTasks.length} tasks for case ${widget.caseId}');
+        for (final task in taskProvider.tasks) {
+          debugPrint('CaseDetailsScreen._loadTasks: Task ${task.taskId} has caseId: ${task.caseId}');
+        }
+        setState(() {
+          _loadingTasks = false;
+          _caseTasks = caseTasks;
+        });
+      }
+    } catch (e) {
+      debugPrint('CaseDetailsScreen._loadTasks: Error loading tasks: $e');
+      if (mounted) {
+        setState(() {
+          _loadingTasks = false;
+        });
+      }
     }
   }
 
@@ -446,6 +491,8 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
                           ),
                         const SizedBox(height: AppSpacing.xl),
                         _buildDocumentsSection(),
+                        const SizedBox(height: AppSpacing.xl),
+                        _buildTasksSection(),
                       ],
                     ),
                   ),
@@ -544,6 +591,151 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
               )),
       ],
     );
+  }
+
+  Widget _buildTasksSection() {
+    final taskProvider = context.watch<TaskProvider>();
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Tasks',
+              style: AppTypography.titleLarge,
+            ),
+            TextButton.icon(
+              onPressed: () {
+                context.push('${RouteNames.taskCreate}?caseId=${widget.caseId}');
+              },
+              icon: const Icon(Icons.add),
+              label: const Text('Add Task'),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        if (_loadingTasks)
+          const Center(child: CircularProgressIndicator())
+        else if (_caseTasks.isEmpty)
+          Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Center(
+              child: Text(
+                'No tasks linked to this case',
+                style: AppTypography.bodyMedium.copyWith(
+                  color: Colors.grey,
+                ),
+              ),
+            ),
+          )
+        else
+          ..._caseTasks.map((task) => Card(
+                margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+                child: ListTile(
+                  leading: Icon(
+                    _getStatusIcon(task.status),
+                    color: _getStatusColor(task.status),
+                    size: 32,
+                  ),
+                  title: Text(task.title),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (task.description != null && task.description!.isNotEmpty)
+                        Text(
+                          task.description!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      const SizedBox(height: AppSpacing.xs),
+                      Row(
+                        children: [
+                          if (task.assigneeName != null)
+                            Text(
+                              task.assigneeName!,
+                              style: AppTypography.bodySmall.copyWith(
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          if (task.dueDate != null) ...[
+                            if (task.assigneeName != null)
+                              const SizedBox(width: AppSpacing.sm),
+                            Icon(
+                              task.isOverdue
+                                  ? Icons.warning
+                                  : task.isDueSoon
+                                      ? Icons.schedule
+                                      : Icons.calendar_today,
+                              size: 14,
+                              color: task.isOverdue
+                                  ? Colors.red
+                                  : task.isDueSoon
+                                      ? Colors.orange
+                                      : AppColors.textSecondary,
+                            ),
+                            const SizedBox(width: AppSpacing.xs),
+                            Text(
+                              task.dueDate!.toLocal().toIso8601String().substring(0, 10),
+                              style: AppTypography.bodySmall.copyWith(
+                                color: task.isOverdue
+                                    ? Colors.red
+                                    : task.isDueSoon
+                                        ? Colors.orange
+                                        : AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.chevron_right),
+                    onPressed: () {
+                      context.push(
+                        RouteNames.taskDetails,
+                        extra: task.taskId,
+                      );
+                    },
+                  ),
+                  onTap: () {
+                    context.push(
+                      RouteNames.taskDetails,
+                      extra: task.taskId,
+                    );
+                  },
+                ),
+              )),
+      ],
+    );
+  }
+
+  IconData _getStatusIcon(TaskStatus status) {
+    switch (status) {
+      case TaskStatus.pending:
+        return Icons.pending;
+      case TaskStatus.inProgress:
+        return Icons.play_circle_outline;
+      case TaskStatus.completed:
+        return Icons.check_circle;
+      case TaskStatus.cancelled:
+        return Icons.cancel;
+    }
+  }
+
+  Color _getStatusColor(TaskStatus status) {
+    switch (status) {
+      case TaskStatus.pending:
+        return Colors.grey;
+      case TaskStatus.inProgress:
+        return Colors.blue;
+      case TaskStatus.completed:
+        return Colors.green;
+      case TaskStatus.cancelled:
+        return Colors.red;
+    }
   }
 
   Widget _buildClientDropdown() {

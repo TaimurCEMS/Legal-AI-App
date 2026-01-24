@@ -16,6 +16,9 @@ import '../../features/clients/screens/client_details_screen.dart';
 import '../../features/documents/screens/document_list_screen.dart';
 import '../../features/documents/screens/document_upload_screen.dart';
 import '../../features/documents/screens/document_details_screen.dart';
+import '../../features/tasks/screens/task_list_screen.dart';
+import '../../features/tasks/screens/task_create_screen.dart';
+import '../../features/tasks/screens/task_details_screen.dart';
 import '../../features/home/screens/settings_screen.dart';
 import '../../features/home/screens/member_management_screen.dart';
 
@@ -110,6 +113,25 @@ class AppRouter {
         builder: (context, state) {
           final documentId = state.pathParameters['documentId'] ?? '';
           return DocumentDetailsScreen(documentId: documentId);
+        },
+      ),
+      GoRoute(
+        path: RouteNames.taskList,
+        builder: (context, state) => const TaskListScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.taskCreate,
+        builder: (context, state) {
+          final caseId = state.uri.queryParameters['caseId'];
+          return TaskCreateScreen(caseId: caseId);
+        },
+      ),
+      GoRoute(
+        path: RouteNames.taskDetails,
+        builder: (context, state) {
+          final taskId = state.extra as String? ??
+              (state.uri.queryParameters['taskId'] ?? '');
+          return TaskDetailsScreen(taskId: taskId);
         },
       ),
     ],

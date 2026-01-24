@@ -574,3 +574,60 @@ firebase deploy --only functions
 - ✅ No unused dependencies
 - ✅ All tests passing
 - ✅ Documentation up to date
+
+---
+
+## Slice 5: Task Hub ✅ COMPLETE
+
+**Status:** ✅ **COMPLETE**  
+**Last Updated:** 2026-01-23  
+**Dependencies:** Slice 0 ✅, Slice 1 ✅, Slice 2 ✅, Slice 2.5 ✅, Slice 3 ✅, Slice 4 ✅
+
+### Backend Status: ✅ COMPLETE
+
+- All 5 functions implemented and deployed:
+  - ✅ `taskCreate` – create tasks with validation
+  - ✅ `taskGet` – get task details
+  - ✅ `taskList` – list tasks with filters/search
+  - ✅ `taskUpdate` – update tasks with status transition validation
+  - ✅ `taskDelete` – soft delete tasks
+- Permissions & entitlements:
+  - ✅ TASKS feature flag wired into `PLAN_FEATURES`
+  - ✅ Granular permissions: `task.create`, `task.read`, `task.update`, `task.delete`, `task.assign`, `task.complete`
+  - ✅ Enforced via `checkEntitlement` in each function
+- Validation & rules:
+  - ✅ Status transition matrix enforced
+  - ✅ Due date validation (today or future only)
+  - ✅ Assignee must be org member
+  - ✅ Case access validation (including PRIVATE visibility)
+  - ✅ Firestore security rules for `organizations/{orgId}/tasks/{taskId}`
+  - ✅ Base + composite indexes for tasks deployed
+
+### Frontend Status: ✅ COMPLETE
+
+- Implemented:
+  - ✅ `TaskModel` with `TaskStatus` / `TaskPriority` enums
+  - ✅ `TaskService` (all CRUD operations mapped to callable export names)
+  - ✅ `TaskProvider` with optimistic create/update/delete and error handling
+  - ✅ `TaskListScreen` (search, status/priority filters, “All …” filters fixed, pull‑to‑refresh)
+  - ✅ `TaskCreateScreen` (form, validation, case linking, assignee selection)
+  - ✅ `TaskDetailsScreen` (view/edit, status transitions, assignment, unlink/unassign, soft delete)
+  - ✅ AppShell integration (Tasks tab)
+  - ✅ CaseDetails tasks section (linked tasks list + “Add Task” button)
+
+### Known Non‑Blocking UX Issues (Deferred)
+
+- CaseDetails → Documents:
+  - On first navigation after login, documents may occasionally require a manual refresh or re‑enter of the screen to appear.
+- CaseDetails → Tasks / Documents:
+  - Lists are not realtime; they refresh on navigation and explicit actions, not via Firestore snapshot listeners.
+
+### Testing Status
+
+- ✅ Backend: manual function testing complete
+- ✅ Frontend: manual testing of task create/update/delete, filters, and navigation
+- ✅ Integration: tasks within CaseDetails, AppShell navigation, org switching
+
+### Overall
+
+**Overall:** ✅ **COMPLETE (with minor UX polish items scheduled for a future slice)**
