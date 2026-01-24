@@ -11,6 +11,10 @@ import '../../common/widgets/empty_state/empty_state_widget.dart';
 import '../../common/widgets/text_fields/app_text_field.dart';
 import '../providers/org_provider.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../cases/providers/case_provider.dart';
+import '../../clients/providers/client_provider.dart';
+import '../../documents/providers/document_provider.dart';
+import '../providers/member_provider.dart';
 
 /// Organization selection screen
 class OrgSelectionScreen extends StatefulWidget {
@@ -23,6 +27,7 @@ class OrgSelectionScreen extends StatefulWidget {
 class _OrgSelectionScreenState extends State<OrgSelectionScreen> {
   bool _hasInitialized = false;
   bool _isManualNavigation = false; // Track if user manually navigated here
+  String? _selectingOrgId; // Track which org is being selected to prevent double-clicks
   
   @override
   void initState() {
@@ -72,14 +77,14 @@ class _OrgSelectionScreenState extends State<OrgSelectionScreen> {
       
       // Auto-redirect only during initial app load (not manual navigation)
       // Initialize if needed, then load orgs
+      final authProvider = context.read<AuthProvider>();
       if (!orgProvider.isInitialized) {
-        orgProvider.initialize().then((_) {
+        orgProvider.initialize(currentUserId: authProvider.currentUser?.uid).then((_) async {
+          // Always reload org list to ensure it's fresh
+          await orgProvider.loadUserOrgs();
           if (mounted && !_isManualNavigation) {
             if (orgProvider.hasOrg) {
               context.go(RouteNames.home);
-            } else {
-              // Load user orgs list (only if not already loading)
-              orgProvider.loadUserOrgs();
             }
           }
         });
@@ -143,6 +148,18 @@ class _OrgSelectionScreenState extends State<OrgSelectionScreen> {
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () async {
+              // Clear all provider state before logout
+              final caseProvider = context.read<CaseProvider>();
+              final clientProvider = context.read<ClientProvider>();
+              final documentProvider = context.read<DocumentProvider>();
+              final memberProvider = context.read<MemberProvider>();
+              
+              orgProvider.clearOrg();
+              caseProvider.clearCases();
+              clientProvider.clearClients();
+              documentProvider.clearDocuments();
+              memberProvider.clearMembers();
+              
               await authProvider.signOut();
               if (context.mounted) {
                 context.go(RouteNames.login);
@@ -271,18 +288,44 @@ class _OrgSelectionScreenState extends State<OrgSelectionScreen> {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
-            trailing: isSelected
-                ? Icon(Icons.check_circle, color: AppColors.primary)
-                : const Icon(Icons.chevron_right),
-            onTap: () {
-              orgProvider.setSelectedOrg(org);
-              // Always use pop if we can, otherwise go to home
-              // This ensures browser back button works
-              if (context.canPop()) {
-                context.pop(); // Go back if we came from another screen
-              } else {
-                // If direct navigation, go to home and clear any navigation history issues
-                context.go(RouteNames.home);
+            trailing: _selectingOrgId == org.orgId
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : isSelected
+                    ? Icon(Icons.check_circle, color: AppColors.primary)
+                    : const Icon(Icons.chevron_right),
+            onTap: () async {
+              // Prevent double-clicks
+              if (_selectingOrgId == org.orgId) {
+                return;
+              }
+              
+              setState(() {
+                _selectingOrgId = org.orgId;
+              });
+
+              try {
+                await orgProvider.setSelectedOrg(org);
+                
+                // Always use pop if we can, otherwise go to home
+                // This ensures browser back button works
+                if (context.mounted) {
+                  if (context.canPop()) {
+                    context.pop(); // Go back if we came from another screen
+                  } else {
+                    // If direct navigation, go to home and clear any navigation history issues
+                    context.go(RouteNames.home);
+                  }
+                }
+              } finally {
+                if (mounted) {
+                  setState(() {
+                    _selectingOrgId = null;
+                  });
+                }
               }
             },
           ),
@@ -358,7 +401,25 @@ class _OrgSelectionScreenState extends State<OrgSelectionScreen> {
                   const SnackBar(content: Text('Successfully joined organization')),
                 );
                 // Reload orgs list to show the new one
-                orgProvider.loadUserOrgs();
+                await orgProvider.loadUserOrgs();
+                // Auto-select the org that was just joined
+                if (orgProvider.selectedOrg != null && orgProvider.selectedOrg!.orgId == orgId) {
+                  // Org is already selected, navigate to home
+                  if (context.mounted) {
+                    context.go(RouteNames.home);
+                  }
+                } else {
+                  // Find and select the org from the list
+                  final joinedOrg = orgProvider.userOrgs.firstWhere(
+                    (org) => org.orgId == orgId,
+                    orElse: () => orgProvider.selectedOrg!,
+                  );
+                  await orgProvider.setSelectedOrg(joinedOrg);
+                  // Navigate to home after selecting
+                  if (context.mounted) {
+                    context.go(RouteNames.home);
+                  }
+                }
               } else if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(

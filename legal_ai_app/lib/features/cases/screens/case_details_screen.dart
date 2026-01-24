@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/models/case_model.dart';
 import '../../../core/theme/spacing.dart';
 import '../../../core/theme/typography.dart';
+import '../../../core/theme/colors.dart';
 import '../../../features/common/widgets/buttons/primary_button.dart';
 import '../../../features/common/widgets/text_fields/app_text_field.dart';
 import '../../../features/common/widgets/error_message.dart';
@@ -12,6 +14,10 @@ import '../../home/providers/org_provider.dart';
 import '../providers/case_provider.dart';
 import '../../clients/providers/client_provider.dart';
 import '../../../core/models/client_model.dart';
+import '../../documents/providers/document_provider.dart';
+import '../../../core/models/document_model.dart';
+import '../../../core/routing/route_names.dart';
+import 'package:go_router/go_router.dart';
 
 class CaseDetailsScreen extends StatefulWidget {
   final String caseId;
@@ -30,10 +36,15 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
   CaseStatus _status = CaseStatus.open;
   String? _selectedClientId;
   bool _loadingClients = false;
+  bool _loadingDocuments = false;
+  bool _isLoadingDocumentsFromProvider = false; // Guard to prevent infinite loop
   bool _editing = false;
   bool _loading = true;
   bool _saving = false;
   String? _error;
+  List<DocumentModel> _caseDocuments = [];
+
+  DocumentProvider? _documentProvider;
 
   @override
   void initState() {
@@ -41,6 +52,57 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadDetails();
       _loadClients();
+      _loadDocuments();
+      
+      // Listen to document provider changes for auto-refresh
+      // Only listen after initial load to prevent loops
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          _documentProvider = context.read<DocumentProvider>();
+          _documentProvider!.addListener(_onDocumentsChanged);
+        }
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _documentProvider?.removeListener(_onDocumentsChanged);
+    _documentsRefreshDebounce?.cancel();
+    _titleController.dispose();
+    _descriptionController.dispose();
+    super.dispose();
+  }
+
+  Timer? _documentsRefreshDebounce;
+
+  void _onDocumentsChanged() {
+    if (!mounted || _isLoadingDocumentsFromProvider || _loadingDocuments) return;
+    
+    final documentProvider = context.read<DocumentProvider>();
+    
+    // Don't reload if:
+    // 1. Provider is currently loading (might be upload progress or initial load)
+    // 2. Upload is in progress (uploadProgress is not null)
+    // 3. Provider was loading documents for a different case (ignore changes from other cases)
+    if (documentProvider.isLoading || 
+        documentProvider.uploadProgress != null ||
+        documentProvider.lastLoadedCaseId != widget.caseId) {
+      return;
+    }
+    
+    // Only reload if this change is relevant to our case
+    // Reduced debounce from 800ms to 300ms for faster updates
+    _documentsRefreshDebounce?.cancel();
+    _documentsRefreshDebounce = Timer(const Duration(milliseconds: 300), () {
+      if (mounted && 
+          !_loadingDocuments && 
+          !_isLoadingDocumentsFromProvider &&
+          !documentProvider.isLoading &&
+          documentProvider.uploadProgress == null &&
+          documentProvider.lastLoadedCaseId == widget.caseId) {
+        _loadDocuments();
+      }
     });
   }
 
@@ -59,6 +121,39 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
       setState(() {
         _loadingClients = false;
       });
+    }
+  }
+
+  Future<void> _loadDocuments() async {
+    if (_loadingDocuments) return; // Prevent concurrent loads
+    
+    final org = context.read<OrgProvider>().selectedOrg;
+    if (org == null) return;
+
+    setState(() {
+      _loadingDocuments = true;
+    });
+
+    try {
+      _isLoadingDocumentsFromProvider = true; // Set guard to prevent callback loop
+      final documentProvider = context.read<DocumentProvider>();
+      await documentProvider.loadDocuments(
+        org: org,
+        caseId: widget.caseId,
+      );
+
+      if (mounted) {
+        // Filter documents to only show those linked to this case
+        final caseDocs = documentProvider.documents
+            .where((doc) => doc.caseId == widget.caseId)
+            .toList();
+        setState(() {
+          _loadingDocuments = false;
+          _caseDocuments = caseDocs;
+        });
+      }
+    } finally {
+      _isLoadingDocumentsFromProvider = false; // Clear guard
     }
   }
 
@@ -189,13 +284,6 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
     if (ok) {
       Navigator.of(context).pop();
     }
-  }
-
-  @override
-  void dispose() {
-    _titleController.dispose();
-    _descriptionController.dispose();
-    super.dispose();
   }
 
   @override
@@ -356,12 +444,105 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
                             isLoading: _saving,
                             onPressed: _saving ? null : _save,
                           ),
+                        const SizedBox(height: AppSpacing.xl),
+                        _buildDocumentsSection(),
                       ],
                     ),
                   ),
                 ),
               ),
       ),
+    );
+  }
+
+  Widget _buildDocumentsSection() {
+    final documentProvider = context.watch<DocumentProvider>();
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Documents',
+              style: AppTypography.titleLarge,
+            ),
+            TextButton.icon(
+              onPressed: () {
+                context.push('${RouteNames.documentUpload}?caseId=${widget.caseId}');
+              },
+              icon: const Icon(Icons.add),
+              label: const Text('Upload'),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        // Show upload progress if document is being uploaded
+        if (documentProvider.uploadProgress != null)
+          Padding(
+            padding: const EdgeInsets.all(AppSpacing.sm),
+            child: Row(
+              children: [
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(
+                    'Uploading document... ${(documentProvider.uploadProgress! * 100).toStringAsFixed(0)}%',
+                    style: AppTypography.bodySmall.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        if (_loadingDocuments && documentProvider.uploadProgress == null)
+          const Center(child: CircularProgressIndicator())
+        else if (_caseDocuments.isEmpty && documentProvider.uploadProgress == null)
+          Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Center(
+              child: Text(
+                'No documents linked to this case',
+                style: AppTypography.bodyMedium.copyWith(
+                  color: Colors.grey,
+                ),
+              ),
+            ),
+          )
+        else
+          ..._caseDocuments.map((doc) => Card(
+                margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+                child: ListTile(
+                  leading: Icon(
+                    doc.fileTypeIcon,
+                    size: 32,
+                  ),
+                  title: Text(doc.name),
+                  subtitle: Text(
+                    '${doc.fileSizeFormatted} • ${doc.fileType.toUpperCase()}',
+                  ),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.chevron_right),
+                    onPressed: () {
+                      context.push(
+                        '${RouteNames.documentDetails}/${doc.documentId}',
+                      );
+                    },
+                  ),
+                  onTap: () {
+                    context.push(
+                      '${RouteNames.documentDetails}/${doc.documentId}',
+                    );
+                  },
+                ),
+              )),
+      ],
     );
   }
 

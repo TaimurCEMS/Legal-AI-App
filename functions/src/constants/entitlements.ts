@@ -7,7 +7,8 @@ export const PLAN_FEATURES = {
   FREE: {
     CASES: true,
     CLIENTS: true,
-    TEAM_MEMBERS: false,
+    DOCUMENTS: true,
+    TEAM_MEMBERS: true, // Enabled for multi-user testing (Slice 2.5)
     TASKS: false,
     DOCUMENT_UPLOAD: true,
     OCR_EXTRACTION: false,
@@ -23,6 +24,7 @@ export const PLAN_FEATURES = {
   BASIC: {
     CASES: true,
     CLIENTS: true,
+    DOCUMENTS: true,
     TEAM_MEMBERS: true,
     TASKS: true,
     DOCUMENT_UPLOAD: true,
@@ -39,6 +41,7 @@ export const PLAN_FEATURES = {
   PRO: {
     CASES: true,
     CLIENTS: true,
+    DOCUMENTS: true,
     TEAM_MEMBERS: true,
     TASKS: true,
     DOCUMENT_UPLOAD: true,
@@ -55,6 +58,7 @@ export const PLAN_FEATURES = {
   ENTERPRISE: {
     CASES: true,
     CLIENTS: true,
+    DOCUMENTS: true,
     TEAM_MEMBERS: true,
     TASKS: true,
     DOCUMENT_UPLOAD: true,

@@ -126,6 +126,39 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // Slice 3: Clients under organizations collection
+    match /organizations/{orgId}/clients/{clientId} {
+      // Read: org members can read non-deleted clients
+      allow read: if isOrgMember(orgId) &&
+        (!('deletedAt' in resource.data) || resource.data.deletedAt == null);
+
+      // All writes are via Admin SDK (Cloud Functions); deny direct client writes
+      allow create, update, delete: if false;
+    }
+
+    // Slice 4: Documents under organizations collection
+    match /organizations/{orgId}/documents/{documentId} {
+      // Read: org members can read non-deleted documents
+      // If document is linked to a case, case visibility is checked in Cloud Functions
+      allow read: if isOrgMember(orgId) &&
+        (!('deletedAt' in resource.data) || resource.data.deletedAt == null);
+
+      // All writes are via Admin SDK (Cloud Functions); deny direct client writes
+      // Case-level permissions are enforced in Cloud Functions
+      allow create, update, delete: if false;
+    }
+
+    // Slice 2.5: Members under organizations collection
+    match /organizations/{orgId}/members/{memberId} {
+      // Read: All org members can read other members (for team visibility)
+      // Note: All org members can see other members (simpler, better for team collaboration)
+      // If privacy is required, restrict to ADMIN-only in future
+      allow read: if isOrgMember(orgId);
+      
+      // Deny all writes (only via Cloud Functions)
+      allow write: if false;
+    }
+
     // Default deny for all other paths
     match /{document=**} {
       allow read, write: if false;

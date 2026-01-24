@@ -1,0 +1,16 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Organization-scoped documents
+    match /organizations/{orgId}/documents/{documentId}/{fileName} {
+      // Allow read if user is authenticated
+      // Note: Org membership is enforced by Cloud Functions when generating signed URLs
+      allow read: if request.auth != null;
+      
+      // Allow write if user is authenticated
+      // Note: Org membership and permissions are verified by Cloud Functions in document.create
+      // This allows direct client uploads for MVP, with backend validation
+      allow write: if request.auth != null;
+    }
+  }
+}

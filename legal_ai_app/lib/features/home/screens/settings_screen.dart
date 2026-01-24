@@ -7,16 +7,75 @@ import '../../../core/theme/typography.dart';
 import '../../../core/theme/spacing.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/org_provider.dart';
+import '../../cases/providers/case_provider.dart';
+import '../../clients/providers/client_provider.dart';
+import '../../documents/providers/document_provider.dart';
+import '../providers/member_provider.dart';
 
 /// Settings/Profile screen
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  bool _hasCheckedMembership = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Ensure membership is loaded when screen opens
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _ensureMembershipLoaded();
+    });
+  }
+
+  Future<void> _ensureMembershipLoaded() async {
+    if (_hasCheckedMembership) return;
+    
+    final orgProvider = context.read<OrgProvider>();
+    final org = orgProvider.selectedOrg;
+
+    // If org is selected but membership is not loaded, load it
+    if (org != null && orgProvider.currentMembership == null && !orgProvider.isLoading) {
+      _hasCheckedMembership = true; // Set before async call to prevent duplicate calls
+      await orgProvider.getMyMembership(orgId: org.orgId);
+      if (mounted) {
+        setState(() {}); // Refresh UI
+      }
+    } else if (org == null) {
+      _hasCheckedMembership = true; // No org selected, nothing to load
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
     final orgProvider = context.watch<OrgProvider>();
     final user = authProvider.currentUser;
+
+    // Ensure membership is loaded if org is selected
+    if (orgProvider.selectedOrg != null && 
+        orgProvider.currentMembership == null && 
+        !orgProvider.isLoading &&
+        !_hasCheckedMembership) {
+      _ensureMembershipLoaded();
+    }
+
+    // Show loading if org is selected but membership is still loading
+    if (orgProvider.selectedOrg != null && 
+        orgProvider.currentMembership == null && 
+        orgProvider.isLoading)
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Settings'),
+        ),
+        body: const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
 
     return Scaffold(
       appBar: AppBar(
@@ -84,10 +143,33 @@ class SettingsScreen extends StatelessWidget {
                     ListTile(
                       leading: const Icon(Icons.info_outline),
                       title: const Text('Current Organization'),
-                      subtitle: Text(
-                        orgProvider.selectedOrg!.name,
-                        style: AppTypography.bodyMedium,
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            orgProvider.selectedOrg!.name,
+                            style: AppTypography.bodyMedium,
+                          ),
+                          if (orgProvider.currentMembership != null)
+                            Text(
+                              'Role: ${orgProvider.currentMembership!.role}',
+                              style: AppTypography.bodySmall.copyWith(
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                        ],
                       ),
+                    ),
+                  // Team Members (ADMIN only)
+                  if (orgProvider.selectedOrg != null &&
+                      orgProvider.currentMembership?.role == 'ADMIN')
+                    ListTile(
+                      leading: const Icon(Icons.people),
+                      title: const Text('Team Members'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () {
+                        context.push(RouteNames.memberManagement);
+                      },
                     ),
                 ],
               ),
@@ -124,6 +206,18 @@ class SettingsScreen extends StatelessWidget {
                       );
                       
                       if (confirmed == true && context.mounted) {
+                        // Clear all provider state before logout
+                        final caseProvider = context.read<CaseProvider>();
+                        final clientProvider = context.read<ClientProvider>();
+                        final documentProvider = context.read<DocumentProvider>();
+                        final memberProvider = context.read<MemberProvider>();
+                        
+                        orgProvider.clearOrg();
+                        caseProvider.clearCases();
+                        clientProvider.clearClients();
+                        documentProvider.clearDocuments();
+                        memberProvider.clearMembers();
+                        
                         await authProvider.signOut();
                         if (context.mounted) {
                           context.go(RouteNames.login);

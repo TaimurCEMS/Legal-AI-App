@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
@@ -8,8 +9,13 @@ import '../../../core/theme/spacing.dart';
 import '../screens/home_screen.dart';
 import '../../cases/screens/case_list_screen.dart';
 import '../../clients/screens/client_list_screen.dart';
+import '../../documents/screens/document_list_screen.dart';
 import '../providers/org_provider.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../cases/providers/case_provider.dart';
+import '../../clients/providers/client_provider.dart';
+import '../../documents/providers/document_provider.dart';
+import '../providers/member_provider.dart';
 
 /// Main app shell with navigation
 class AppShell extends StatefulWidget {
@@ -27,7 +33,7 @@ class _AppShellState extends State<AppShell> {
     const HomeScreen(),
     const CaseListScreen(),
     const ClientListScreen(),
-    const PlaceholderScreen(title: 'Documents'),
+    const DocumentListScreen(),
   ];
 
   void _onItemTapped(int index) {
@@ -36,17 +42,79 @@ class _AppShellState extends State<AppShell> {
     });
   }
 
+  String? _lastUserId; // Track last user ID to detect changes
+  
   @override
   void initState() {
     super.initState();
+    // Track current user ID
+    final authProvider = context.read<AuthProvider>();
+    _lastUserId = authProvider.currentUser?.uid;
+    
+    // Listen to auth state changes to detect user switches
+    authProvider.addListener(_onAuthStateChanged);
+    
     // Initialize org provider early to load saved org (only once)
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       final orgProvider = context.read<OrgProvider>();
+      final authProvider = context.read<AuthProvider>();
       if (!orgProvider.isInitialized) {
-        await orgProvider.initialize();
+        await orgProvider.initialize(currentUserId: authProvider.currentUser?.uid);
       }
     });
+  }
+  
+  void _onAuthStateChanged() {
+    if (!mounted) return;
+    final authProvider = context.read<AuthProvider>();
+    final currentUserId = authProvider.currentUser?.uid;
+    
+    // If user changed (not just logged out), clear all state
+    if (_lastUserId != null && currentUserId != null && _lastUserId != currentUserId) {
+      debugPrint('AppShell: User changed from $_lastUserId to $currentUserId. Clearing state.');
+      final orgProvider = context.read<OrgProvider>();
+      final caseProvider = context.read<CaseProvider>();
+      final clientProvider = context.read<ClientProvider>();
+      final documentProvider = context.read<DocumentProvider>();
+      final memberProvider = context.read<MemberProvider>();
+      
+      orgProvider.clearOrg();
+      caseProvider.clearCases();
+      clientProvider.clearClients();
+      documentProvider.clearDocuments();
+      memberProvider.clearMembers();
+      
+      // Re-initialize org provider for new user
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (mounted) {
+          await orgProvider.initialize(currentUserId: currentUserId);
+        }
+      });
+    } else if (_lastUserId != null && currentUserId == null) {
+      // User logged out - clear everything
+      debugPrint('AppShell: User logged out. Clearing state.');
+      final orgProvider = context.read<OrgProvider>();
+      final caseProvider = context.read<CaseProvider>();
+      final clientProvider = context.read<ClientProvider>();
+      final documentProvider = context.read<DocumentProvider>();
+      final memberProvider = context.read<MemberProvider>();
+      
+      orgProvider.clearOrg();
+      caseProvider.clearCases();
+      clientProvider.clearClients();
+      documentProvider.clearDocuments();
+      memberProvider.clearMembers();
+    }
+    
+    _lastUserId = currentUserId;
+  }
+  
+  @override
+  void dispose() {
+    final authProvider = context.read<AuthProvider>();
+    authProvider.removeListener(_onAuthStateChanged);
+    super.dispose();
   }
 
   @override
@@ -180,6 +248,19 @@ class _AppShellState extends State<AppShell> {
     BuildContext context,
     AuthProvider authProvider,
   ) async {
+    // Clear all provider state before logout
+    final orgProvider = context.read<OrgProvider>();
+    final caseProvider = context.read<CaseProvider>();
+    final clientProvider = context.read<ClientProvider>();
+    final documentProvider = context.read<DocumentProvider>();
+    
+    // Clear all state
+    orgProvider.clearOrg();
+    caseProvider.clearCases();
+    clientProvider.clearClients();
+    documentProvider.clearDocuments();
+    
+    // Then sign out
     await authProvider.signOut();
     if (context.mounted) {
       context.go(RouteNames.login);

@@ -342,6 +342,213 @@ flutter run -d chrome
 
 ---
 
+## Slice 2.5: Member Management & Role Assignment ✅ COMPLETE
+
+**Status:** ✅ **COMPLETE**  
+**Last Updated:** 2026-01-23  
+**Dependencies:** Slice 0 ✅, Slice 1 ✅  
+**Type:** Mini-slice (inserted between Slice 2 and Slice 4)
+
+### Backend Status: ✅ COMPLETE
+
+**All 2 functions implemented and deployed:**
+1. ✅ `memberListMembers` (memberListMembers) - List all organization members
+2. ✅ `memberUpdateRole` (memberUpdateRole) - Update member roles
+
+**Features:**
+- ✅ Batch user lookup from Firebase Auth (performance optimized)
+- ✅ Role-based access control (ADMIN-only)
+- ✅ Safety checks (cannot change own role, cannot remove last ADMIN)
+- ✅ Transaction-protected updates
+- ✅ Audit logging for role changes
+- ✅ Handles deleted user accounts gracefully
+
+### Frontend Status: ✅ COMPLETE
+
+**Implemented:**
+- ✅ MemberModel with display labels
+- ✅ MemberService (list, update role)
+- ✅ MemberProvider (state management with optimistic UI)
+- ✅ MemberManagementScreen (list, role dropdown, add member dialog)
+- ✅ Navigation integration (Settings → Team Members)
+- ✅ Permission gating (ADMIN-only access)
+
+**Features:**
+- ✅ Member list with avatars, names, emails, roles
+- ✅ Role dropdown for changing member roles
+- ✅ "Add Member" dialog with organization ID sharing instructions
+- ✅ Optimistic UI updates with rollback on error
+- ✅ Loading states and error handling
+- ✅ "You" badge for current user
+
+### Critical Safety Features
+
+✅ **All Safety Checks Implemented:**
+- ✅ Cannot change own role
+- ✅ Cannot remove last administrator
+- ✅ Only ADMIN can assign ADMIN role
+- ✅ Role unchanged validation
+- ✅ Transaction safety for concurrent updates
+
+### Testing Status
+
+**Backend:** ✅ Manual testing complete
+**Frontend:** ✅ Manual testing complete
+**Integration:** ✅ End-to-end flows tested
+
+### Deployment
+
+- ✅ All Slice 2.5 functions deployed
+- ✅ Region: us-central1
+- ✅ Project: legal-ai-app-1203e
+- ✅ Firestore security rules updated
+
+### Code Quality
+
+**Backend:** ✅ Excellent
+- Clean code structure
+- Comprehensive safety checks
+- Proper error handling
+- Performance optimized (batch lookups)
+
+**Frontend:** ✅ Excellent
+- Follows Slice 1 & 2 patterns
+- Proper state management
+- Optimistic UI updates
+- Good error handling
+
+### Documentation
+
+**Build Card:** `docs/SLICE_2.5_MEMBER_MANAGEMENT_BUILD_CARD.md`
+**Testing Checklist:** `docs/SLICE_2.5_TESTING_CHECKLIST.md`
+
+### Notes
+
+- **Why Mini-Slice:** Member management was blocking multi-user testing. Originally planned for Slice 15 (Advanced Admin Features), but moved earlier due to critical need.
+- **Relationship to Slice 15:** Slice 15 will build upon this foundation with advanced features (invitations, bulk operations, member profiles, org settings).
+- **Non-Breaking:** All changes are additive. No breaking changes to existing code.
+
+### Success Criteria
+
+- ✅ All 2 backend functions deployed
+- ✅ Frontend screen working
+- ✅ Role assignment working
+- ✅ Safety checks working
+- ✅ Permission gating working
+- ✅ All edge cases tested
+- ✅ Code cleanup completed
+
+**Overall:** ✅ **COMPLETE**
+
+---
+
+## Slice 4: Document Hub ✅ COMPLETE
+
+**Status:** ✅ **COMPLETE**  
+**Last Updated:** 2026-01-23  
+**Dependencies:** Slice 0 ✅, Slice 1 ✅, Slice 2 ✅
+
+### Backend Status: ✅ COMPLETE
+
+**All 5 functions implemented and deployed:**
+1. ✅ `documentCreate` (documentCreate) - Create document metadata after file upload
+2. ✅ `documentGet` (documentGet) - Get document details and generate download URL
+3. ✅ `documentList` (documentList) - List documents with filtering, search, pagination
+4. ✅ `documentUpdate` (documentUpdate) - Update document metadata
+5. ✅ `documentDelete` (documentDelete) - Soft delete documents
+
+**Features:**
+- ✅ Document-org relationship enforcement
+- ✅ Document-case relationship management
+- ✅ Entitlement checks (plan + role permissions)
+- ✅ File existence verification in Storage
+- ✅ Download URL generation (on-demand)
+- ✅ Case access validation for linked documents
+- ✅ Audit logging for all document operations
+- ✅ In-memory search (case-insensitive contains on name)
+- ✅ Pagination support (offset-based, MVP approach)
+
+### Frontend Status: ✅ COMPLETE
+
+**Implemented:**
+- ✅ DocumentModel with all fields
+- ✅ DocumentService (all CRUD operations)
+- ✅ DocumentProvider (state management with optimistic UI)
+- ✅ DocumentListScreen (search, pull-to-refresh, empty states)
+- ✅ DocumentUploadScreen (file picker, metadata form, upload progress)
+- ✅ DocumentDetailsScreen (view/edit metadata, download)
+- ✅ Navigation integration (routes, AppShell)
+- ✅ Document linking in case details screen
+- ✅ Upload progress indicators
+- ✅ Optimistic UI updates for instant feedback
+
+**Recent Optimizations (2026-01-23):**
+- ✅ Reduced document refresh debounce from 800ms to 300ms
+- ✅ Added optimistic UI updates for instant document appearance
+- ✅ Improved upload progress indicators
+- ✅ Reduced upload screen delay from 800ms to 300ms
+
+### Critical Issues
+
+✅ **All Issues Resolved:**
+- ✅ Document upload working
+- ✅ Document list working
+- ✅ Document download working
+- ✅ Case linking working
+- ✅ Search working
+- ✅ State management optimized
+
+### Testing Status
+
+**Backend:** ✅ Manual testing complete
+**Frontend:** ✅ Manual testing complete
+**Integration:** ✅ End-to-end flows tested
+
+### Deployment
+
+- ✅ All Slice 4 functions deployed
+- ✅ Region: us-central1
+- ✅ Project: legal-ai-app-1203e
+- ✅ Firestore security rules updated
+- ✅ Storage security rules configured
+
+### Code Quality
+
+**Backend:** ✅ Excellent
+- Clean code structure
+- Proper error handling
+- Comprehensive validation
+- Consistent with Slice 2 & 3 patterns
+
+**Frontend:** ✅ Excellent
+- Follows Slice 1, 2, 3 patterns
+- Proper state management
+- Optimistic UI updates
+- Good error handling
+
+### Documentation
+
+**Build Card:** `docs/SLICE_4_BUILD_CARD.md`
+**Completion Report:** `docs/slices/SLICE_4_COMPLETE.md`
+
+### Success Criteria
+
+- ✅ All 5 backend functions deployed
+- ✅ All 3 frontend screens working
+- ✅ Document upload working
+- ✅ Document list working
+- ✅ Document details working
+- ✅ Case linking working
+- ✅ Search working
+- ✅ State management working
+- ✅ Organization switching working
+- ✅ All edge cases tested
+- ✅ Code cleanup completed
+
+**Overall:** ✅ **COMPLETE**
+
+---
+
 ## Build & Deploy Commands
 
 ```bash

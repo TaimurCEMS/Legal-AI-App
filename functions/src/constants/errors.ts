@@ -12,6 +12,7 @@ export enum ErrorCode {
   INTERNAL_ERROR = 'INTERNAL_ERROR',
   RATE_LIMITED = 'RATE_LIMITED',
   CONFLICT = 'CONFLICT',
+  SAFETY_ERROR = 'SAFETY_ERROR',
 }
 
 export const ERROR_MESSAGES: Record<ErrorCode, string> = {
@@ -23,6 +24,7 @@ export const ERROR_MESSAGES: Record<ErrorCode, string> = {
   [ErrorCode.INTERNAL_ERROR]: 'An internal error occurred',
   [ErrorCode.RATE_LIMITED]: 'Too many requests. Please try again later.',
   [ErrorCode.CONFLICT]: 'Operation conflicts with existing data',
+  [ErrorCode.SAFETY_ERROR]: 'Safety check failed',
 };
 
 export function getErrorMessage(code: ErrorCode, customMessage?: string): string {

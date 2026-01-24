@@ -23,7 +23,7 @@ Establish the authentication, organization membership, and entitlements engine t
 - Advanced granular permission management UI
 - Cases, clients, documents, tasks, AI features
 - Audit trail UI (Slice 12)
-- Admin panel UI (Slice 15)
+- Advanced admin features: member invitations, bulk operations, org settings (Slice 15)
 - Any feature beyond auth, org, and entitlements foundation
 
 ## 4) Backend Endpoints

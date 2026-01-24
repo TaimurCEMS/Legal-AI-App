@@ -24,7 +24,7 @@ Build the Flutter application foundation with navigation shell, reusable UI comp
 - Document management UI (Slice 4)
 - AI features UI (Slice 6+)
 - Billing/subscription UI (Slice 13)
-- Admin panel UI (Slice 15)
+- Advanced admin features: member invitations, bulk operations, org settings (Slice 15)
 - Any business logic beyond UI presentation
 
 ## 4) Flutter Project Structure

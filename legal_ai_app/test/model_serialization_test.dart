@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:legal_ai_app/core/models/case_model.dart';
 import 'package:legal_ai_app/core/models/org_model.dart';
+import 'package:legal_ai_app/core/models/document_model.dart';
 
 void main() {
   group('Model Serialization Tests', () {
@@ -117,6 +118,54 @@ void main() {
       expect(org.description, equals('Test Description'));
       expect(org.plan, equals('FREE'));
       expect(org.createdBy, equals('user-123'));
+    });
+
+    test('DocumentModel fromJson handles all fields', () {
+      final json = {
+        'documentId': 'doc-123',
+        'orgId': 'org-123',
+        'caseId': 'case-123',
+        'name': 'Test Document.pdf',
+        'description': 'Test Description',
+        'fileType': 'pdf',
+        'fileSize': 1024000,
+        'storagePath': 'organizations/org-123/documents/doc-123/test.pdf',
+        'downloadUrl': 'https://example.com/download',
+        'createdAt': '2026-01-20T10:00:00Z',
+        'updatedAt': '2026-01-20T10:00:00Z',
+        'createdBy': 'user-123',
+        'updatedBy': 'user-123',
+      };
+
+      final model = DocumentModel.fromJson(json);
+
+      expect(model.documentId, equals('doc-123'));
+      expect(model.orgId, equals('org-123'));
+      expect(model.caseId, equals('case-123'));
+      expect(model.name, equals('Test Document.pdf'));
+      expect(model.fileType, equals('pdf'));
+      expect(model.fileSize, equals(1024000));
+    });
+
+    test('DocumentModel fromJson handles null optional fields', () {
+      final json = {
+        'documentId': 'doc-123',
+        'orgId': 'org-123',
+        'name': 'Test Document.pdf',
+        'fileType': 'pdf',
+        'fileSize': 1024000,
+        'storagePath': 'organizations/org-123/documents/doc-123/test.pdf',
+        'createdAt': '2026-01-20T10:00:00Z',
+        'updatedAt': '2026-01-20T10:00:00Z',
+        'createdBy': 'user-123',
+        'updatedBy': 'user-123',
+      };
+
+      final model = DocumentModel.fromJson(json);
+
+      expect(model.caseId, isNull);
+      expect(model.description, isNull);
+      expect(model.downloadUrl, isNull);
     });
   });
 }

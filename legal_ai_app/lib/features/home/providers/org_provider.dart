@@ -27,8 +27,25 @@ class OrgProvider with ChangeNotifier {
   bool _isInitializing = false; // Guard against multiple simultaneous initializations
   
   /// Initialize provider - load saved org from storage
-  Future<void> initialize() async {
-    if (_isInitialized) {
+  /// Requires currentUserId to verify saved state belongs to current user
+  /// If currentUserId is provided and doesn't match saved user, clears all state
+  Future<void> initialize({String? currentUserId, bool forceReinit = false}) async {
+    // If forcing reinit, reset initialization state
+    if (forceReinit) {
+      _isInitialized = false;
+    }
+    
+    if (_isInitialized && !forceReinit) {
+      // If already initialized, verify user still matches
+      if (currentUserId != null) {
+        final prefs = await SharedPreferences.getInstance();
+        final savedUserId = prefs.getString('user_id');
+        if (savedUserId != null && savedUserId != currentUserId) {
+          // User changed - force reinit
+          debugPrint('OrgProvider.initialize: User changed. Force reinitializing.');
+          return initialize(currentUserId: currentUserId, forceReinit: true);
+        }
+      }
       return;
     }
     
@@ -42,7 +59,23 @@ class OrgProvider with ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       final orgId = prefs.getString('selected_org_id');
-      final userId = prefs.getString('user_id');
+      final savedUserId = prefs.getString('user_id');
+      
+      // Verify user ID matches to prevent cross-user state leakage
+      if (currentUserId != null && savedUserId != null && currentUserId != savedUserId) {
+        // Different user - clear all stale data
+        debugPrint('OrgProvider.initialize: User ID mismatch. Clearing stale state.');
+        await prefs.remove('selected_org');
+        await prefs.remove('selected_org_id');
+        await prefs.remove('user_org_ids');
+        _selectedOrg = null;
+        _currentMembership = null;
+        _userOrgs.clear();
+        _isInitialized = true;
+        _isInitializing = false;
+        notifyListeners();
+        return;
+      }
       
       // Load user's org list first (this populates _userOrgs)
       // Only load if not already loading
@@ -55,7 +88,7 @@ class OrgProvider with ChangeNotifier {
         }
       }
       
-      if (orgId != null && userId != null) {
+      if (orgId != null && savedUserId != null) {
         // Verify org exists in the loaded org list before restoring
         final orgExistsInList = _userOrgs.any((o) => o.orgId == orgId);
         
@@ -162,7 +195,9 @@ class OrgProvider with ChangeNotifier {
       if (response['success'] == true) {
         // Fetch membership details
         await getMyMembership(orgId: orgId);
-        // Add to user orgs list
+        // Reload user orgs list to ensure it's up to date
+        await loadUserOrgs();
+        // Add to user orgs list (in case it wasn't added by loadUserOrgs)
         if (_selectedOrg != null) {
           _addToUserOrgsList(_selectedOrg!);
         }
@@ -244,27 +279,54 @@ class OrgProvider with ChangeNotifier {
     }
   }
 
-  void setSelectedOrg(OrgModel org) {
-    if (_selectedOrg?.orgId == org.orgId) {
-      // Already selected, no need to update
+  bool _isSettingOrg = false; // Guard against concurrent setSelectedOrg calls
+  
+  Future<void> setSelectedOrg(OrgModel org) async {
+    // Prevent concurrent calls
+    if (_isSettingOrg) {
       return;
     }
     
-    // Verify org exists in user's org list before setting (prevents ghost orgs)
-    final existsInList = _userOrgs.any((o) => o.orgId == org.orgId);
-    if (!existsInList) {
-      // Add to list if not present (user might have just created/joined it)
-      _addToUserOrgsList(org);
+    if (_selectedOrg?.orgId == org.orgId) {
+      // Already selected, but ensure membership is loaded
+      if (_currentMembership == null) {
+        _isSettingOrg = true;
+        try {
+          await getMyMembership(orgId: org.orgId);
+        } finally {
+          _isSettingOrg = false;
+        }
+      }
+      return;
     }
     
-    _selectedOrg = org;
-    _saveOrgToStorage(org);
-    notifyListeners();
+    _isSettingOrg = true;
+    try {
+      // Verify org exists in user's org list before setting (prevents ghost orgs)
+      final existsInList = _userOrgs.any((o) => o.orgId == org.orgId);
+      if (!existsInList) {
+        // Add to list if not present (user might have just created/joined it)
+        _addToUserOrgsList(org);
+      }
+      
+      // Set org immediately for instant UI feedback
+      _selectedOrg = org;
+      _saveOrgToStorage(org);
+      notifyListeners(); // Notify immediately so UI updates
+      
+      // Load membership details to get role (async, doesn't block UI)
+      await getMyMembership(orgId: org.orgId);
+      notifyListeners(); // Notify again after membership loads
+    } finally {
+      _isSettingOrg = false;
+    }
   }
 
   void clearOrg() {
     _selectedOrg = null;
     _currentMembership = null;
+    _userOrgs.clear(); // Clear user orgs list
+    _isInitialized = false; // Reset initialization state
     _clearOrgFromStorage();
     notifyListeners();
   }
@@ -389,6 +451,7 @@ class OrgProvider with ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('selected_org');
       await prefs.remove('selected_org_id');
+      await prefs.remove('user_org_ids'); // Clear cached org IDs
     } catch (e) {
       debugPrint('OrgProvider._clearOrgFromStorage error: $e');
     }

@@ -56,8 +56,12 @@ class _SplashScreenState extends State<SplashScreen> {
 
     // User is authenticated - initialize org provider (loads saved org)
     if (!orgProvider.isInitialized) {
-      await orgProvider.initialize();
+      await orgProvider.initialize(currentUserId: authProvider.currentUser?.uid);
     }
+    
+    // Always reload org list after login to ensure it's fresh
+    // This prevents stale org data from previous sessions
+    await orgProvider.loadUserOrgs();
 
     if (!mounted) return;
 

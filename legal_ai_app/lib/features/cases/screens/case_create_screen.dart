@@ -99,7 +99,28 @@ class _CaseCreateScreenState extends State<CaseCreateScreen> {
     });
 
     if (success) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Case created successfully'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
       Navigator.of(context).pop();
+    } else {
+      // Show error message
+      final errorMsg = caseProvider.error ?? 'Failed to create case';
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMsg),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
     }
   }
 

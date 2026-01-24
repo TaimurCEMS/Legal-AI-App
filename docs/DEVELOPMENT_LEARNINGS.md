@@ -1158,5 +1158,145 @@ When you discover a new learning:
 
 ---
 
-**Last Updated:** 2026-01-20  
-**Next Review:** After Slice 4 completion
+---
+
+### Learning 32: Optimistic UI Updates for Instant Feedback
+**Date:** 2026-01-23  
+**Context:** Slice 4 - Document upload not appearing immediately on case details page
+
+**Issue:**
+- User uploads document from case details page
+- Document doesn't appear until page refresh or manual reload
+- Poor user experience - no immediate feedback
+- Users think upload failed
+
+**Root Cause:**
+- Document creation is async (upload → create metadata → reload list)
+- UI waits for backend confirmation before showing document
+- No immediate visual feedback
+
+**Solution:**
+- **Add optimistic UI update:**
+  ```dart
+  // In DocumentProvider.createDocument
+  // Add document immediately with temporary ID
+  final optimisticDoc = DocumentModel(
+    documentId: 'temp_${DateTime.now().millisecondsSinceEpoch}',
+    // ... other fields
+  );
+  _documents.add(optimisticDoc);
+  notifyListeners(); // UI updates immediately
+  
+  // Then create in backend
+  final createdDoc = await _documentService.createDocument(...);
+  
+  // Replace optimistic with real document
+  _documents.removeWhere((d) => d.documentId.startsWith('temp_'));
+  _documents.add(createdDoc);
+  notifyListeners();
+  ```
+
+**Lesson:**
+- **Optimistic updates provide instant feedback**
+- Users see changes immediately, backend confirms later
+- Better UX - app feels faster and more responsive
+- Rollback on error - remove optimistic update if backend fails
+- **Pattern applies to any create/update operation**
+
+**Files:**
+- `legal_ai_app/lib/features/documents/providers/document_provider.dart` - Optimistic create
+- `legal_ai_app/lib/features/home/providers/member_provider.dart` - Optimistic role update
+
+---
+
+### Learning 33: Debounce Times Affect Perceived Performance
+**Date:** 2026-01-23  
+**Context:** Overall application slowness - search and refresh delays
+
+**Issue:**
+- Search debounce: 500ms (felt slow)
+- Document refresh debounce: 800ms (felt very slow)
+- Users notice delays, app feels unresponsive
+- Overall application feels sluggish
+
+**Root Cause:**
+- Debounce times too high for modern expectations
+- Users expect instant feedback (< 300ms)
+- 500-800ms delays are noticeable and annoying
+
+**Solution:**
+- **Reduce debounce times:**
+  - Search: 500ms → 300ms (40% faster)
+  - Document refresh: 800ms → 300ms (62% faster)
+  - Upload screen delay: 800ms → 300ms
+- **Combine with optimistic updates** for instant feedback
+- **Test with real users** - find balance between performance and API calls
+
+**Lesson:**
+- **Debounce times directly affect perceived performance**
+- 300ms is sweet spot - fast enough, prevents excessive calls
+- **Optimistic updates > debounce reduction** for instant feedback
+- **Measure and optimize** - don't guess, test with users
+- **Modern apps need < 300ms response time** for good UX
+
+**Files:**
+- `legal_ai_app/lib/features/cases/screens/case_list_screen.dart` - 300ms debounce
+- `legal_ai_app/lib/features/documents/screens/document_list_screen.dart` - 300ms debounce
+- `legal_ai_app/lib/features/clients/screens/client_list_screen.dart` - 300ms debounce
+- `legal_ai_app/lib/features/cases/screens/case_details_screen.dart` - 300ms debounce
+
+---
+
+### Learning 34: Async State Management Guards Prevent Race Conditions
+**Date:** 2026-01-23  
+**Context:** Organization selection requiring double-click
+
+**Issue:**
+- User clicks organization once - nothing happens
+- User clicks again - organization selects
+- Inconsistent behavior, confusing UX
+
+**Root Cause:**
+- `setSelectedOrg` is async (loads membership)
+- No guard against concurrent calls
+- First click starts async operation
+- Second click might complete before first, causing race condition
+
+**Solution:**
+- **Add guard flag to prevent concurrent calls:**
+  ```dart
+  bool _isSettingOrg = false;
+  
+  Future<void> setSelectedOrg(OrgModel org) async {
+    if (_isSettingOrg) return; // Prevent concurrent calls
+    
+    _isSettingOrg = true;
+    try {
+      // Set org immediately for instant UI feedback
+      _selectedOrg = org;
+      notifyListeners();
+      
+      // Then load membership async
+      await getMyMembership(orgId: org.orgId);
+      notifyListeners();
+    } finally {
+      _isSettingOrg = false;
+    }
+  }
+  ```
+
+**Lesson:**
+- **Async operations need guards** to prevent race conditions
+- **Set state immediately** for instant UI feedback
+- **Load additional data async** without blocking UI
+- **Use try/finally** to ensure guard is always cleared
+- **Pattern applies to any async state mutation**
+
+**Files:**
+- `legal_ai_app/lib/features/home/providers/org_provider.dart` - `_isSettingOrg` guard
+- `legal_ai_app/lib/features/home/screens/org_selection_screen.dart` - `_selectingOrgId` guard
+
+---
+
+**Last Updated:** 2026-01-23  
+**Next Review:** After Slice 5 completion

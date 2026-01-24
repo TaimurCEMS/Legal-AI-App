@@ -61,8 +61,8 @@ class _ClientListScreenState extends State<ClientListScreen> {
     // Cancel previous timer
     _searchDebounce?.cancel();
 
-    // Set new timer to trigger search after 500ms of no typing
-    _searchDebounce = Timer(const Duration(milliseconds: 500), () {
+    // Set new timer to trigger search after 300ms of no typing (reduced for better responsiveness)
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
       if (mounted) {
         // Reset tracking to force reload with new search
         _lastLoadedOrgId = null;

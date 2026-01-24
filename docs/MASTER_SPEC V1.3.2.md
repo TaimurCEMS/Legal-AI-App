@@ -1,7 +1,7 @@
 # LEGAL AI APP - MASTER SPECIFICATION (SOURCE OF TRUTH)
 Version: 1.3.2
 Owner: Taimur (Product Owner)
-Last Updated: 2026-01-17
+Last Updated: 2026-01-23
 Status: Active Master Spec (All builds must follow this document)
 
 ---
@@ -234,3 +234,104 @@ Legal AI App/
 
 ## 4) Identity, Organization, Plans, Roles (Entitlements Engine)
 This is the foundation that controls what users can see and do.
+
+---
+
+## 5) Development Roadmap (Vertical Slices)
+
+This section defines the development roadmap as vertical slices. Each slice delivers an end-to-end working feature: UI → backend → database → output → saved result.
+
+### Completed Slices
+
+- ✅ **Slice 0:** Foundation (Auth + Org + Entitlements Engine) - **LOCKED**
+  - Organization creation and joining
+  - Membership management
+  - Entitlements engine (plans, roles, permissions)
+  - Audit logging foundation
+
+- ✅ **Slice 1:** Navigation Shell + UI System
+  - Flutter project structure
+  - Theme system (Material Design 3)
+  - Reusable UI widgets
+  - Navigation and routing
+  - State management (Provider)
+
+- ✅ **Slice 2:** Case Hub
+  - Case CRUD operations
+  - Case list with search and filtering
+  - Case visibility (ORG_WIDE, PRIVATE)
+  - Client-case relationships
+
+- ✅ **Slice 3:** Client Hub
+  - Client CRUD operations
+  - Client list with search
+  - Client-case relationships
+  - Conflict checks (cannot delete client with cases)
+
+- ✅ **Slice 2.5:** Member Management & Role Assignment (Mini-slice)
+  - List organization members
+  - View member roles
+  - Update member roles (ADMIN-only)
+  - Safety checks (cannot change own role, cannot remove last ADMIN)
+  - **Note:** Moved from Slice 15 due to blocking multi-user testing
+
+### Active Development
+
+- 🔄 **Slice 4:** Document Hub (Ready to start)
+  - Document CRUD operations
+  - Document upload to Cloud Storage
+  - Document-case linking
+  - Document list with search and filtering
+
+### Planned Slices
+
+- **Slice 5:** Task Hub
+  - Task management (CRUD)
+  - Task-case relationships
+  - Task assignment to team members
+  - Task status tracking
+
+- **Slice 6+:** AI Features
+  - Document OCR/text extraction
+  - AI legal research
+  - AI drafting with citations
+  - Document analysis
+  - AI outputs stored in case records
+
+- **Slice 12:** Audit Trail UI
+  - View audit logs
+  - Filter and search audit events
+  - Compliance reporting
+
+- **Slice 13:** Billing & Plan Management
+  - Plan upgrade UI
+  - Billing management
+  - Subscription management
+  - Usage tracking
+
+- **Slice 15:** Advanced Admin Features
+  - Member invitations (email-based)
+  - Bulk member operations
+  - Advanced member filtering and search
+  - Member profiles and activity tracking
+  - Organization settings UI
+  - Advanced permission customization
+  - **Note:** Basic member management already done in Slice 2.5
+
+### Mini-Slice Pattern
+
+Mini-slices (e.g., Slice 2.5) are inserted when:
+- Feature is blocking critical workflows or testing
+- Scope is small and manageable (can be completed quickly)
+- Can be implemented without breaking changes
+- Foundation is already in place (dependencies satisfied)
+
+**Decision Criteria:**
+- Does it unblock development or testing?
+- Is it small enough to complete in 1-2 days?
+- Will it require breaking changes? (If yes, wait for proper slice)
+- Are dependencies satisfied?
+
+**Examples:**
+- ✅ Slice 2.5: Member management (blocking multi-user testing)
+- ❌ Future: Large features should wait for proper slice planning

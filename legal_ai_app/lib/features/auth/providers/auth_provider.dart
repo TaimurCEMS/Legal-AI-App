@@ -22,23 +22,54 @@ class AuthProvider with ChangeNotifier {
   void _init() {
     _currentUser = _authService.currentUser;
     // Save user ID if user is already authenticated (e.g., on app restart)
+    // But first verify it matches what's saved (to prevent cross-tab contamination)
     if (_currentUser != null) {
-      SharedPreferences.getInstance().then((prefs) {
-        prefs.setString('user_id', _currentUser!.uid);
+      SharedPreferences.getInstance().then((prefs) async {
+        final savedUserId = prefs.getString('user_id');
+        // Only save if it matches current user or is null (first time)
+        // If different user ID is saved, clear it first (another tab logged in)
+        if (savedUserId != null && savedUserId != _currentUser!.uid) {
+          debugPrint('AuthProvider: Detected different user in storage. Clearing stale state.');
+          await prefs.remove('user_id');
+          await prefs.remove('selected_org_id');
+          await prefs.remove('selected_org');
+          await prefs.remove('user_org_ids');
+        }
+        await prefs.setString('user_id', _currentUser!.uid);
       });
     }
-    _authService.authStateChanges.listen((user) {
+    _authService.authStateChanges.listen((user) async {
+      final previousUser = _currentUser;
       _currentUser = user;
+      
+      // If user changed (not just logged out), clear all saved state
+      if (previousUser != null && user != null && previousUser.uid != user.uid) {
+        debugPrint('AuthProvider: User changed from ${previousUser.uid} to ${user.uid}. Clearing state.');
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('selected_org_id');
+        await prefs.remove('selected_org');
+        await prefs.remove('user_org_ids');
+      }
+      
       // Save user ID whenever auth state changes
       if (user != null) {
-        SharedPreferences.getInstance().then((prefs) {
-          prefs.setString('user_id', user.uid);
-        });
+        final prefs = await SharedPreferences.getInstance();
+        final savedUserId = prefs.getString('user_id');
+        // Verify saved user matches current user
+        if (savedUserId != null && savedUserId != user.uid) {
+          debugPrint('AuthProvider: Saved user ID mismatch. Clearing stale state.');
+          await prefs.remove('selected_org_id');
+          await prefs.remove('selected_org');
+          await prefs.remove('user_org_ids');
+        }
+        await prefs.setString('user_id', user.uid);
       } else {
         // Clear user ID on logout
-        SharedPreferences.getInstance().then((prefs) {
-          prefs.remove('user_id');
-        });
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('user_id');
+        await prefs.remove('selected_org_id');
+        await prefs.remove('selected_org');
+        await prefs.remove('user_org_ids');
       }
       notifyListeners();
     });

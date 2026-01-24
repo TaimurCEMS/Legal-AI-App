@@ -14,6 +14,7 @@ import '../../common/widgets/error_message.dart';
 import '../../common/widgets/cards/app_card.dart';
 import '../../home/providers/org_provider.dart';
 import '../providers/case_provider.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../../../core/routing/route_names.dart';
 
 class CaseListScreen extends StatefulWidget {
@@ -59,8 +60,8 @@ class _CaseListScreenState extends State<CaseListScreen> {
     // Cancel previous timer
     _searchDebounce?.cancel();
     
-    // Set new timer to trigger search after 500ms of no typing
-    _searchDebounce = Timer(const Duration(milliseconds: 500), () {
+    // Set new timer to trigger search after 300ms of no typing (reduced for better responsiveness)
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
       if (mounted) {
         // Reset tracking to force reload with new search
         _lastLoadedOrgId = null;
@@ -189,8 +190,9 @@ class _CaseListScreenState extends State<CaseListScreen> {
       final caseProvider = context.read<CaseProvider>();
       
       // Wait for org provider to initialize
+      final authProvider = context.read<AuthProvider>();
       if (!orgProvider.isInitialized) {
-        await orgProvider.initialize();
+        await orgProvider.initialize(currentUserId: authProvider.currentUser?.uid);
       }
       
       // Wait for org to be available (with timeout for refresh scenarios)

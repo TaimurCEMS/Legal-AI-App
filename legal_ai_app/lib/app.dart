@@ -4,8 +4,10 @@ import 'core/theme/app_theme.dart';
 import 'core/routing/app_router.dart';
 import 'features/auth/providers/auth_provider.dart';
 import 'features/home/providers/org_provider.dart';
+import 'features/home/providers/member_provider.dart';
 import 'features/cases/providers/case_provider.dart';
 import 'features/clients/providers/client_provider.dart';
+import 'features/documents/providers/document_provider.dart';
 
 /// Main app widget
 class MyApp extends StatelessWidget {
@@ -17,8 +19,10 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => OrgProvider()),
+        ChangeNotifierProvider(create: (_) => MemberProvider()),
         ChangeNotifierProvider(create: (_) => CaseProvider()),
         ChangeNotifierProvider(create: (_) => ClientProvider()),
+        ChangeNotifierProvider(create: (_) => DocumentProvider()),
       ],
       child: MaterialApp.router(
         title: 'Legal AI App',

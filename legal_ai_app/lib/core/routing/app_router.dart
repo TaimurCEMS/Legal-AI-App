@@ -13,7 +13,11 @@ import '../../features/cases/screens/case_details_screen.dart';
 import '../../features/clients/screens/client_list_screen.dart';
 import '../../features/clients/screens/client_create_screen.dart';
 import '../../features/clients/screens/client_details_screen.dart';
+import '../../features/documents/screens/document_list_screen.dart';
+import '../../features/documents/screens/document_upload_screen.dart';
+import '../../features/documents/screens/document_details_screen.dart';
 import '../../features/home/screens/settings_screen.dart';
+import '../../features/home/screens/member_management_screen.dart';
 
 /// App router configuration
 class AppRouter {
@@ -71,6 +75,10 @@ class AppRouter {
         builder: (context, state) => const SettingsScreen(),
       ),
       GoRoute(
+        path: RouteNames.memberManagement,
+        builder: (context, state) => const MemberManagementScreen(),
+      ),
+      GoRoute(
         path: RouteNames.clientList,
         builder: (context, state) => const ClientListScreen(),
       ),
@@ -84,6 +92,24 @@ class AppRouter {
           final clientId = state.extra as String? ??
               (state.uri.queryParameters['clientId'] ?? '');
           return ClientDetailsScreen(clientId: clientId);
+        },
+      ),
+      GoRoute(
+        path: RouteNames.documentList,
+        builder: (context, state) => const DocumentListScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.documentUpload,
+        builder: (context, state) {
+          final caseId = state.uri.queryParameters['caseId'];
+          return DocumentUploadScreen(caseId: caseId);
+        },
+      ),
+      GoRoute(
+        path: '${RouteNames.documentDetails}/:documentId',
+        builder: (context, state) {
+          final documentId = state.pathParameters['documentId'] ?? '';
+          return DocumentDetailsScreen(documentId: documentId);
         },
       ),
     ],
