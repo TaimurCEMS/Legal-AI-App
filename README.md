@@ -139,6 +139,27 @@ See [Slice Status](docs/status/SLICE_STATUS.md) for details.
 - **Features:** Client management, search, client-case linking
 - **See:** [Slice 3 Build Card](docs/SLICE_3_BUILD_CARD.md) for details
 
+### Slice 4: Document Hub ✅ COMPLETE
+- **Status:** Complete & Deployed
+- **Backend:** ✅ All 5 functions deployed
+- **Frontend:** ✅ All screens implemented
+- **Features:** Document upload, metadata, case linking
+- **See:** [Slice 4 Build Card](docs/SLICE_4_BUILD_CARD.md) for details
+
+### Slice 5: Task Hub ✅ COMPLETE
+- **Status:** Complete & Deployed
+- **Backend:** ✅ All 5 functions deployed
+- **Frontend:** ✅ All screens implemented
+- **Features:** Task management, assignments, case linking, priorities
+- **See:** [Slice 5 Build Card](docs/SLICE_5_BUILD_CARD.md) for details
+
+### Slice 5.5: Case Participants ✅ COMPLETE
+- **Status:** Complete & Deployed
+- **Backend:** ✅ 3 new functions + modifications to existing
+- **Frontend:** ✅ Participant management UI, task visibility toggle
+- **Features:** Private case sharing, task-level visibility control
+- **See:** [Slice 5.5 Build Card](docs/SLICE_5_5_CASE_PARTICIPANTS_BUILD_CARD.md) for details
+
 ## 🔐 Security
 
 - All writes go through Cloud Functions
@@ -152,6 +173,6 @@ Proprietary - All rights reserved
 
 ---
 
-**Last Updated:** 2026-01-20  
+**Last Updated:** 2026-01-24  
 **Project:** legal-ai-app-1203e  
 **Region:** us-central1

@@ -631,3 +631,59 @@ firebase deploy --only functions
 ### Overall
 
 **Overall:** ✅ **COMPLETE (with minor UX polish items scheduled for a future slice)**
+
+---
+
+## Slice 5.5: Case Participants & Private Case Sharing ✅ COMPLETE
+
+**Status:** ✅ **COMPLETE & DEPLOYED**  
+**Last Updated:** 2026-01-24  
+**Dependencies:** Slice 0 ✅, Slice 1 ✅, Slice 2 ✅, Slice 2.5 ✅, Slice 4 ✅, Slice 5 ✅  
+**Type:** Mini-slice (extension to Slice 5)
+
+### Backend Status: ✅ COMPLETE
+
+**New Functions (3):**
+1. ✅ `caseListParticipants` – List participants for a private case
+2. ✅ `caseAddParticipant` – Add a participant to a private case
+3. ✅ `caseRemoveParticipant` – Remove a participant from a private case
+
+**Modified Functions:**
+- ✅ `caseGet` – Extended to allow participants to view private cases
+- ✅ `caseList` – Extended with collection group query to show shared private cases
+- ✅ `taskCreate/Get/List/Update` – Added `restrictedToAssignee` field for task-level visibility
+- ✅ `taskDelete` – Made idempotent (no error if already deleted)
+
+**New Utilities:**
+- ✅ `functions/src/utils/case-access.ts` – Centralized case access helper
+
+**Infrastructure:**
+- ✅ Firestore collection group index for `participants.uid`
+- ✅ New error codes for participant management
+
+### Frontend Status: ✅ COMPLETE
+
+**New Files:**
+- ✅ `CaseParticipantModel` – Data model for case participants
+- ✅ `CaseParticipantsService` – Service for participant management
+
+**Modified Screens:**
+- ✅ `CaseDetailsScreen` – Added "People with access" section
+- ✅ `TaskCreateScreen` – Added task visibility toggle, assignee filtering
+- ✅ `TaskDetailsScreen` – Added task visibility toggle, assignee filtering
+
+**Modified Models/Services:**
+- ✅ `TaskModel` – Added `restrictedToAssignee` field
+- ✅ `TaskService/TaskProvider` – Updated for visibility flag
+
+### Key Features
+
+1. **Private Case Sharing:** Creator (and ADMINs) can add/remove participants
+2. **Task-Level Visibility:** `restrictedToAssignee` toggle for both PRIVATE and ORG_WIDE cases
+3. **Improved Assignee Selection:** For private cases, shows only creator + participants
+
+### Documentation
+
+- **Build Card:** `docs/SLICE_5_5_CASE_PARTICIPANTS_BUILD_CARD.md`
+
+**Overall:** ✅ **COMPLETE**

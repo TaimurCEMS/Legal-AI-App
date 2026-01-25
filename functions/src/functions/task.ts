@@ -8,6 +8,7 @@ import { successResponse, errorResponse } from '../utils/response';
 import { ErrorCode } from '../constants/errors';
 import { checkEntitlement } from '../utils/entitlements';
 import { createAuditEvent } from '../utils/audit';
+import { canUserAccessCase } from '../utils/case-access';
 
 const db = admin.firestore();
 
@@ -26,6 +27,14 @@ interface TaskDocument {
   dueDate?: FirestoreTimestamp | null;
   assigneeId?: string | null;
   priority: TaskPriority;
+  /**
+   * Task-level visibility flag (Slice 5.5 extension).
+   * When true for PRIVATE cases, the task is only visible to:
+   * - Admins
+   * - The assignee
+   * - The creator while unassigned
+   */
+  restrictedToAssignee?: boolean;
   createdAt: FirestoreTimestamp;
   updatedAt: FirestoreTimestamp;
   createdBy: string;
@@ -157,32 +166,107 @@ async function verifyAssigneeIsMember(orgId: string, assigneeId: string): Promis
 
 async function verifyCaseExists(orgId: string, caseId: string, uid: string): Promise<{ exists: boolean; accessible: boolean }> {
   try {
+    const access = await canUserAccessCase(orgId, caseId, uid);
+
+    if (!access.allowed) {
+      // We still need to distinguish between "case truly missing" and "no access" when possible.
+      // canUserAccessCase returns a generic reason; for now we map it into exists/access flags.
+      if (access.reason === 'Case not found') {
+        return { exists: false, accessible: false };
+      }
+      return { exists: true, accessible: false };
+    }
+
+    return { exists: true, accessible: true };
+  } catch (error) {
+    functions.logger.error('Error verifying case:', error);
+    return { exists: false, accessible: false };
+  }
+}
+
+/**
+ * Validate that an assignee is allowed for a PRIVATE case.
+ * For PRIVATE cases, assignees must be the case creator or a case participant.
+ * For ORG_WIDE cases, any org member is allowed (this function should not be called).
+ *
+ * @returns Object with valid flag and optional error details.
+ */
+async function validatePrivateCaseAssignee(
+  orgId: string,
+  caseId: string,
+  assigneeId: string
+): Promise<{ valid: boolean; error?: { code: ErrorCode; message: string } }> {
+  try {
+    // Get case document
     const caseRef = db
       .collection('organizations')
       .doc(orgId)
       .collection('cases')
       .doc(caseId);
-    
+
     const caseDoc = await caseRef.get();
     if (!caseDoc.exists) {
-      return { exists: false, accessible: false };
+      return {
+        valid: false,
+        error: {
+          code: ErrorCode.NOT_FOUND,
+          message: 'Case not found',
+        },
+      };
     }
-    
-    const caseData = caseDoc.data() as { visibility?: string; createdBy?: string; deletedAt?: FirestoreTimestamp };
-    
-    if (caseData.deletedAt) {
-      return { exists: false, accessible: false };
+
+    const caseData = caseDoc.data() as {
+      visibility?: 'ORG_WIDE' | 'PRIVATE';
+      createdBy?: string;
+      deletedAt?: FirestoreTimestamp | null;
+    };
+
+    if (caseData?.deletedAt) {
+      return {
+        valid: false,
+        error: {
+          code: ErrorCode.NOT_FOUND,
+          message: 'Case not found',
+        },
+      };
     }
-    
-    // Check visibility
-    if (caseData.visibility === 'PRIVATE' && caseData.createdBy !== uid) {
-      return { exists: true, accessible: false };
+
+    // If case is ORG_WIDE, any org member is allowed (defensive)
+    if (caseData?.visibility !== 'PRIVATE') {
+      return { valid: true };
     }
-    
-    return { exists: true, accessible: true };
+
+    // For PRIVATE cases, assignee must be creator or participant
+    if (caseData.createdBy === assigneeId) {
+      return { valid: true };
+    }
+
+    // Check if assignee is a participant
+    const participantRef = caseRef.collection('participants').doc(assigneeId);
+    const participantDoc = await participantRef.get();
+
+    if (participantDoc.exists) {
+      return { valid: true };
+    }
+
+    // Assignee is not creator or participant
+    return {
+      valid: false,
+      error: {
+        code: ErrorCode.ASSIGNEE_NOT_CASE_PARTICIPANT,
+        message:
+          'Tasks in private cases can only be assigned to the case owner or participants',
+      },
+    };
   } catch (error) {
-    functions.logger.error('Error verifying case:', error);
-    return { exists: false, accessible: false };
+    functions.logger.error('Error validating private case assignee:', error);
+    return {
+      valid: false,
+      error: {
+        code: ErrorCode.INTERNAL_ERROR,
+        message: 'Failed to validate assignee',
+      },
+    };
   }
 }
 
@@ -197,7 +281,17 @@ export const taskCreate = functions.https.onCall(async (data, context) => {
   }
 
   const uid = context.auth.uid;
-  const { orgId, title, description, status, dueDate, assigneeId, priority, caseId } = data || {};
+  const {
+    orgId,
+    title,
+    description,
+    status,
+    dueDate,
+    assigneeId,
+    priority,
+    caseId,
+    restrictedToAssignee,
+  } = data || {};
 
   // Validate orgId
   if (!orgId || typeof orgId !== 'string' || orgId.trim().length === 0) {
@@ -296,6 +390,7 @@ export const taskCreate = functions.https.onCall(async (data, context) => {
     }
 
     // Validate case if provided
+    let validatedCaseId: string | null = null;
     if (caseId && typeof caseId === 'string' && caseId.trim().length > 0) {
       const caseCheck = await verifyCaseExists(orgId, caseId.trim(), uid);
       if (!caseCheck.exists) {
@@ -310,7 +405,27 @@ export const taskCreate = functions.https.onCall(async (data, context) => {
           'You do not have access to this case'
         );
       }
+      validatedCaseId = caseId.trim();
     }
+
+    // For PRIVATE cases, validate assignee is creator or participant
+    if (validatedCaseId && assigneeId && typeof assigneeId === 'string' && assigneeId.trim().length > 0) {
+      const assigneeValidation = await validatePrivateCaseAssignee(
+        orgId,
+        validatedCaseId,
+        assigneeId.trim()
+      );
+      if (!assigneeValidation.valid && assigneeValidation.error) {
+        return errorResponse(
+          assigneeValidation.error.code,
+          assigneeValidation.error.message
+        );
+      }
+    }
+
+    // Determine task-level visibility flag
+    const restrictedFlag =
+      typeof restrictedToAssignee === 'boolean' ? restrictedToAssignee : false;
 
     // Create task document
     const now = admin.firestore.Timestamp.now();
@@ -331,6 +446,7 @@ export const taskCreate = functions.https.onCall(async (data, context) => {
       dueDate: parsedDueDate ? admin.firestore.Timestamp.fromDate(parsedDueDate) : null,
       assigneeId: assigneeId && typeof assigneeId === 'string' && assigneeId.trim().length > 0 ? assigneeId.trim() : null,
       priority: parsedPriority,
+      restrictedToAssignee: restrictedFlag,
       createdAt: now,
       updatedAt: now,
       createdBy: uid,
@@ -374,6 +490,7 @@ export const taskCreate = functions.https.onCall(async (data, context) => {
       assigneeId: taskData.assigneeId,
       assigneeName,
       priority: parsedPriority,
+      restrictedToAssignee: restrictedFlag,
       createdAt: toIso(now),
       updatedAt: toIso(now),
       createdBy: uid,
@@ -460,6 +577,44 @@ export const taskGet = functions.https.onCall(async (data, context) => {
     // Get assignee name if assigned
     const assigneeName = await getAssigneeName(orgId, taskData.assigneeId);
 
+    // Task-level visibility for PRIVATE cases:
+    // When restrictedToAssignee is true, only admins, assignee, or (if unassigned) case creator may view.
+    if (taskData.caseId && taskData.restrictedToAssignee) {
+      const entitlementForVisibility = await checkEntitlement({
+        uid,
+        orgId,
+        requiredFeature: 'TASKS',
+        requiredPermission: 'task.read',
+      });
+
+      const isAdmin = entitlementForVisibility.role === 'ADMIN';
+      const isAssignee = taskData.assigneeId === uid;
+      let isCreatorOfCaseForUnassigned = false;
+
+      if (!isAdmin && !isAssignee && !taskData.assigneeId) {
+        // Check if user is the creator of the linked case
+        const caseRef = db
+          .collection('organizations')
+          .doc(orgId)
+          .collection('cases')
+          .doc(taskData.caseId as string);
+        const caseSnap = await caseRef.get();
+        if (caseSnap.exists) {
+          const caseData = caseSnap.data() as {
+            createdBy?: string;
+          };
+          isCreatorOfCaseForUnassigned = caseData.createdBy === uid;
+        }
+      }
+
+      if (!isAdmin && !isAssignee && !isCreatorOfCaseForUnassigned) {
+        return errorResponse(
+          ErrorCode.NOT_AUTHORIZED,
+          'You are not allowed to view this task'
+        );
+      }
+    }
+
     return successResponse({
       taskId: taskData.id,
       orgId: taskData.orgId,
@@ -471,6 +626,7 @@ export const taskGet = functions.https.onCall(async (data, context) => {
       assigneeId: taskData.assigneeId ?? null,
       assigneeName,
       priority: taskData.priority,
+      restrictedToAssignee: taskData.restrictedToAssignee ?? false,
       createdAt: toIso(taskData.createdAt),
       updatedAt: toIso(taskData.updatedAt),
       createdBy: taskData.createdBy,
@@ -609,6 +765,67 @@ export const taskList = functions.https.onCall(async (data, context) => {
       tasks = tasks.filter((t) => t.data.title.toLowerCase().includes(searchLower));
     }
 
+    // Enforce task-level visibility for PRIVATE cases when restrictedToAssignee is true.
+    // For those tasks, only:
+    // - Admins
+    // - The assignee
+    // - The case creator while unassigned
+    // may see the task.
+    if (tasks.length > 0) {
+      const isAdmin = entitlement.role === 'ADMIN';
+
+      // Collect caseIds we need to resolve creators for (unassigned restricted tasks)
+      const caseIdsNeedingCreatorCheck = new Set<string>();
+      tasks.forEach((t) => {
+        const d = t.data;
+        if (
+          d.caseId &&
+          d.restrictedToAssignee &&
+          !d.assigneeId
+        ) {
+          caseIdsNeedingCreatorCheck.add(d.caseId);
+        }
+      });
+
+      const caseCreatorMap = new Map<string, string>();
+      if (caseIdsNeedingCreatorCheck.size > 0) {
+        const caseRefs = Array.from(caseIdsNeedingCreatorCheck).map((id) =>
+          db
+            .collection('organizations')
+            .doc(orgId)
+            .collection('cases')
+            .doc(id)
+        );
+        const caseSnaps = await db.getAll(...caseRefs);
+        caseSnaps.forEach((snap) => {
+          if (snap.exists) {
+            const data = snap.data() as { createdBy?: string };
+            caseCreatorMap.set(snap.id, data.createdBy || '');
+          }
+        });
+      }
+
+      tasks = tasks.filter((t) => {
+        const d = t.data;
+        if (!d.caseId || !d.restrictedToAssignee) {
+          return true;
+        }
+        if (isAdmin) {
+          return true;
+        }
+        if (d.assigneeId === uid) {
+          return true;
+        }
+        if (!d.assigneeId) {
+          const creator = caseCreatorMap.get(d.caseId!);
+          if (creator === uid) {
+            return true;
+          }
+        }
+        return false;
+      });
+    }
+
     // Hard cap check
     if (tasks.length > 1000) {
       return errorResponse(
@@ -658,6 +875,7 @@ export const taskList = functions.https.onCall(async (data, context) => {
         assigneeId: taskData.assigneeId ?? null,
         assigneeName: taskData.assigneeId ? assigneeNameMap.get(taskData.assigneeId) ?? null : null,
         priority: taskData.priority,
+        restrictedToAssignee: taskData.restrictedToAssignee ?? false,
         createdAt: toIso(taskData.createdAt),
         updatedAt: toIso(taskData.updatedAt),
         createdBy: taskData.createdBy,
@@ -690,7 +908,18 @@ export const taskUpdate = functions.https.onCall(async (data, context) => {
   }
 
   const uid = context.auth.uid;
-  const { orgId, taskId, title, description, status, dueDate, assigneeId, priority, caseId } = data || {};
+  const {
+    orgId,
+    taskId,
+    title,
+    description,
+    status,
+    dueDate,
+    assigneeId,
+    priority,
+    caseId,
+    restrictedToAssignee,
+  } = data || {};
 
   if (!orgId || typeof orgId !== 'string' || orgId.trim().length === 0) {
     return errorResponse(ErrorCode.ORG_REQUIRED, 'Organization ID is required');
@@ -929,6 +1158,20 @@ export const taskUpdate = functions.https.onCall(async (data, context) => {
       }
     }
 
+    // Validate and apply restrictedToAssignee (task-level visibility)
+    if (restrictedToAssignee !== undefined) {
+      if (typeof restrictedToAssignee !== 'boolean') {
+        return errorResponse(
+          ErrorCode.VALIDATION_ERROR,
+          'restrictedToAssignee must be a boolean'
+        );
+      }
+      if (restrictedToAssignee !== (existingTask.restrictedToAssignee ?? false)) {
+        updateData.restrictedToAssignee = restrictedToAssignee;
+        changes.restrictedToAssignee = restrictedToAssignee;
+      }
+    }
+
     // If no changes, return existing task
     if (Object.keys(updateData).length === 0) {
       const assigneeName = await getAssigneeName(orgId, existingTask.assigneeId);
@@ -943,6 +1186,7 @@ export const taskUpdate = functions.https.onCall(async (data, context) => {
         assigneeId: existingTask.assigneeId ?? null,
         assigneeName,
         priority: existingTask.priority,
+        restrictedToAssignee: existingTask.restrictedToAssignee ?? false,
         createdAt: toIso(existingTask.createdAt),
         updatedAt: toIso(existingTask.updatedAt),
         createdBy: existingTask.createdBy,
@@ -1004,6 +1248,7 @@ export const taskUpdate = functions.https.onCall(async (data, context) => {
       assigneeId: updatedTask.assigneeId ?? null,
       assigneeName,
       priority: updatedTask.priority,
+      restrictedToAssignee: updatedTask.restrictedToAssignee ?? false,
       createdAt: toIso(updatedTask.createdAt),
       updatedAt: toIso(updatedTask.updatedAt),
       createdBy: updatedTask.createdBy,
@@ -1078,19 +1323,21 @@ export const taskDelete = functions.https.onCall(async (data, context) => {
 
     const taskSnap = await taskRef.get();
     if (!taskSnap.exists) {
-      return errorResponse(
-        ErrorCode.NOT_FOUND,
-        'Task not found'
-      );
+      // Idempotent delete: if task is already missing, treat as success
+      return successResponse({
+        taskId,
+        message: 'Task already deleted',
+      });
     }
 
     const taskData = taskSnap.data() as TaskDocument;
 
     if (taskData.deletedAt) {
-      return errorResponse(
-        ErrorCode.NOT_FOUND,
-        'Task already deleted'
-      );
+      // Idempotent delete: if task is already soft-deleted, treat as success
+      return successResponse({
+        taskId,
+        message: 'Task already deleted',
+      });
     }
 
     // Soft delete

@@ -16,6 +16,7 @@ export enum ErrorCode {
   INVALID_STATUS_TRANSITION = 'INVALID_STATUS_TRANSITION',
   INVALID_DUE_DATE = 'INVALID_DUE_DATE',
   ASSIGNEE_NOT_MEMBER = 'ASSIGNEE_NOT_MEMBER',
+  ASSIGNEE_NOT_CASE_PARTICIPANT = 'ASSIGNEE_NOT_CASE_PARTICIPANT',
 }
 
 export const ERROR_MESSAGES: Record<ErrorCode, string> = {
@@ -31,6 +32,8 @@ export const ERROR_MESSAGES: Record<ErrorCode, string> = {
   [ErrorCode.INVALID_STATUS_TRANSITION]: 'Invalid status transition',
   [ErrorCode.INVALID_DUE_DATE]: 'Due date must be today or in the future',
   [ErrorCode.ASSIGNEE_NOT_MEMBER]: 'Assignee must be a member of the organization',
+  [ErrorCode.ASSIGNEE_NOT_CASE_PARTICIPANT]:
+    'Assignee must be the case creator or a case participant',
 };
 
 export function getErrorMessage(code: ErrorCode, customMessage?: string): string {

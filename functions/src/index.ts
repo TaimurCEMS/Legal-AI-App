@@ -14,6 +14,11 @@ export { memberGetMyMembership, memberListMyOrgs, memberListMembers, memberUpdat
 
 // Export Slice 2 - Case Hub callable functions
 export { caseCreate, caseGet, caseList, caseUpdate, caseDelete } from './functions/case';
+export {
+  caseListParticipants,
+  caseAddParticipant,
+  caseRemoveParticipant,
+} from './functions/case-participants';
 
 // Export Slice 3 - Client Hub callable functions
 export { clientCreate, clientGet, clientList, clientUpdate, clientDelete } from './functions/client';

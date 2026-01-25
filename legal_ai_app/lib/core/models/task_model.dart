@@ -90,6 +90,12 @@ class TaskModel {
   final String? assigneeId;
   final String? assigneeName;
   final TaskPriority priority;
+   /// Task-level visibility flag (Slice 5.5 extension).
+   /// When true for PRIVATE cases, the task is only visible to:
+   /// - Admins
+   /// - The assignee
+   /// - The creator while unassigned
+   final bool restrictedToAssignee;
   final DateTime createdAt;
   final DateTime updatedAt;
   final String createdBy;
@@ -106,6 +112,7 @@ class TaskModel {
     this.assigneeId,
     this.assigneeName,
     required this.priority,
+    this.restrictedToAssignee = false,
     required this.createdAt,
     required this.updatedAt,
     required this.createdBy,
@@ -148,6 +155,7 @@ class TaskModel {
       assigneeId: json['assigneeId'] as String?,
       assigneeName: json['assigneeName'] as String?,
       priority: TaskPriority.fromString(json['priority'] as String? ?? 'MEDIUM'),
+      restrictedToAssignee: json['restrictedToAssignee'] as bool? ?? false,
       createdAt: _parseTimestamp(json['createdAt']),
       updatedAt: _parseTimestamp(json['updatedAt']),
       createdBy: json['createdBy'] as String,
@@ -168,6 +176,7 @@ class TaskModel {
       'assigneeId': assigneeId,
       'assigneeName': assigneeName,
       'priority': priority.value,
+      'restrictedToAssignee': restrictedToAssignee,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       'createdBy': createdBy,

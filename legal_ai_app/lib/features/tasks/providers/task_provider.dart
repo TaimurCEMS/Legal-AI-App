@@ -115,6 +115,7 @@ class TaskProvider with ChangeNotifier {
     String? assigneeId,
     TaskPriority priority = TaskPriority.medium,
     String? caseId,
+    bool restrictedToAssignee = false,
   }) async {
     _isLoading = true;
     _errorMessage = null;
@@ -136,6 +137,7 @@ class TaskProvider with ChangeNotifier {
       updatedAt: DateTime.now(),
       createdBy: '',
       updatedBy: '',
+      restrictedToAssignee: restrictedToAssignee,
     );
     
     // Only add optimistically if we're viewing tasks for this case/org
@@ -156,6 +158,7 @@ class TaskProvider with ChangeNotifier {
         assigneeId: assigneeId,
         priority: priority,
         caseId: caseId,
+        restrictedToAssignee: restrictedToAssignee,
       );
       
       // Remove ONLY the specific optimistic task (ID-specific removal)
@@ -205,6 +208,7 @@ class TaskProvider with ChangeNotifier {
     bool clearDueDate = false,
     bool unassign = false,
     bool unlinkCase = false,
+    bool? restrictedToAssignee,
   }) async {
     _isUpdating = true;
     _errorMessage = null;
@@ -225,6 +229,8 @@ class TaskProvider with ChangeNotifier {
         assigneeId: unassign ? null : (assigneeId ?? previousTask.assigneeId),
         assigneeName: previousTask.assigneeName, // Will be updated after backend confirms
         priority: priority ?? previousTask.priority,
+        restrictedToAssignee:
+            restrictedToAssignee ?? previousTask.restrictedToAssignee,
         createdAt: previousTask.createdAt,
         updatedAt: DateTime.now(),
         createdBy: previousTask.createdBy,
@@ -253,6 +259,7 @@ class TaskProvider with ChangeNotifier {
         clearDueDate: clearDueDate,
         unassign: unassign,
         unlinkCase: unlinkCase,
+        restrictedToAssignee: restrictedToAssignee,
       );
       
       // Replace optimistic update with real data

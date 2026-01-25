@@ -8,6 +8,7 @@ import { successResponse, errorResponse } from '../utils/response';
 import { ErrorCode } from '../constants/errors';
 import { checkEntitlement } from '../utils/entitlements';
 import { createAuditEvent } from '../utils/audit';
+import { canUserAccessCase } from '../utils/case-access';
 
 const db = admin.firestore();
 const storage = admin.storage();
@@ -77,51 +78,7 @@ function toIso(ts: FirestoreTimestamp): string {
   return ts.toDate().toISOString();
 }
 
-/**
- * Check if user can access a case (for document permission checks)
- * Returns true if:
- * - Case is ORG_WIDE (all org members can access)
- * - Case is PRIVATE and user is the creator
- */
-async function canAccessCase(
-  orgId: string,
-  caseId: string,
-  uid: string
-): Promise<{ allowed: boolean; reason?: string }> {
-  try {
-    const caseRef = db
-      .collection('organizations')
-      .doc(orgId)
-      .collection('cases')
-      .doc(caseId);
-
-    const caseDoc = await caseRef.get();
-
-    if (!caseDoc.exists) {
-      return { allowed: false, reason: 'Case not found' };
-    }
-
-    const caseData = caseDoc.data();
-
-    if (caseData?.deletedAt) {
-      return { allowed: false, reason: 'Case not found' };
-    }
-
-    // Check visibility
-    if (caseData?.visibility === 'PRIVATE') {
-      // Only creator can access PRIVATE cases
-      if (caseData.createdBy !== uid) {
-        return { allowed: false, reason: 'You are not allowed to access this private case' };
-      }
-    }
-
-    // ORG_WIDE cases are accessible to all org members (already verified by org membership check)
-    return { allowed: true };
-  } catch (error: any) {
-    functions.logger.error('Error checking case access:', error);
-    return { allowed: false, reason: 'Failed to verify case access' };
-  }
-}
+// Case access checks for documents now delegate to the shared helper in utils/case-access.ts
 
 /**
  * Generate signed download URL for Storage file
@@ -276,7 +233,7 @@ export const documentCreate = functions.https.onCall(async (data, context) => {
 
   // If caseId provided, verify case exists and user can access it
   if (caseId && typeof caseId === 'string' && caseId.trim().length > 0) {
-    const caseAccess = await canAccessCase(orgId, caseId.trim(), uid);
+    const caseAccess = await canUserAccessCase(orgId, caseId.trim(), uid);
     if (!caseAccess.allowed) {
       return errorResponse(
         ErrorCode.NOT_AUTHORIZED,
@@ -420,7 +377,7 @@ export const documentGet = functions.https.onCall(async (data, context) => {
 
     // If document is linked to a case, verify user can access that case
     if (documentData.caseId) {
-      const caseAccess = await canAccessCase(orgId, documentData.caseId, uid);
+      const caseAccess = await canUserAccessCase(orgId, documentData.caseId, uid);
       if (!caseAccess.allowed) {
         return errorResponse(
           ErrorCode.NOT_AUTHORIZED,
@@ -496,7 +453,7 @@ export const documentList = functions.https.onCall(async (data, context) => {
 
   // If caseId provided, verify case exists and user can access it
   if (caseId && typeof caseId === 'string' && caseId.trim().length > 0) {
-    const caseAccess = await canAccessCase(orgId, caseId.trim(), uid);
+    const caseAccess = await canUserAccessCase(orgId, caseId.trim(), uid);
     if (!caseAccess.allowed) {
       return errorResponse(
         ErrorCode.NOT_AUTHORIZED,
@@ -555,7 +512,7 @@ export const documentList = functions.https.onCall(async (data, context) => {
     const accessibleDocuments = [];
     for (const doc of allDocuments) {
       if (doc.caseId) {
-        const caseAccess = await canAccessCase(orgId, doc.caseId, uid);
+        const caseAccess = await canUserAccessCase(orgId, doc.caseId, uid);
         if (!caseAccess.allowed) {
           // Skip documents linked to inaccessible cases
           continue;
@@ -715,7 +672,7 @@ export const documentUpdate = functions.https.onCall(async (data, context) => {
         updates.caseId = null;
       } else if (typeof caseId === 'string' && caseId.trim().length > 0) {
         // Verify case exists and user can access it
-        const caseAccess = await canAccessCase(orgId, caseId.trim(), uid);
+        const caseAccess = await canUserAccessCase(orgId, caseId.trim(), uid);
         if (!caseAccess.allowed) {
           return errorResponse(
             ErrorCode.NOT_AUTHORIZED,
@@ -731,7 +688,7 @@ export const documentUpdate = functions.https.onCall(async (data, context) => {
 
     // If document is already linked to a case, verify user can still access that case
     if (existingData.caseId && !updates.caseId) {
-      const caseAccess = await canAccessCase(orgId, existingData.caseId, uid);
+      const caseAccess = await canUserAccessCase(orgId, existingData.caseId, uid);
       if (!caseAccess.allowed) {
         return errorResponse(
           ErrorCode.NOT_AUTHORIZED,
@@ -857,7 +814,7 @@ export const documentDelete = functions.https.onCall(async (data, context) => {
 
     // If document is linked to a case, verify user can access that case
     if (existingData.caseId) {
-      const caseAccess = await canAccessCase(orgId, existingData.caseId, uid);
+      const caseAccess = await canUserAccessCase(orgId, existingData.caseId, uid);
       if (!caseAccess.allowed) {
         return errorResponse(
           ErrorCode.NOT_AUTHORIZED,

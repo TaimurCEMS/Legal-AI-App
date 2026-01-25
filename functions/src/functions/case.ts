@@ -8,6 +8,7 @@ import { successResponse, errorResponse } from '../utils/response';
 import { ErrorCode } from '../constants/errors';
 import { checkEntitlement } from '../utils/entitlements';
 import { createAuditEvent } from '../utils/audit';
+import { canUserAccessCase } from '../utils/case-access';
 
 const db = admin.firestore();
 
@@ -289,15 +290,22 @@ export const caseGet = functions.https.onCall(async (data, context) => {
       );
     }
 
-    // Visibility check
-    if (
-      caseData.visibility === 'PRIVATE' &&
-      caseData.createdBy !== uid
-    ) {
-      return errorResponse(
-        ErrorCode.NOT_AUTHORIZED,
-        'You are not allowed to view this private case'
-      );
+    // Visibility and access check (supports PRIVATE case participants)
+    if (caseData.visibility === 'PRIVATE') {
+      const access = await canUserAccessCase(orgId, caseId, uid);
+      if (!access.allowed) {
+        if (access.reason === 'Case not found') {
+          return errorResponse(
+            ErrorCode.NOT_FOUND,
+            'Case not found'
+          );
+        }
+
+        return errorResponse(
+          ErrorCode.NOT_AUTHORIZED,
+          access.reason || 'You are not allowed to view this private case'
+        );
+      }
     }
 
     const clientName = await getClientName(orgId, caseData.clientId);
@@ -383,7 +391,9 @@ export const caseList = functions.https.onCall(async (data, context) => {
       );
     }
 
-    // Build base queries for ORG_WIDE and PRIVATE cases
+    // Build base queries for ORG_WIDE and PRIVATE cases where the user is the creator.
+    // PRIVATE cases where the user is an explicit participant are added below via
+    // a collection group query on the "participants" subcollection.
     let orgWideQuery: FirebaseFirestore.Query = db
       .collection('organizations')
       .doc(orgId)
@@ -429,6 +439,53 @@ export const caseList = functions.https.onCall(async (data, context) => {
     privateSnap.forEach((doc) => {
       allCases.push(doc.data() as CaseDocument);
     });
+
+    // Also include PRIVATE cases where the user is an explicit participant.
+    // This allows participants (not just creators) to see private cases.
+    const existingCaseIds = new Set(allCases.map((c) => c.id));
+
+    const participantsSnap = await db
+      .collectionGroup('participants')
+      .where('uid', '==', uid)
+      .get();
+
+    const participantCaseIds = new Set<string>();
+    participantsSnap.forEach((doc) => {
+      // Path: organizations/{orgId}/cases/{caseId}/participants/{uid}
+      const parts = doc.ref.path.split('/');
+      if (
+        parts.length >= 6 &&
+        parts[0] === 'organizations' &&
+        parts[1] === orgId &&
+        parts[2] === 'cases'
+      ) {
+        const caseId = parts[3];
+        if (!existingCaseIds.has(caseId)) {
+          participantCaseIds.add(caseId);
+        }
+      }
+    });
+
+    if (participantCaseIds.size > 0) {
+      const caseRefs = Array.from(participantCaseIds).map((caseId) =>
+        db
+          .collection('organizations')
+          .doc(orgId)
+          .collection('cases')
+          .doc(caseId)
+      );
+      const caseSnaps = await db.getAll(...caseRefs);
+
+      caseSnaps.forEach((snap) => {
+        if (!snap.exists) return;
+        const data = snap.data() as CaseDocument;
+        // Only include non-deleted PRIVATE cases
+        if (!data.deletedAt && data.visibility === 'PRIVATE') {
+          allCases.push(data);
+          existingCaseIds.add(data.id);
+        }
+      });
+    }
 
     // Sort merged results by updatedAt desc (defensive, queries already sorted)
     allCases.sort(

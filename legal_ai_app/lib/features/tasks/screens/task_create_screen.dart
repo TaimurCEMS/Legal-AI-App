@@ -12,6 +12,8 @@ import '../../cases/providers/case_provider.dart';
 import '../../../core/models/case_model.dart';
 import '../../home/providers/member_provider.dart';
 import '../../../core/models/member_model.dart';
+import '../../../core/models/case_participant_model.dart';
+import '../../../core/services/case_participants_service.dart';
 
 class TaskCreateScreen extends StatefulWidget {
   final String? caseId; // Optional case ID if creating from case details
@@ -33,9 +35,13 @@ class _TaskCreateScreenState extends State<TaskCreateScreen> {
   String? _selectedAssigneeId;
   bool _loadingCases = false;
   bool _loadingMembers = false;
+  List<CaseParticipantModel> _caseParticipants = [];
+  bool _loadingParticipants = false;
+  final CaseParticipantsService _participantsService = CaseParticipantsService();
 
   bool _submitting = false;
   String? _error;
+  bool _restrictedToAssignee = false;
 
   @override
   void initState() {
@@ -44,6 +50,9 @@ class _TaskCreateScreenState extends State<TaskCreateScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadCases();
       _loadMembers();
+      if (widget.caseId != null) {
+        _loadParticipantsForCase(widget.caseId!);
+      }
     });
   }
 
@@ -81,6 +90,68 @@ class _TaskCreateScreenState extends State<TaskCreateScreen> {
         _loadingMembers = false;
       });
     }
+  }
+
+  Future<void> _loadParticipantsForCase(String caseId) async {
+    final org = context.read<OrgProvider>().selectedOrg;
+    if (org == null) return;
+
+    setState(() {
+      _loadingParticipants = true;
+    });
+
+    try {
+      final participants = await _participantsService.listParticipants(
+        org: org,
+        caseId: caseId,
+      );
+
+      if (mounted) {
+        setState(() {
+          _caseParticipants = participants;
+          _loadingParticipants = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _loadingParticipants = false;
+          _caseParticipants = [];
+        });
+      }
+    }
+  }
+
+  List<MemberModel> _getAvailableAssignees() {
+    final memberProvider = context.read<MemberProvider>();
+    final allMembers = memberProvider.members;
+
+    // If no case selected, show all members
+    if (_selectedCaseId == null) {
+      return allMembers;
+    }
+
+    final caseProvider = context.read<CaseProvider>();
+    CaseModel? caseModel;
+    try {
+      caseModel = caseProvider.cases.firstWhere(
+        (c) => c.caseId == _selectedCaseId,
+      );
+    } catch (_) {
+      caseModel = null;
+    }
+
+    if (caseModel == null || caseModel.visibility != CaseVisibility.private) {
+      return allMembers;
+    }
+
+    // For PRIVATE cases, only show creator + participants
+    final allowedUids = <String>{caseModel.createdBy};
+    for (final participant in _caseParticipants) {
+      allowedUids.add(participant.uid);
+    }
+
+    return allMembers.where((m) => allowedUids.contains(m.uid)).toList();
   }
 
   @override
@@ -138,6 +209,7 @@ class _TaskCreateScreenState extends State<TaskCreateScreen> {
       assigneeId: _selectedAssigneeId,
       priority: _priority,
       caseId: _selectedCaseId,
+      restrictedToAssignee: _restrictedToAssignee,
     );
 
     if (!mounted) return;
@@ -279,9 +351,10 @@ class _TaskCreateScreenState extends State<TaskCreateScreen> {
                 ),
                 const SizedBox(height: AppSpacing.md),
                 DropdownButtonFormField<String>(
-                  value: _selectedCaseId != null && 
-                         !_loadingCases &&
-                         context.read<CaseProvider>().cases.any((c) => c.caseId == _selectedCaseId)
+                  value: _selectedCaseId != null &&
+                          !_loadingCases &&
+                          context.read<CaseProvider>().cases
+                              .any((c) => c.caseId == _selectedCaseId)
                       ? _selectedCaseId
                       : null,
                   decoration: const InputDecoration(
@@ -305,13 +378,34 @@ class _TaskCreateScreenState extends State<TaskCreateScreen> {
                     setState(() {
                       _selectedCaseId = value;
                     });
+                    if (value != null) {
+                      _loadParticipantsForCase(value);
+                    } else {
+                      setState(() {
+                        _caseParticipants = [];
+                      });
+                    }
+                  },
+                ),
+                const SizedBox(height: AppSpacing.md),
+                SwitchListTile(
+                  title: const Text('Visible only to assignee and admins'),
+                  subtitle: const Text(
+                    'When linked to a private case, enable this to hide the task from other case members.',
+                  ),
+                  value: _restrictedToAssignee,
+                  onChanged: (value) {
+                    setState(() {
+                      _restrictedToAssignee = value;
+                    });
                   },
                 ),
                 const SizedBox(height: AppSpacing.md),
                 DropdownButtonFormField<String>(
-                  value: _selectedAssigneeId != null && 
-                         !_loadingMembers &&
-                         context.read<MemberProvider>().members.any((m) => m.uid == _selectedAssigneeId)
+                  value: _selectedAssigneeId != null &&
+                          !_loadingMembers &&
+                          _getAvailableAssignees()
+                              .any((m) => m.uid == _selectedAssigneeId)
                       ? _selectedAssigneeId
                       : null,
                   decoration: const InputDecoration(
@@ -324,10 +418,11 @@ class _TaskCreateScreenState extends State<TaskCreateScreen> {
                     ),
                     ...(_loadingMembers
                         ? []
-                        : context.read<MemberProvider>().members.map((m) {
+                        : _getAvailableAssignees().map((m) {
                             return DropdownMenuItem(
                               value: m.uid,
-                              child: Text(m.displayName ?? m.email ?? 'Unknown'),
+                              child:
+                                  Text(m.displayName ?? m.email ?? 'Unknown'),
                             );
                           })),
                   ],

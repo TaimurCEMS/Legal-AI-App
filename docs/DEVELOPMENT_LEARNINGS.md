@@ -1298,5 +1298,177 @@ When you discover a new learning:
 
 ---
 
-**Last Updated:** 2026-01-23  
-**Next Review:** After Slice 5 completion
+**Last Updated:** 2026-01-24  
+**Next Review:** After Slice 6 completion
+
+---
+
+### Learning 35: Centralized Case Access Helpers Prevent Permission Bugs
+**Date:** 2026-01-24  
+**Context:** Slice 5.5 - Private case participants needing access across multiple functions
+
+**Issue:**
+- Private case access logic was duplicated across `caseGet`, `caseList`, `taskGet`, `taskList`, `documentGet`, `documentList`
+- Each function had slightly different implementations
+- When adding participants feature, needed to update many places
+- Risk of inconsistent access control across functions
+
+**Solution:**
+- **Create centralized access helper:**
+  ```typescript
+  // functions/src/utils/case-access.ts
+  export async function canUserAccessCase(
+    orgId: string,
+    caseId: string,
+    uid: string
+  ): Promise<{ allowed: boolean; reason?: string }> {
+    // Check creator
+    if (caseData.createdBy === uid) return { allowed: true };
+    
+    // Check participants subcollection
+    const participantDoc = await db
+      .collection(`organizations/${orgId}/cases/${caseId}/participants`)
+      .doc(uid)
+      .get();
+    if (participantDoc.exists) return { allowed: true };
+    
+    return { allowed: false, reason: 'Not authorized' };
+  }
+  ```
+- All functions now call this single helper
+- Adding participants required updating only one place
+
+**Lesson:**
+- **Centralize access control logic** - don't duplicate across functions
+- **Single source of truth** for permission checks
+- **Easier to audit and update** when requirements change
+- **Reduces bugs** from inconsistent implementations
+
+**Files:**
+- `functions/src/utils/case-access.ts` - Centralized helper
+- All case/task/document functions - Use the helper
+
+---
+
+### Learning 36: Collection Group Queries Need Indexes Too
+**Date:** 2026-01-24  
+**Context:** Slice 5.5 - Listing private cases shared with a user
+
+**Issue:**
+- Needed to query all `participants` subcollections across all cases
+- Query: "Find all cases where current user is a participant"
+- Error: "Firestore index required"
+- Regular indexes don't work for collection group queries
+
+**Solution:**
+- **Add collection group index:**
+  ```json
+  // firestore.indexes.json
+  {
+    "collectionGroup": "participants",
+    "fieldPath": "uid",
+    "indexes": [
+      {
+        "order": "ASCENDING",
+        "queryScope": "COLLECTION_GROUP"
+      }
+    ]
+  }
+  ```
+- Deploy with: `firebase deploy --only firestore:indexes`
+- Wait for index to build (can take several minutes)
+
+**Lesson:**
+- **Collection group queries require explicit indexes** with `COLLECTION_GROUP` scope
+- **Plan for these queries early** - index building takes time
+- **Document required indexes** in build cards
+- **Test queries before deployment** to catch missing indexes
+
+**Files:**
+- `firestore.indexes.json` - Collection group index for participants
+
+---
+
+### Learning 37: Idempotent Delete Operations Improve UX
+**Date:** 2026-01-24  
+**Context:** Slice 5.5 - Task deletion showing "not found" error after successful delete
+
+**Issue:**
+- User deletes a task successfully
+- UI shows error: "Task not found"
+- Confusing - task was deleted but shows as error
+- Caused by retry or double-click scenarios
+
+**Root Cause:**
+- Delete function returned error if task didn't exist
+- If user double-clicks or retries, second call fails
+- Network retries could trigger the same error
+
+**Solution:**
+- **Make delete idempotent:**
+  ```typescript
+  // If task doesn't exist or already deleted, return success
+  if (!taskSnap.exists || taskData.deletedAt) {
+    return successResponse({
+      success: true,
+      message: 'Task already deleted',
+    });
+  }
+  ```
+- Delete is successful if end state is "deleted"
+- Doesn't matter if it was already deleted
+
+**Lesson:**
+- **Delete operations should be idempotent** - success if end state is achieved
+- **Don't error on "already deleted"** - that's the desired state
+- **Improves UX** - no confusing errors on retries
+- **Pattern applies to all delete operations**
+
+**Files:**
+- `functions/src/functions/task.ts` - Idempotent `taskDelete`
+
+---
+
+### Learning 38: Feature Flags at Task Level Provide Granular Control
+**Date:** 2026-01-24  
+**Context:** Slice 5.5 - Task visibility for sensitive information
+
+**Issue:**
+- Some tasks contain sensitive information
+- Need to hide from other case participants
+- Only admin and assignee should see certain tasks
+- Case-level visibility (PRIVATE vs ORG_WIDE) wasn't granular enough
+
+**Solution:**
+- **Add task-level visibility flag:**
+  ```typescript
+  interface TaskDocument {
+    // ... other fields
+    restrictedToAssignee?: boolean; // default false
+  }
+  ```
+- **Filter in taskList and taskGet:**
+  ```typescript
+  if (task.restrictedToAssignee && task.caseId) {
+    // Only allow: admin, assignee, or case creator (if unassigned)
+    const isAdmin = memberData.role === 'ADMIN';
+    const isAssignee = task.assigneeId === uid;
+    const isCreatorUnassigned = !task.assigneeId && caseData.createdBy === uid;
+    
+    if (!isAdmin && !isAssignee && !isCreatorUnassigned) {
+      continue; // Skip this task
+    }
+  }
+  ```
+- **Works for both PRIVATE and ORG_WIDE cases**
+
+**Lesson:**
+- **Granular permissions at item level** provide better control
+- **Boolean flags are simple and effective** for on/off features
+- **Default to most permissive** (false = visible to all)
+- **Consider all case types** - feature should work consistently
+
+**Files:**
+- `functions/src/functions/task.ts` - `restrictedToAssignee` implementation
+- `legal_ai_app/lib/core/models/task_model.dart` - Frontend model
+- Task create/details screens - Toggle UI

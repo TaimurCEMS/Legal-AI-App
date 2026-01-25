@@ -3,22 +3,26 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/models/case_model.dart';
+import '../../../core/models/case_participant_model.dart';
+import '../../../core/models/client_model.dart';
+import '../../../core/models/document_model.dart';
+import '../../../core/models/member_model.dart';
+import '../../../core/models/task_model.dart';
+import '../../../core/routing/route_names.dart';
+import '../../../core/services/case_participants_service.dart';
+import '../../../core/theme/colors.dart';
 import '../../../core/theme/spacing.dart';
 import '../../../core/theme/typography.dart';
-import '../../../core/theme/colors.dart';
 import '../../../features/common/widgets/buttons/primary_button.dart';
 import '../../../features/common/widgets/text_fields/app_text_field.dart';
 import '../../../features/common/widgets/error_message.dart';
 import '../../../features/common/widgets/loading/loading_spinner.dart';
-import '../../home/providers/org_provider.dart';
-import '../providers/case_provider.dart';
 import '../../clients/providers/client_provider.dart';
-import '../../../core/models/client_model.dart';
 import '../../documents/providers/document_provider.dart';
-import '../../../core/models/document_model.dart';
+import '../../home/providers/member_provider.dart';
+import '../../home/providers/org_provider.dart';
 import '../../tasks/providers/task_provider.dart';
-import '../../../core/models/task_model.dart';
-import '../../../core/routing/route_names.dart';
+import '../providers/case_provider.dart';
 import 'package:go_router/go_router.dart';
 
 class CaseDetailsScreen extends StatefulWidget {
@@ -46,6 +50,11 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
   String? _error;
   List<DocumentModel> _caseDocuments = [];
   List<TaskModel> _caseTasks = [];
+  List<CaseParticipantModel> _participants = [];
+  bool _loadingParticipants = false;
+  String? _selectedMemberToAdd;
+  final CaseParticipantsService _participantsService = CaseParticipantsService();
+  bool _loadingMembers = false;
 
   @override
   void initState() {
@@ -55,6 +64,8 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
       _loadClients();
       _loadDocuments();
       _loadTasks();
+      _loadParticipants();
+      _loadMembers();
     });
   }
 
@@ -202,6 +213,120 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
     }
   }
 
+  Future<void> _loadParticipants() async {
+    if (_loadingParticipants) return;
+
+    final org = context.read<OrgProvider>().selectedOrg;
+    if (org == null) return;
+
+    final caseProvider = context.read<CaseProvider>();
+    final caseModel = caseProvider.selectedCase;
+
+    // Only load participants for PRIVATE cases
+    if (caseModel == null || caseModel.visibility != CaseVisibility.private) {
+      setState(() {
+        _participants = [];
+        _loadingParticipants = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _loadingParticipants = true;
+    });
+
+    try {
+      final participants = await _participantsService.listParticipants(
+        org: org,
+        caseId: widget.caseId,
+      );
+
+      if (mounted) {
+        setState(() {
+          _participants = participants;
+          _loadingParticipants = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _loadingParticipants = false;
+          _error = e.toString();
+        });
+      }
+    }
+  }
+
+  Future<void> _loadMembers() async {
+    if (_loadingMembers) return;
+
+    final org = context.read<OrgProvider>().selectedOrg;
+    if (org == null) return;
+
+    setState(() {
+      _loadingMembers = true;
+    });
+
+    try {
+      final memberProvider = context.read<MemberProvider>();
+      await memberProvider.loadMembers(org: org);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loadingMembers = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _addParticipant(String participantUid) async {
+    final org = context.read<OrgProvider>().selectedOrg;
+    if (org == null) return;
+
+    try {
+      await _participantsService.addParticipant(
+        org: org,
+        caseId: widget.caseId,
+        participantUid: participantUid,
+      );
+
+      await _loadParticipants();
+
+      if (mounted) {
+        setState(() {
+          _selectedMemberToAdd = null;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+        });
+      }
+    }
+  }
+
+  Future<void> _removeParticipant(String participantUid) async {
+    final org = context.read<OrgProvider>().selectedOrg;
+    if (org == null) return;
+
+    try {
+      await _participantsService.removeParticipant(
+        org: org,
+        caseId: widget.caseId,
+        participantUid: participantUid,
+      );
+
+      await _loadParticipants();
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+        });
+      }
+    }
+  }
+
   Future<void> _loadDetails() async {
     final org = context.read<OrgProvider>().selectedOrg;
     if (org == null) {
@@ -238,6 +363,9 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
       _status = model.status;
       _selectedClientId = model.clientId;
     });
+
+    // Once case details are loaded, refresh participants for PRIVATE cases
+    await _loadParticipants();
   }
 
   Future<void> _save() async {
@@ -490,6 +618,8 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
                             onPressed: _saving ? null : _save,
                           ),
                         const SizedBox(height: AppSpacing.xl),
+                        _buildParticipantsSection(),
+                        const SizedBox(height: AppSpacing.xl),
                         _buildDocumentsSection(),
                         const SizedBox(height: AppSpacing.xl),
                         _buildTasksSection(),
@@ -589,6 +719,175 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
                   },
                 ),
               )),
+      ],
+    );
+  }
+
+  Widget _buildParticipantsSection() {
+    final caseProvider = context.watch<CaseProvider>();
+    final memberProvider = context.watch<MemberProvider>();
+    final caseModel = caseProvider.selectedCase;
+
+    if (caseModel == null) {
+      return const SizedBox.shrink();
+    }
+
+    // ORG_WIDE cases: simple info message
+    if (caseModel.visibility == CaseVisibility.orgWide) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'People with access',
+            style: AppTypography.titleLarge,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            'All members of this organization can see this case.',
+            style: AppTypography.bodyMedium.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
+      );
+    }
+
+    // PRIVATE cases
+    MemberModel? currentUser;
+    try {
+      currentUser = memberProvider.members.firstWhere((m) => m.isCurrentUser);
+    } catch (_) {
+      currentUser = null;
+    }
+    final bool isCreator =
+        currentUser != null && currentUser.uid == caseModel.createdBy;
+    final bool isAdmin = currentUser?.role == 'ADMIN';
+    final bool canManageParticipants = isCreator || isAdmin;
+
+    final participantsByUid = {
+      for (final p in _participants) p.uid: p,
+    };
+
+    final ownerDisplayName = currentUser != null && isCreator
+        ? '${currentUser.displayLabel} (You, Owner)'
+        : 'Owner (${caseModel.createdBy.substring(0, 8)}...)';
+
+    final availableMembers = memberProvider.members;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'People with access',
+          style: AppTypography.titleLarge,
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Card(
+          margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+          child: ListTile(
+            leading: const Icon(Icons.person),
+            title: Text(ownerDisplayName),
+            subtitle: const Text('Case owner'),
+          ),
+        ),
+        if (_loadingParticipants)
+          const Padding(
+            padding: EdgeInsets.all(AppSpacing.sm),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (_participants.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+            child: Text(
+              'No additional participants. Only you can see this private case.',
+              style: AppTypography.bodyMedium.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+          )
+        else
+          ..._participants.map(
+            (participant) {
+              MemberModel? member;
+              try {
+                member = availableMembers
+                    .firstWhere((m) => m.uid == participant.uid);
+              } catch (_) {
+                member = null;
+              }
+              final label = member?.displayLabel ??
+                  participant.displayName ??
+                  participant.email ??
+                  participant.uid;
+              return Card(
+                margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+                child: ListTile(
+                  leading: const Icon(Icons.person_outline),
+                  title: Text(label),
+                  subtitle: const Text('Participant'),
+                  trailing: canManageParticipants &&
+                          participant.uid != caseModel.createdBy
+                      ? IconButton(
+                          icon: const Icon(Icons.remove_circle_outline),
+                          tooltip: 'Remove from case',
+                          onPressed: () {
+                            _removeParticipant(participant.uid);
+                          },
+                        )
+                      : null,
+                ),
+              );
+            },
+          ),
+        if (canManageParticipants) ...[
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            'Add person',
+            style: AppTypography.titleMedium,
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Row(
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  value: _selectedMemberToAdd,
+                  decoration: const InputDecoration(
+                    hintText: 'Select a team member',
+                  ),
+                  items: [
+                    ...availableMembers
+                        .where((member) =>
+                            member.uid != caseModel.createdBy &&
+                            !participantsByUid.containsKey(member.uid))
+                        .map(
+                          (member) => DropdownMenuItem<String>(
+                            value: member.uid,
+                            child: Text(member.displayLabel),
+                          ),
+                        ),
+                  ],
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedMemberToAdd = value;
+                    });
+                  },
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              PrimaryButton(
+                label: 'Add',
+                onPressed: _selectedMemberToAdd == null
+                    ? null
+                    : () {
+                        final uid = _selectedMemberToAdd;
+                        if (uid != null) {
+                          _addParticipant(uid);
+                        }
+                      },
+              ),
+            ],
+          ),
+        ],
       ],
     );
   }

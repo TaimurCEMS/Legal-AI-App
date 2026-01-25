@@ -15,6 +15,7 @@ class TaskService {
     String? assigneeId,
     TaskPriority priority = TaskPriority.medium,
     String? caseId,
+    bool restrictedToAssignee = false,
   }) async {
     final payload = <String, dynamic>{
       'orgId': org.orgId,
@@ -36,6 +37,9 @@ class TaskService {
     }
     if (assigneeId != null && assigneeId.trim().isNotEmpty) {
       payload['assigneeId'] = assigneeId.trim();
+    }
+    if (restrictedToAssignee) {
+      payload['restrictedToAssignee'] = true;
     }
     
     final response = await _functionsService.callFunction('taskCreate', payload);
@@ -122,6 +126,7 @@ class TaskService {
     bool clearDueDate = false,
     bool unassign = false,
     bool unlinkCase = false,
+    bool? restrictedToAssignee,
   }) async {
     final payload = <String, dynamic>{
       'orgId': org.orgId,
@@ -158,6 +163,9 @@ class TaskService {
     }
     
     if (priority != null) payload['priority'] = priority.value;
+    if (restrictedToAssignee != null) {
+      payload['restrictedToAssignee'] = restrictedToAssignee;
+    }
 
     final response = await _functionsService.callFunction('taskUpdate', payload);
 
