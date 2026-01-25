@@ -1299,7 +1299,7 @@ When you discover a new learning:
 ---
 
 **Last Updated:** 2026-01-24  
-**Next Review:** After Slice 6 completion
+**Next Review:** After Slice 6b completion
 
 ---
 
@@ -1472,3 +1472,159 @@ When you discover a new learning:
 - `functions/src/functions/task.ts` - `restrictedToAssignee` implementation
 - `legal_ai_app/lib/core/models/task_model.dart` - Frontend model
 - Task create/details screens - Toggle UI
+
+---
+
+### Learning 39: Job Queue Pattern for Long-Running Operations
+**Date:** 2026-01-24  
+**Context:** Slice 6a - Text extraction timing out for large documents
+
+**Issue:**
+- Text extraction can take 30-60 seconds for large PDFs
+- Cloud Functions have timeout limits
+- Direct synchronous extraction would timeout
+- User would see "internal error" with no feedback
+
+**Solution:**
+- **Implement job queue pattern:**
+  ```typescript
+  // 1. User calls documentExtract
+  // 2. Function creates job document, returns immediately
+  const jobRef = db.collection(`organizations/${orgId}/jobs`).doc();
+  await jobRef.set({ status: 'PENDING', targetId: documentId });
+  return { jobId: jobRef.id, status: 'PENDING' };
+  
+  // 3. Firestore trigger processes job asynchronously
+  export const extractionProcessJob = functions.firestore
+    .document('organizations/{orgId}/jobs/{jobId}')
+    .onCreate(async (snapshot) => {
+      // Long-running extraction happens here
+    });
+  ```
+- User gets immediate response
+- Processing happens asynchronously
+- Status can be polled for updates
+
+**Lesson:**
+- **Use job queue for operations > 10 seconds**
+- **Return job ID immediately** for tracking
+- **Firestore triggers process asynchronously**
+- **Frontend polls for completion**
+- **Pattern scales to any long-running task** (AI, exports, etc.)
+
+**Files:**
+- `functions/src/functions/extraction.ts` - Job queue implementation
+
+---
+
+### Learning 40: Text Extraction Libraries Have Different Capabilities
+**Date:** 2026-01-24  
+**Context:** Slice 6a - Choosing extraction libraries for different file types
+
+**Issue:**
+- Need to extract text from PDF, DOCX, TXT, RTF
+- Each format requires different approach
+- Some libraries are better than others
+
+**Solution:**
+- **Use specialized libraries for each format:**
+  - PDF: `pdf-parse` - Simple, reliable, extracts embedded text
+  - DOCX: `mammoth` - Extracts text from Word XML
+  - TXT/RTF: Native Node.js `Buffer.toString()`
+
+- **Trade-offs:**
+  - `pdf-parse` only extracts embedded text, not OCR
+  - `mammoth` doesn't give page count (estimated from word count)
+  - RTF parsing is basic (strips control codes)
+
+**Lesson:**
+- **Match library to use case** - don't over-engineer
+- **pdf-parse is simple but limited** - no OCR, only embedded text
+- **Plan for OCR separately** if needed (Document AI, Tesseract)
+- **Good enough for MVP** - most legal docs have embedded text
+
+**Files:**
+- `functions/src/services/extraction-service.ts` - Library usage
+
+---
+
+### Learning 41: Polling for Status Updates is Simple and Effective
+**Date:** 2026-01-24  
+**Context:** Slice 6a - Showing extraction progress to user
+
+**Issue:**
+- Extraction takes time (5-60 seconds)
+- User needs to see progress
+- Real-time Firestore listeners add complexity
+- Need simple solution for MVP
+
+**Solution:**
+- **Simple polling with status endpoint:**
+  ```dart
+  // Poll every 2 seconds for up to 2 minutes
+  for (int i = 0; i < 60; i++) {
+    await Future.delayed(Duration(seconds: 2));
+    final status = await getExtractionStatus(documentId);
+    
+    if (status == 'completed' || status == 'failed') {
+      await reloadDocument();
+      return;
+    }
+    
+    updateUI(status); // Show 'pending' or 'processing'
+  }
+  ```
+- Simple to implement
+- No WebSocket/listener complexity
+- Works reliably
+
+**Lesson:**
+- **Polling is often simpler than real-time** for MVP
+- **2-second interval is good balance** - responsive but not excessive
+- **Set timeout** - don't poll forever
+- **Reload full data on completion** for consistency
+- **Can upgrade to real-time later** if needed
+
+**Files:**
+- `legal_ai_app/lib/features/documents/screens/document_details_screen.dart` - Polling implementation
+
+---
+
+### Learning 42: Truncation Limits Prevent Storage and Performance Issues
+**Date:** 2026-01-24  
+**Context:** Slice 6a - Handling very large extracted texts
+
+**Issue:**
+- Some documents have millions of characters
+- Firestore document limit is 1MB
+- Large texts slow down UI rendering
+- AI token limits apply later
+
+**Solution:**
+- **Set reasonable truncation limit:**
+  ```typescript
+  const MAX_TEXT_LENGTH = 500000; // 500KB of text
+  
+  function truncateText(text: string) {
+    if (text.length <= MAX_TEXT_LENGTH) {
+      return { text, truncated: false };
+    }
+    return {
+      text: text.substring(0, MAX_TEXT_LENGTH),
+      truncated: true,
+    };
+  }
+  ```
+- 500K characters ≈ 100+ pages of text
+- Plenty for most legal documents
+- Track `truncated` flag for UI warning
+
+**Lesson:**
+- **Always set limits on user-generated content**
+- **500K characters is generous** for text extraction
+- **Track truncation** so UI can warn user
+- **Limits prevent edge cases** from breaking the system
+- **Can adjust based on real usage data**
+
+**Files:**
+- `functions/src/services/extraction-service.ts` - Truncation logic

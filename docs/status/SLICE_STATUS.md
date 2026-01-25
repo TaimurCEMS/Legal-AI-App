@@ -687,3 +687,73 @@ firebase deploy --only functions
 - **Build Card:** `docs/SLICE_5_5_CASE_PARTICIPANTS_BUILD_CARD.md`
 
 **Overall:** ✅ **COMPLETE**
+
+---
+
+## Slice 6a: Document Text Extraction ✅ COMPLETE
+
+**Status:** ✅ **COMPLETE & DEPLOYED**  
+**Last Updated:** 2026-01-24  
+**Dependencies:** Slice 0 ✅, Slice 1 ✅, Slice 4 ✅  
+**Type:** Foundation for AI features
+
+### Backend Status: ✅ COMPLETE
+
+**New Functions (3):**
+1. ✅ `documentExtract` – Trigger text extraction for a document
+2. ✅ `documentGetExtractionStatus` – Get extraction status
+3. ✅ `extractionProcessJob` – Firestore trigger for job processing
+
+**New Services:**
+- ✅ `functions/src/services/extraction-service.ts` – Text extraction logic
+
+**Modified Functions:**
+- ✅ `documentGet` – Extended to return extraction fields
+- ✅ `documentList` – Extended to return extraction status
+
+**Features:**
+- ✅ PDF text extraction (pdf-parse library)
+- ✅ DOCX text extraction (mammoth library)
+- ✅ TXT/RTF text extraction (native)
+- ✅ Job queue pattern for async processing
+- ✅ Extraction status tracking (none → pending → processing → completed/failed)
+- ✅ Page count and word count calculation
+- ✅ Text truncation at 500K characters
+- ✅ Entitlement check (OCR_EXTRACTION feature)
+- ✅ Audit logging for extraction operations
+
+**New Dependencies:**
+- `pdf-parse` – PDF text extraction
+- `mammoth` – DOCX text extraction
+- `openai` – For future AI features (installed, not used yet)
+
+### Frontend Status: ✅ COMPLETE
+
+**Modified Models:**
+- ✅ `DocumentModel` – Added extraction fields (extractedText, extractionStatus, etc.)
+
+**Modified Services:**
+- ✅ `DocumentService` – Added `extractDocument()` and `getExtractionStatus()` methods
+
+**Modified Screens:**
+- ✅ `DocumentDetailsScreen` – Added extraction UI section:
+  - Status badge (Not Extracted/In Progress/Completed/Failed)
+  - "Extract Text" button
+  - Progress indicator during extraction
+  - Extracted text preview with expand/collapse
+  - Page count and word count display
+  - Retry option for failed extractions
+  - Polling for status updates
+
+### Key Features
+
+1. **Text Extraction:** Extract text from PDF, DOCX, TXT, RTF documents
+2. **Async Processing:** Job queue pattern prevents timeout issues
+3. **Status Tracking:** Real-time status updates via polling
+4. **Text Preview:** Expandable preview with truncation for long texts
+
+### Documentation
+
+- **Build Card:** `docs/SLICE_6A_BUILD_CARD.md`
+
+**Overall:** ✅ **COMPLETE**

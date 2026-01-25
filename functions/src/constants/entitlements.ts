@@ -11,7 +11,7 @@ export const PLAN_FEATURES = {
     TEAM_MEMBERS: true, // Enabled for multi-user testing (Slice 2.5)
     TASKS: true, // Enabled for MVP (like TEAM_MEMBERS for Slice 2.5)
     DOCUMENT_UPLOAD: true,
-    OCR_EXTRACTION: false,
+    OCR_EXTRACTION: true, // Enabled for testing (Slice 6a)
     AI_RESEARCH: false,
     AI_DRAFTING: false,
     EXPORTS: false,

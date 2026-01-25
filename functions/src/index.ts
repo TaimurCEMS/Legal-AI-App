@@ -28,3 +28,6 @@ export { documentCreate, documentGet, documentList, documentUpdate, documentDele
 
 // Export Slice 5 - Task Hub callable functions
 export { taskCreate, taskGet, taskList, taskUpdate, taskDelete } from './functions/task';
+
+// Export Slice 6a - Document Text Extraction functions
+export { documentExtract, documentGetExtractionStatus, extractionProcessJob } from './functions/extraction';

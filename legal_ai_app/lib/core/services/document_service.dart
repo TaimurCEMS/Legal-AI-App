@@ -144,4 +144,51 @@ class DocumentService {
         'Failed to delete document. Please try again.';
     throw message;
   }
+
+  // ============================================================
+  // Text Extraction Methods (Slice 6a)
+  // ============================================================
+
+  /// Trigger text extraction for a document
+  /// Returns the job ID for tracking extraction progress
+  Future<Map<String, dynamic>> extractDocument({
+    required OrgModel org,
+    required String documentId,
+    bool forceReExtract = false,
+  }) async {
+    final response = await _functionsService.callFunction('documentExtract', {
+      'orgId': org.orgId,
+      'documentId': documentId,
+      'forceReExtract': forceReExtract,
+    });
+
+    if (response['success'] == true && response['data'] != null) {
+      return Map<String, dynamic>.from(response['data'] as Map);
+    }
+
+    debugPrint('DocumentService.extractDocument error: $response');
+    final message = response['error']?['message'] ??
+        'Failed to start text extraction. Please try again.';
+    throw message;
+  }
+
+  /// Get the extraction status for a document
+  Future<Map<String, dynamic>> getExtractionStatus({
+    required OrgModel org,
+    required String documentId,
+  }) async {
+    final response = await _functionsService.callFunction('documentGetExtractionStatus', {
+      'orgId': org.orgId,
+      'documentId': documentId,
+    });
+
+    if (response['success'] == true && response['data'] != null) {
+      return Map<String, dynamic>.from(response['data'] as Map);
+    }
+
+    debugPrint('DocumentService.getExtractionStatus error: $response');
+    final message = response['error']?['message'] ??
+        'Failed to get extraction status. Please try again.';
+    throw message;
+  }
 }

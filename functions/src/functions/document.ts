@@ -15,6 +15,9 @@ const storage = admin.storage();
 
 type FirestoreTimestamp = admin.firestore.Timestamp;
 
+// Extraction status type
+type ExtractionStatus = 'none' | 'pending' | 'processing' | 'completed' | 'failed';
+
 interface DocumentDocument {
   id: string;
   orgId: string;
@@ -29,6 +32,13 @@ interface DocumentDocument {
   createdBy: string;
   updatedBy: string;
   deletedAt?: FirestoreTimestamp | null;
+  // Text extraction fields (Slice 6a)
+  extractedText?: string | null;
+  extractionStatus?: ExtractionStatus;
+  extractionError?: string | null;
+  extractedAt?: FirestoreTimestamp | null;
+  pageCount?: number | null;
+  wordCount?: number | null;
 }
 
 const ALLOWED_FILE_TYPES = ['pdf', 'doc', 'docx', 'txt', 'rtf'];
@@ -409,6 +419,13 @@ export const documentGet = functions.https.onCall(async (data, context) => {
       updatedAt: toIso(documentData.updatedAt),
       createdBy: documentData.createdBy,
       updatedBy: documentData.updatedBy,
+      // Text extraction fields (Slice 6a)
+      extractedText: documentData.extractedText || null,
+      extractionStatus: documentData.extractionStatus || 'none',
+      extractionError: documentData.extractionError || null,
+      extractedAt: documentData.extractedAt ? toIso(documentData.extractedAt) : null,
+      pageCount: documentData.pageCount || null,
+      wordCount: documentData.wordCount || null,
     });
   } catch (error: any) {
     functions.logger.error('Error getting document:', error);
@@ -497,6 +514,10 @@ export const documentList = functions.https.onCall(async (data, context) => {
         updatedAt: toIso(data.updatedAt),
         createdBy: data.createdBy,
         updatedBy: data.updatedBy,
+        // Text extraction fields (Slice 6a) - minimal for list view
+        extractionStatus: data.extractionStatus || 'none',
+        pageCount: data.pageCount || null,
+        wordCount: data.wordCount || null,
       };
     });
 

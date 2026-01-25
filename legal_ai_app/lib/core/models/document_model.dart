@@ -25,6 +25,13 @@ class DocumentModel {
   final String createdBy;
   final String updatedBy;
   final DateTime? deletedAt;
+  // Text extraction fields (Slice 6a)
+  final String? extractedText;
+  final String extractionStatus; // 'none', 'pending', 'processing', 'completed', 'failed'
+  final String? extractionError;
+  final DateTime? extractedAt;
+  final int? pageCount;
+  final int? wordCount;
 
   const DocumentModel({
     required this.documentId,
@@ -41,9 +48,40 @@ class DocumentModel {
     required this.createdBy,
     required this.updatedBy,
     this.deletedAt,
+    // Text extraction fields
+    this.extractedText,
+    this.extractionStatus = 'none',
+    this.extractionError,
+    this.extractedAt,
+    this.pageCount,
+    this.wordCount,
   });
 
   bool get isDeleted => deletedAt != null;
+
+  /// Whether the document has extracted text
+  bool get hasExtractedText =>
+      extractedText != null && extractedText!.isNotEmpty;
+
+  /// Whether extraction can be started (not in progress and not already completed, or failed)
+  bool get canExtract =>
+      extractionStatus == 'none' || extractionStatus == 'failed';
+
+  /// Whether extraction is currently in progress
+  bool get isExtracting =>
+      extractionStatus == 'pending' || extractionStatus == 'processing';
+
+  /// Whether extraction completed successfully
+  bool get extractionCompleted => extractionStatus == 'completed';
+
+  /// Whether extraction failed
+  bool get extractionFailed => extractionStatus == 'failed';
+
+  /// Check if file type supports text extraction
+  bool get isExtractable {
+    final type = fileType.toLowerCase();
+    return type == 'pdf' || type == 'docx' || type == 'txt' || type == 'rtf';
+  }
 
   /// Format file size as human-readable string (e.g., "2.3 MB")
   String get fileSizeFormatted {
@@ -91,6 +129,15 @@ class DocumentModel {
       deletedAt: json['deletedAt'] != null
           ? _parseTimestamp(json['deletedAt'])
           : null,
+      // Text extraction fields
+      extractedText: json['extractedText'] as String?,
+      extractionStatus: json['extractionStatus'] as String? ?? 'none',
+      extractionError: json['extractionError'] as String?,
+      extractedAt: json['extractedAt'] != null
+          ? _parseTimestamp(json['extractedAt'])
+          : null,
+      pageCount: json['pageCount'] as int?,
+      wordCount: json['wordCount'] as int?,
     );
   }
 
@@ -110,6 +157,46 @@ class DocumentModel {
       'createdBy': createdBy,
       'updatedBy': updatedBy,
       'deletedAt': deletedAt?.toIso8601String(),
+      // Text extraction fields
+      'extractedText': extractedText,
+      'extractionStatus': extractionStatus,
+      'extractionError': extractionError,
+      'extractedAt': extractedAt?.toIso8601String(),
+      'pageCount': pageCount,
+      'wordCount': wordCount,
     };
+  }
+
+  /// Create a copy with updated extraction status
+  DocumentModel copyWithExtractionStatus({
+    String? extractionStatus,
+    String? extractionError,
+    String? extractedText,
+    DateTime? extractedAt,
+    int? pageCount,
+    int? wordCount,
+  }) {
+    return DocumentModel(
+      documentId: documentId,
+      orgId: orgId,
+      caseId: caseId,
+      name: name,
+      description: description,
+      fileType: fileType,
+      fileSize: fileSize,
+      storagePath: storagePath,
+      downloadUrl: downloadUrl,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+      createdBy: createdBy,
+      updatedBy: updatedBy,
+      deletedAt: deletedAt,
+      extractedText: extractedText ?? this.extractedText,
+      extractionStatus: extractionStatus ?? this.extractionStatus,
+      extractionError: extractionError ?? this.extractionError,
+      extractedAt: extractedAt ?? this.extractedAt,
+      pageCount: pageCount ?? this.pageCount,
+      wordCount: wordCount ?? this.wordCount,
+    );
   }
 }

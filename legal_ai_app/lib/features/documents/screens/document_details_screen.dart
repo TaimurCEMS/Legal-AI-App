@@ -32,6 +32,8 @@ class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
   bool _loading = true;
   bool _saving = false;
   bool _downloading = false;
+  bool _extracting = false;
+  bool _showFullText = false;
   String? _error;
   DocumentModel? _documentModel;
 
@@ -201,6 +203,106 @@ class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
           _downloading = false;
         });
       }
+    }
+  }
+
+  Future<void> _extractText() async {
+    if (_documentModel == null || _extracting) return;
+
+    final org = context.read<OrgProvider>().selectedOrg;
+    if (org == null) return;
+
+    setState(() {
+      _extracting = true;
+      _error = null;
+    });
+
+    try {
+      final documentService = DocumentService();
+      await documentService.extractDocument(
+        org: org,
+        documentId: widget.documentId,
+        forceReExtract: _documentModel!.extractionFailed,
+      );
+
+      // Update local state to show pending
+      if (mounted) {
+        setState(() {
+          _documentModel = _documentModel!.copyWithExtractionStatus(
+            extractionStatus: 'pending',
+            extractionError: null,
+          );
+          _extracting = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Text extraction started. This may take a few moments.'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+
+        // Poll for status updates
+        _pollExtractionStatus();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _extracting = false;
+          _error = e.toString();
+        });
+      }
+    }
+  }
+
+  Future<void> _pollExtractionStatus() async {
+    final org = context.read<OrgProvider>().selectedOrg;
+    if (org == null || _documentModel == null) return;
+
+    // Poll every 2 seconds for up to 2 minutes
+    const maxAttempts = 60;
+    const pollInterval = Duration(seconds: 2);
+
+    for (int attempt = 0; attempt < maxAttempts; attempt++) {
+      await Future.delayed(pollInterval);
+
+      if (!mounted) return;
+
+      // Stop polling if document is no longer in extracting state
+      if (!_documentModel!.isExtracting) return;
+
+      try {
+        final documentService = DocumentService();
+        final status = await documentService.getExtractionStatus(
+          org: org,
+          documentId: widget.documentId,
+        );
+
+        if (!mounted) return;
+
+        final newStatus = status['extractionStatus'] as String? ?? 'none';
+
+        if (newStatus == 'completed' || newStatus == 'failed') {
+          // Reload the full document to get extracted text
+          await _loadDetails();
+          return;
+        }
+
+        // Update status locally
+        setState(() {
+          _documentModel = _documentModel!.copyWithExtractionStatus(
+            extractionStatus: newStatus,
+          );
+        });
+      } catch (e) {
+        debugPrint('Error polling extraction status: $e');
+        // Continue polling on error
+      }
+    }
+
+    // Timeout - reload to get final state
+    if (mounted) {
+      await _loadDetails();
     }
   }
 
@@ -402,6 +504,11 @@ class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
                   const SizedBox(height: AppSpacing.sm),
                   _buildInfoCard('File Size', _documentModel!.fileSizeFormatted),
                   const SizedBox(height: AppSpacing.md),
+                  
+                  // Text Extraction Section (Slice 6a)
+                  _buildExtractionSection(),
+                  const SizedBox(height: AppSpacing.md),
+                  
                   PrimaryButton(
                     label: 'Download Document',
                     onPressed: _downloading ? null : _download,
@@ -445,5 +552,220 @@ class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
         ),
       ),
     );
+  }
+
+  /// Build the text extraction section (Slice 6a)
+  Widget _buildExtractionSection() {
+    final doc = _documentModel!;
+    
+    // Check if file type supports extraction
+    if (!doc.isExtractable) {
+      return const SizedBox.shrink();
+    }
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.text_snippet, size: 20),
+                const SizedBox(width: AppSpacing.sm),
+                Text(
+                  'Text Extraction',
+                  style: AppTypography.titleMedium,
+                ),
+                const Spacer(),
+                _buildExtractionStatusBadge(),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            
+            // Show different content based on extraction status
+            if (doc.extractionStatus == 'none') ...[
+              Text(
+                'Extract text from this document to enable AI features.',
+                style: AppTypography.bodyMedium.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              ElevatedButton.icon(
+                onPressed: _extracting ? null : _extractText,
+                icon: _extracting 
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.play_arrow),
+                label: Text(_extracting ? 'Starting...' : 'Extract Text'),
+              ),
+            ] else if (doc.isExtracting) ...[
+              Row(
+                children: [
+                  const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Text(
+                    doc.extractionStatus == 'pending' 
+                        ? 'Extraction queued...'
+                        : 'Extracting text...',
+                    style: AppTypography.bodyMedium,
+                  ),
+                ],
+              ),
+            ] else if (doc.extractionFailed) ...[
+              Row(
+                children: [
+                  Icon(
+                    Icons.error_outline,
+                    color: Theme.of(context).colorScheme.error,
+                    size: 20,
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      doc.extractionError ?? 'Extraction failed',
+                      style: AppTypography.bodyMedium.copyWith(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.md),
+              ElevatedButton.icon(
+                onPressed: _extracting ? null : _extractText,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Retry Extraction'),
+              ),
+            ] else if (doc.extractionCompleted) ...[
+              // Show extraction stats
+              Row(
+                children: [
+                  if (doc.pageCount != null) ...[
+                    _buildStatChip(Icons.description, '${doc.pageCount} pages'),
+                    const SizedBox(width: AppSpacing.sm),
+                  ],
+                  if (doc.wordCount != null) ...[
+                    _buildStatChip(Icons.text_fields, '${doc.wordCount} words'),
+                  ],
+                ],
+              ),
+              const SizedBox(height: AppSpacing.md),
+              
+              // Show extracted text preview
+              if (doc.hasExtractedText) ...[
+                Container(
+                  padding: const EdgeInsets.all(AppSpacing.sm),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _showFullText
+                            ? doc.extractedText!
+                            : _truncateText(doc.extractedText!, 500),
+                        style: AppTypography.bodySmall.copyWith(
+                          fontFamily: 'monospace',
+                        ),
+                        maxLines: _showFullText ? null : 10,
+                        overflow: _showFullText ? null : TextOverflow.fade,
+                      ),
+                      if (doc.extractedText!.length > 500) ...[
+                        const SizedBox(height: AppSpacing.sm),
+                        TextButton(
+                          onPressed: () {
+                            setState(() {
+                              _showFullText = !_showFullText;
+                            });
+                          },
+                          child: Text(_showFullText ? 'Show Less' : 'Show More'),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildExtractionStatusBadge() {
+    final doc = _documentModel!;
+    
+    Color backgroundColor;
+    Color textColor;
+    String label;
+    
+    switch (doc.extractionStatus) {
+      case 'completed':
+        backgroundColor = Colors.green.shade100;
+        textColor = Colors.green.shade800;
+        label = 'Completed';
+        break;
+      case 'pending':
+      case 'processing':
+        backgroundColor = Colors.blue.shade100;
+        textColor = Colors.blue.shade800;
+        label = 'In Progress';
+        break;
+      case 'failed':
+        backgroundColor = Colors.red.shade100;
+        textColor = Colors.red.shade800;
+        label = 'Failed';
+        break;
+      default:
+        backgroundColor = Colors.grey.shade200;
+        textColor = Colors.grey.shade700;
+        label = 'Not Extracted';
+    }
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        label,
+        style: AppTypography.labelSmall.copyWith(color: textColor),
+      ),
+    );
+  }
+
+  Widget _buildStatChip(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14),
+          const SizedBox(width: 4),
+          Text(label, style: AppTypography.labelSmall),
+        ],
+      ),
+    );
+  }
+
+  String _truncateText(String text, int maxLength) {
+    if (text.length <= maxLength) return text;
+    return '${text.substring(0, maxLength)}...';
   }
 }

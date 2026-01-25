@@ -160,6 +160,13 @@ See [Slice Status](docs/status/SLICE_STATUS.md) for details.
 - **Features:** Private case sharing, task-level visibility control
 - **See:** [Slice 5.5 Build Card](docs/SLICE_5_5_CASE_PARTICIPANTS_BUILD_CARD.md) for details
 
+### Slice 6a: Document Text Extraction ✅ COMPLETE
+- **Status:** Complete & Deployed
+- **Backend:** ✅ 3 new functions (documentExtract, documentGetExtractionStatus, extractionProcessJob)
+- **Frontend:** ✅ Extraction UI in document details
+- **Features:** PDF/DOCX/TXT/RTF text extraction, job queue, status tracking
+- **See:** [Slice 6a Build Card](docs/SLICE_6A_BUILD_CARD.md) for details
+
 ## 🔐 Security
 
 - All writes go through Cloud Functions
