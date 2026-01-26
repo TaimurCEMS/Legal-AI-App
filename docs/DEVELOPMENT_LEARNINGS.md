@@ -2,7 +2,7 @@
 
 **Purpose:** Capture key learnings, insights, and solutions discovered during development to prevent repeating mistakes and share knowledge.
 
-**Last Updated:** 2026-01-25
+**Last Updated:** 2026-01-26
 
 ---
 
@@ -2101,5 +2101,207 @@ When you discover a new learning:
 
 ---
 
-**Last Updated:** 2026-01-25  
-**Next Review:** After Slice 7 completion
+### Learning 53: GoRouter vs Navigator - Use Context-Based Navigation
+**Date:** 2026-01-26  
+**Context:** Slice 7 - Calendar navigation failing with "onGenerateRoute was null"
+
+**Issue:**
+- Used `Navigator.pushNamed(context, '/event-create')` in calendar screens
+- App configured with GoRouter, not standard Navigator
+- Error: "Navigator.onGenerateRoute was null, but the route named '/event-create' was referenced"
+- Navigation completely broken
+
+**Root Cause:**
+- GoRouter replaces Flutter's Navigator with its own routing system
+- Standard Navigator APIs don't work when GoRouter is configured
+- Must use GoRouter-specific navigation methods
+
+**Solution:**
+- **Use `context.push()` and `context.go()` from GoRouter:**
+  ```dart
+  // BAD - Won't work with GoRouter
+  Navigator.pushNamed(context, '/event-create');
+  
+  // GOOD - GoRouter way
+  context.push('/event-create');
+  
+  // For returning with result
+  final result = await context.push<bool>('/event-create');
+  
+  // For navigation that replaces (no back)
+  context.go('/home');
+  ```
+- **For dialogs, use standard Navigator:**
+  ```dart
+  // Dialogs still use Navigator (they're not routes)
+  Navigator.of(dialogContext).pop(true);
+  ```
+
+**Lesson:**
+- **When using GoRouter, always use `context.push/go/pop`** for route navigation
+- **Standard Navigator APIs only for dialogs**
+- **Check routing setup before using navigation methods**
+- **Test navigation early in feature development**
+
+**Files:**
+- `legal_ai_app/lib/features/calendar/screens/calendar_screen.dart` - Fixed navigation
+- `legal_ai_app/lib/features/calendar/screens/event_form_screen.dart` - Fixed navigation
+- `legal_ai_app/lib/features/calendar/screens/event_details_screen.dart` - Fixed navigation
+
+---
+
+### Learning 54: Handle Missing Optional Fields in API Responses Gracefully
+**Date:** 2026-01-26  
+**Context:** Slice 7 - EventModel parsing failing for list vs get responses
+
+**Issue:**
+- `eventGet` returns full event data including `createdBy`, `updatedBy`, `updatedAt`
+- `eventList` returns summarized event data, omitting some fields for performance
+- Frontend `EventModel.fromJson` expected all fields
+- Error: "Invalid timestamp format for EventModel" or null errors
+
+**Root Cause:**
+- Backend list endpoints often return fewer fields than get endpoints
+- Optimization: don't return fields not needed for list display
+- Frontend model assumed all fields always present
+
+**Solution:**
+- **Make optional fields truly optional in parsing:**
+  ```dart
+  factory EventModel.fromJson(Map<String, dynamic> json) {
+    return EventModel(
+      // Required fields
+      eventId: json['eventId'] as String,
+      title: json['title'] as String,
+      startDateTime: _parseTimestamp(json['startDateTime']),
+      
+      // Optional fields with defaults
+      endDateTime: _parseOptionalTimestamp(json['endDateTime']),
+      createdBy: json['createdBy'] as String? ?? '',
+      updatedBy: json['updatedBy'] as String? ?? '',
+      updatedAt: _parseOptionalTimestamp(json['updatedAt']) ?? 
+                 _parseTimestamp(json['createdAt']),
+    );
+  }
+  
+  static DateTime? _parseOptionalTimestamp(dynamic value) {
+    if (value == null) return null;
+    // ... parsing logic
+  }
+  ```
+
+**Lesson:**
+- **List and Get endpoints may return different fields** - plan for this
+- **Use nullable types and defaults for optional fields**
+- **Document which fields are required vs optional in API spec**
+- **Test model parsing with both list and get responses**
+
+**Files:**
+- `legal_ai_app/lib/core/models/event_model.dart` - Robust parsing
+
+---
+
+### Learning 55: Backend Visibility Enforcement is Critical for Legal Apps
+**Date:** 2026-01-26  
+**Context:** Slice 7 - Event visibility (PRIVATE, CASE_ONLY, ORG) enforcement
+
+**Issue:**
+- Initially visibility was just a frontend filter
+- Users could potentially see events they shouldn't via API calls
+- Legal apps require strict data isolation
+- PRIVATE events must be invisible to non-creators
+
+**Root Cause:**
+- "Security by obscurity" is not security
+- Frontend-only filtering can be bypassed
+- Legal data requires defense-in-depth
+
+**Solution:**
+- **Enforce visibility at backend in list and get functions:**
+  ```typescript
+  // In eventList function
+  for (const event of events) {
+    // PRIVATE events: only visible to creator
+    if (event.visibility === 'PRIVATE') {
+      if (event.createdBy !== uid) continue; // Skip
+    }
+    
+    // CASE_ONLY events: only visible with case access
+    if (event.visibility === 'CASE_ONLY') {
+      if (event.caseId) {
+        const access = await canUserAccessCase(orgId, event.caseId, uid);
+        if (!access.allowed) continue; // Skip
+      } else {
+        // CASE_ONLY without case = creator only
+        if (event.createdBy !== uid) continue;
+      }
+    }
+    
+    // ORG: passes through (already verified by entitlement)
+    visibleEvents.push(event);
+  }
+  ```
+- **Use caching for repeated case access checks:**
+  ```typescript
+  const caseAccessCache = new Map<string, boolean>();
+  ```
+
+**Lesson:**
+- **Always enforce visibility at backend** - frontend is convenience only
+- **Return "not found" for unauthorized resources** - don't reveal existence
+- **Cache repeated permission checks** for performance
+- **Legal apps need strict data isolation** - design for it
+
+**Files:**
+- `functions/src/functions/event.ts` - Backend visibility enforcement
+
+---
+
+### Learning 56: Dynamic Form Options Based on Related Data
+**Date:** 2026-01-26  
+**Context:** Slice 7 - Event visibility options when case is/isn't linked
+
+**Issue:**
+- CASE_ONLY visibility makes no sense without a linked case
+- User could select "Team" visibility with no case = confusing
+- What team? There is no team without a case
+
+**Solution:**
+- **Dynamically adjust available options:**
+  ```dart
+  List<EventVisibility> get _availableVisibilityOptions {
+    if (_selectedCaseId != null) {
+      // All options when case is selected
+      return EventVisibility.values;
+    } else {
+      // Only ORG and PRIVATE when no case
+      return [EventVisibility.org, EventVisibility.private_];
+    }
+  }
+  ```
+- **Auto-reset if invalid selection:**
+  ```dart
+  onChanged: (value) {
+    setState(() {
+      _selectedCaseId = value;
+      // Reset visibility if now invalid
+      if (value == null && _visibility == EventVisibility.caseOnly) {
+        _visibility = EventVisibility.org;
+      }
+    });
+  }
+  ```
+
+**Lesson:**
+- **Form options should reflect valid states only**
+- **Auto-reset invalid selections when dependencies change**
+- **Think through all state combinations** - prevent invalid states
+- **Provide clear helper text** explaining what each option means
+
+**Files:**
+- `legal_ai_app/lib/features/calendar/screens/event_form_screen.dart` - Dynamic visibility
+
+---
+
+**Last Updated:** 2026-01-26  
+**Next Review:** After Slice 8 completion

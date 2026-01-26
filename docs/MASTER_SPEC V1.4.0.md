@@ -1,7 +1,7 @@
 # LEGAL AI APP - MASTER SPECIFICATION (SOURCE OF TRUTH)
-Version: 1.4.0
+Version: 1.5.0
 Owner: Taimur (Product Owner)
-Last Updated: 2026-01-25
+Last Updated: 2026-01-26
 Status: Active Master Spec (All builds must follow this document)
 
 ---
@@ -424,3 +424,135 @@ Mini-slices (e.g., Slice 2.5) are inserted when:
 **Examples:**
 - ✅ Slice 2.5: Member management (blocking multi-user testing)
 - ❌ Future: Large features should wait for proper slice planning
+
+---
+
+## 6) Governance & Quality Assurance
+
+This section defines mandatory governance processes that ensure quality, risk visibility, and compliance throughout development.
+
+### 6.1 Risk Register (MANDATORY)
+
+The Risk Register is a **mandatory** project artifact that tracks technical, security, scalability, and business risks.
+
+**Reference Document:** `docs/RISK_REGISTER_GUIDELINES.md`  
+**Risk Register:** `docs/RISK_REGISTER.md`
+
+#### Non-Negotiable Requirements
+
+| Requirement | Description |
+|-------------|-------------|
+| **Mandatory Updates** | Risk Register MUST be updated at the completion of EVERY slice |
+| **Stable Risk IDs** | Risk IDs (R-001, R-002, etc.) are permanent and NEVER change or get reused |
+| **No Deletions** | Risks are NEVER deleted; set Status = Closed/Accepted with notes instead |
+| **Markdown Output** | Risk Register MUST be output as Markdown table for ChatGPT paste |
+| **External Master** | Excel master Risk Register is maintained externally by ChatGPT |
+
+#### Slice Update Process
+
+After every slice completion:
+
+1. **Add New Risks** — Minimum 2 new risks if slice introduces new complexity
+2. **Review Top 5 Risks** — Adjust Likelihood, Impact, Status as needed
+3. **Update Mitigations** — Document what was done in that slice
+4. **Update Dates** — Set Last Updated to current date (YYYY-MM-DD)
+5. **Close Resolved Risks** — Mark as Closed/Accepted with notes (never delete)
+6. **Output Full Table** — Markdown table ready for ChatGPT paste
+
+#### Risk Quality Standards
+
+- Each risk MUST be **specific and testable**, not generic
+- BAD: "Security risk"
+- GOOD: "No rate limiting on callable functions may allow abuse/spam causing cost spikes"
+
+#### Controlled Vocabularies
+
+| Field | Allowed Values |
+|-------|----------------|
+| **Category** | Technical, Security, Scalability, UX, Operations, Compliance, Business, Delivery |
+| **Likelihood** | Low, Medium, High |
+| **Impact** | Low, Medium, High, Critical |
+| **Severity** | Low, Medium, High, Critical (must be consistent with Likelihood + Impact) |
+| **Status** | Open, In Progress, Mitigated, Accepted, Closed |
+| **Owner** | Backend Dev, Frontend Dev, QA, Product, Taimur |
+
+### 6.2 Slice Definition of Done (MANDATORY)
+
+A slice is NOT complete until ALL of the following are satisfied:
+
+#### Slice Closure Checklist
+
+```markdown
+## Slice [X] Closure Checklist
+
+### Code & Testing
+- [ ] All acceptance criteria met
+- [ ] All tests passing (unit, integration)
+- [ ] No critical linter errors
+- [ ] Code reviewed and approved
+
+### Documentation
+- [ ] Build card updated with completion status
+- [ ] SLICE_STATUS.md updated
+- [ ] Any new learnings added to DEVELOPMENT_LEARNINGS.md
+
+### Deployment
+- [ ] Functions deployed successfully
+- [ ] Firestore indexes deployed (if any)
+- [ ] Security rules updated (if any)
+
+### Risk Register (MANDATORY)
+- [ ] New risks added (minimum 2 if new complexity introduced)
+- [ ] Top 5 risks reviewed and updated
+- [ ] Mitigations updated with work done in this slice
+- [ ] Last Updated dates set to today
+- [ ] Risk Register Markdown output ready for ChatGPT paste
+- [ ] No risks deleted — only closed with notes
+
+### Sign-Off
+- [ ] Slice marked COMPLETE in SLICE_STATUS.md
+- [ ] Product Owner notified
+```
+
+### 6.3 Enforcement
+
+| Violation | Consequence |
+|-----------|-------------|
+| Slice closed without Risk Register update | Slice NOT considered complete; must update before proceeding |
+| Risk ID changed or reused | Must revert; risk history must be preserved |
+| Risk deleted instead of closed | Must restore; add closure notes |
+| Generic/vague risk description | Must rewrite to be specific and testable |
+
+### 6.4 Workflow Summary
+
+```
+Slice Development
+       │
+       ▼
+Code Complete + Tests Passing
+       │
+       ▼
+Documentation Updated
+       │
+       ▼
+Functions/Rules Deployed
+       │
+       ▼
+Risk Register Updated (MANDATORY)
+       │
+       ▼
+Markdown Table Output
+       │
+       ▼
+Taimur: Paste to ChatGPT
+       │
+       ▼
+ChatGPT: Update Excel Master
+       │
+       ▼
+Slice Marked COMPLETE
+```
+
+---
+
+*This governance section is mandatory. All development work must comply with these requirements.*

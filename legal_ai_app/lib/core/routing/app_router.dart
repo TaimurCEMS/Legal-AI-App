@@ -19,6 +19,9 @@ import '../../features/documents/screens/document_details_screen.dart';
 import '../../features/tasks/screens/task_list_screen.dart';
 import '../../features/tasks/screens/task_create_screen.dart';
 import '../../features/tasks/screens/task_details_screen.dart';
+import '../../features/calendar/screens/calendar_screen.dart';
+import '../../features/calendar/screens/event_form_screen.dart';
+import '../../features/calendar/screens/event_details_screen.dart';
 import '../../features/home/screens/settings_screen.dart';
 import '../../features/home/screens/member_management_screen.dart';
 
@@ -132,6 +135,41 @@ class AppRouter {
           final taskId = state.extra as String? ??
               (state.uri.queryParameters['taskId'] ?? '');
           return TaskDetailsScreen(taskId: taskId);
+        },
+      ),
+      GoRoute(
+        path: RouteNames.calendar,
+        builder: (context, state) => const CalendarScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.eventCreate,
+        builder: (context, state) {
+          final dateStr = state.uri.queryParameters['date'];
+          DateTime? prefilledDate;
+          if (dateStr != null && dateStr.isNotEmpty) {
+            try {
+              prefilledDate = DateTime.parse(dateStr);
+            } catch (_) {
+              // Invalid date format, ignore
+            }
+          }
+          return EventFormScreen(prefilledDate: prefilledDate);
+        },
+      ),
+      GoRoute(
+        path: RouteNames.eventDetails,
+        builder: (context, state) {
+          final eventId = state.extra as String? ??
+              (state.uri.queryParameters['eventId'] ?? '');
+          return EventDetailsScreen(eventId: eventId);
+        },
+      ),
+      GoRoute(
+        path: RouteNames.eventEdit,
+        builder: (context, state) {
+          final eventId = state.extra as String? ??
+              (state.uri.queryParameters['eventId'] ?? '');
+          return EventFormScreen(eventId: eventId);
         },
       ),
     ],

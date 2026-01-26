@@ -891,7 +891,83 @@ The AI service is designed for future extensibility:
    - Streaming responses (show AI "typing")
    - Export chat to PDF
 
-2. **Proceed to Slice 7:** Calendar & Court Dates
+2. ✅ **Slice 7 Complete** - Proceed to Slice 8: Notes/Memos
+
+---
+
+## Slice 7: Calendar & Court Dates ✅ COMPLETE
+
+**Status:** ✅ **COMPLETE & DEPLOYED**  
+**Last Updated:** 2026-01-26  
+**Dependencies:** Slice 0 ✅, Slice 1 ✅, Slice 2 ✅  
+**Type:** Core feature for legal practice
+
+### Backend Status: ✅ COMPLETE
+
+**New Functions (5):**
+1. ✅ `eventCreate` – Create calendar events with case linking
+2. ✅ `eventGet` – Get event details with visibility check
+3. ✅ `eventList` – List events with backend visibility filtering
+4. ✅ `eventUpdate` – Update event details
+5. ✅ `eventDelete` – Soft delete events
+
+**Features:**
+- ✅ Event types (HEARING, TRIAL, MEETING, DEADLINE, REMINDER, OTHER)
+- ✅ Event statuses (SCHEDULED, COMPLETED, CANCELLED, RESCHEDULED)
+- ✅ Priorities (LOW, MEDIUM, HIGH, CRITICAL)
+- ✅ Case linkage (optional)
+- ✅ **Visibility enforcement at backend:**
+  - ORG: Visible to all org members
+  - CASE_ONLY: Visible only to users with case access
+  - PRIVATE: Visible only to creator
+- ✅ Entitlement checks (CALENDAR feature)
+- ✅ Audit logging for all event operations
+- ✅ Date range filtering
+
+**Security:**
+- ✅ PRIVATE events completely hidden from non-creators
+- ✅ CASE_ONLY events filtered by `canUserAccessCase` helper
+- ✅ Case access results cached for performance
+
+### Frontend Status: ✅ COMPLETE
+
+**New Files:**
+- ✅ `EventModel` – Data model for calendar events
+- ✅ `EventService` – Service for event CRUD operations
+- ✅ `EventProvider` – State management for events
+- ✅ `CalendarScreen` – Main calendar with multiple views
+- ✅ `EventFormScreen` – Create/edit events
+- ✅ `EventDetailsScreen` – View event details
+
+**UI Features:**
+- ✅ **Multiple calendar views:** Day, Week, Month, Agenda
+- ✅ **Date navigation:** Previous/Next buttons, Today button
+- ✅ **Interactive calendar grid:** Click date to create event
+- ✅ **Week view:** Time slots with events positioned
+- ✅ **Month view:** Date cells with event indicators, truncated titles
+- ✅ **Agenda view:** Scrollable list sorted by date
+- ✅ **Event form:** Case selector, dynamic visibility options
+- ✅ **Smart visibility:** CASE_ONLY only available when case is selected
+- ✅ **Event details:** Full info with edit/delete actions
+
+### Key Implementation Details
+
+**Visibility Logic (Frontend):**
+- No case linked → Only ORG and PRIVATE available
+- Case linked → All visibility options (ORG, CASE_ONLY, PRIVATE)
+- Auto-reset to ORG if CASE_ONLY selected and case removed
+
+**Visibility Logic (Backend):**
+- PRIVATE events filtered to creator only
+- CASE_ONLY events filtered by case access check
+- ORG events passed through (org membership already verified)
+- Unauthorized events return "not found" (don't reveal existence)
+
+### Documentation
+
+- **Build Card:** `docs/SLICE_7_BUILD_CARD.md`
+
+**Overall:** ✅ **COMPLETE**
 
 ---
 

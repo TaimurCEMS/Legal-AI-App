@@ -11,12 +11,14 @@ import '../../cases/screens/case_list_screen.dart';
 import '../../clients/screens/client_list_screen.dart';
 import '../../documents/screens/document_list_screen.dart';
 import '../../tasks/screens/task_list_screen.dart';
+import '../../calendar/screens/calendar_screen.dart';
 import '../providers/org_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../cases/providers/case_provider.dart';
 import '../../clients/providers/client_provider.dart';
 import '../../documents/providers/document_provider.dart';
 import '../../tasks/providers/task_provider.dart';
+import '../../calendar/providers/event_provider.dart';
 import '../providers/member_provider.dart';
 
 /// Main app shell with navigation
@@ -37,6 +39,7 @@ class _AppShellState extends State<AppShell> {
     const ClientListScreen(),
     const DocumentListScreen(),
     const TaskListScreen(),
+    const CalendarScreen(),
   ];
 
   void _onItemTapped(int index) {
@@ -81,6 +84,7 @@ class _AppShellState extends State<AppShell> {
       final clientProvider = context.read<ClientProvider>();
       final documentProvider = context.read<DocumentProvider>();
       final taskProvider = context.read<TaskProvider>();
+      final eventProvider = context.read<EventProvider>();
       final memberProvider = context.read<MemberProvider>();
       
       orgProvider.clearOrg();
@@ -88,6 +92,7 @@ class _AppShellState extends State<AppShell> {
       clientProvider.clearClients();
       documentProvider.clearDocuments();
       taskProvider.clearTasks();
+      eventProvider.clearEvents();
       memberProvider.clearMembers();
       
       // Re-initialize org provider for new user
@@ -104,6 +109,7 @@ class _AppShellState extends State<AppShell> {
       final clientProvider = context.read<ClientProvider>();
       final documentProvider = context.read<DocumentProvider>();
       final taskProvider = context.read<TaskProvider>();
+      final eventProvider = context.read<EventProvider>();
       final memberProvider = context.read<MemberProvider>();
       
       orgProvider.clearOrg();
@@ -111,6 +117,7 @@ class _AppShellState extends State<AppShell> {
       clientProvider.clearClients();
       documentProvider.clearDocuments();
       taskProvider.clearTasks();
+      eventProvider.clearEvents();
       memberProvider.clearMembers();
     }
     
@@ -244,12 +251,17 @@ class _AppShellState extends State<AppShell> {
           BottomNavigationBarItem(
             icon: Icon(Icons.description_outlined),
             activeIcon: Icon(Icons.description),
-            label: 'Documents',
+            label: 'Docs',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.task_outlined),
             activeIcon: Icon(Icons.task),
             label: 'Tasks',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.calendar_today_outlined),
+            activeIcon: Icon(Icons.calendar_today),
+            label: 'Calendar',
           ),
         ],
       ),
@@ -266,6 +278,7 @@ class _AppShellState extends State<AppShell> {
     final clientProvider = context.read<ClientProvider>();
     final documentProvider = context.read<DocumentProvider>();
     final taskProvider = context.read<TaskProvider>();
+    final eventProvider = context.read<EventProvider>();
     
     // Clear all state
     orgProvider.clearOrg();
@@ -273,6 +286,7 @@ class _AppShellState extends State<AppShell> {
     clientProvider.clearClients();
     documentProvider.clearDocuments();
     taskProvider.clearTasks();
+    eventProvider.clearEvents();
     
     // Then sign out
     await authProvider.signOut();

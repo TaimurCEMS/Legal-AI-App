@@ -19,6 +19,10 @@ class RouteNames {
   static const String taskList = '/tasks';
   static const String taskCreate = '/tasks/create';
   static const String taskDetails = '/tasks/details';
+  static const String calendar = '/calendar';
+  static const String eventCreate = '/calendar/create';
+  static const String eventDetails = '/calendar/details';
+  static const String eventEdit = '/calendar/edit';
   static const String settings = '/settings';
   static const String memberManagement = '/settings/team-members';
 }

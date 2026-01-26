@@ -21,80 +21,79 @@ This document captures the current development state, recent decisions, and next
 | 5.5 | ✅ Complete | Case Participants (PRIVATE case access control) |
 | 6a | ✅ Complete | Document Extraction (AI-powered) |
 | 6b | ✅ Complete | AI Chat/Research with jurisdiction-aware legal opinions |
+| 7 | ✅ Complete | Calendar & Court Dates (events, views, visibility) |
 
 ### Git Status
 - **Branch:** main
-- **Status:** 1 commit ahead of origin/main (not pushed)
-- **Last Commit:** `751fabc` - feat(slice-6b): Complete AI Chat/Research with jurisdiction-aware legal opinions
+- **Status:** Synced with origin/main
+- **Last Commit:** Slice 7 - Calendar & Court Dates complete
 
 ---
 
-## Recent Session (2026-01-25/26)
+## Recent Session (2026-01-26)
 
 ### Work Completed
 
-**Slice 5.5 - Case Participants**
-- Created `functions/src/functions/case-participants.ts`
-- Functions: `caseListParticipants`, `caseAddParticipant`, `caseRemoveParticipant`
-- Uses `canUserAccessCase` helper for PRIVATE vs ORG_WIDE visibility
-- Only case creator (or admin) can manage participants
+**Slice 7 - Calendar & Court Dates**
+- Backend: `event.ts` (5 functions: create, get, list, update, delete)
+- Frontend: CalendarScreen, EventFormScreen, EventDetailsScreen
+- Features:
+  - Multiple calendar views (Day, Week, Month, Agenda)
+  - Date navigation (previous/next, today button)
+  - Event types (HEARING, TRIAL, MEETING, DEADLINE, REMINDER, OTHER)
+  - Event statuses (SCHEDULED, COMPLETED, CANCELLED, RESCHEDULED)
+  - Priorities (LOW, MEDIUM, HIGH, CRITICAL)
+  - **Case linkage** - events can be linked to cases
+  - **Smart visibility options:**
+    - ORG (Organization-wide) - visible to all org members
+    - CASE_ONLY (Team) - visible only to users with case access
+    - PRIVATE - visible only to creator
+  - **Backend visibility enforcement** - server-side filtering ensures unauthorized users cannot see PRIVATE or CASE_ONLY events
 
-**Slice 6b - AI Chat/Research**
-- Backend: `ai-chat.ts` (5 functions), `ai-service.ts` (OpenAI integration)
-- Frontend: ChatThreadModel, AIChatProvider, CaseAIChatScreen, ChatThreadScreen
-- Features: Jurisdiction-aware legal opinions (50+ countries/regions)
-- Jurisdiction persists at thread level
+**Key Implementation Details:**
+- Click on empty date in Month/Week view → opens new event form with pre-filled date
+- Event titles truncated with ellipsis in Month view for clean UI
+- Visibility dropdown dynamically adjusts based on case selection
+- Backend uses `canUserAccessCase` helper for CASE_ONLY event filtering
 
-**Bug Fixes**
-- Task deletion showing "task not found" even on success
-- Case details page loading issues
-- Participant "Add" button not appearing for case creators
-- Flutter layout error (render box with no size)
-
-**Documentation Updates**
-- SLICE_STATUS.md - enhanced with Slice 6b details
-- FEATURE_ROADMAP.md - competitive analysis (Clio, Harvey.ai)
-- MASTER_SPEC V1.4.0 - updated
-- DEVELOPMENT_LEARNINGS.md - added learnings 49-52
-- ARCHITECTURE_SCALABILITY_ASSESSMENT.md - updated to 75% complete
+**Bug Fixes:**
+- Fixed GoRouter navigation issues (was using Navigator APIs)
+- Fixed EventModel timestamp parsing for null/missing fields
+- Fixed RenderFlex overflow in Month view calendar grid
+- Fixed Firebase deployment function naming
 
 ---
 
 ## Next Steps
 
-### Immediate: Slice 7 - Calendar & Court Dates
+### Recommended: Slice 8 - Notes/Memos on Cases
 **Priority:** 🔴 HIGH  
-**Rationale:** Lawyers live by deadlines - missing court dates = malpractice liability
+**Rationale:** Quick win - lawyers need note-taking for meetings, research, strategy
 
 **Planned Features:**
-- Court date management (hearings, trials, filing deadlines)
-- Statute of limitations tracking
-- Reminder notifications (email, in-app)
-- Calendar views (day, week, month)
-- Case-event linking
-- Recurring events
+- Rich text notes attached to cases
+- Note categories (client meeting, research, strategy, etc.)
+- Note search across all cases
+- Pin important notes
+- Share notes with team members
 
 **Technical Scope:**
-- Backend: `eventCreate`, `eventGet`, `eventList`, `eventUpdate`, `eventDelete`
-- Frontend: Calendar widget, event forms, case integration
-- Notifications: Firebase Cloud Messaging
+- Backend: `noteCreate`, `noteGet`, `noteList`, `noteUpdate`, `noteDelete`
+- Frontend: Note editor, case integration, search
+- Storage: Firestore (with rich text support)
 
 ### Future Priorities
 | Slice | Priority | Description |
 |-------|----------|-------------|
-| 7 | 🔴 HIGH | Calendar & Court Dates |
 | 8 | 🔴 HIGH | Notes/Memos on Cases |
 | 9 | 🔴 HIGH | AI Document Drafting |
 | 10 | 🟡 HIGH | Time Tracking |
 | 11 | 🟡 MEDIUM | Billing/Invoicing |
 
-### AI UX Enhancements (Post-Slice 7)
-| Enhancement | Priority | Impact | Effort |
-|-------------|----------|--------|--------|
-| Markdown Rendering | High | High | Low |
-| Streaming Responses | High | High | Medium |
-| Export Chat to PDF | Medium | Medium | Low |
-| Citation Links | Medium | Medium | Low |
+### UI Polish Items (Deferred)
+- Calendar UI refinements
+- Month view event display improvements
+- Week view time slot interactions
 
 ---
 
@@ -102,18 +101,30 @@ This document captures the current development state, recent decisions, and next
 
 1. **Firestore Structure:** `organizations/{orgId}/cases/{caseId}/...`
 2. **Case Visibility:** PRIVATE (explicit participants) vs ORG_WIDE (all members)
-3. **AI Integration:** OpenAI GPT-4 via Cloud Functions
-4. **Jurisdiction Model:** Country + optional state/region, persisted per chat thread
-5. **Entitlements:** Feature flags checked via `checkEntitlement()` helper
+3. **Event Visibility:** ORG, CASE_ONLY, PRIVATE (enforced at backend)
+4. **AI Integration:** OpenAI GPT-4 via Cloud Functions
+5. **Jurisdiction Model:** Country + optional state/region, persisted per chat thread
+6. **Entitlements:** Feature flags checked via `checkEntitlement()` helper
 
 ---
 
 ## Development Patterns
 
 - **Backend:** Firebase Cloud Functions (TypeScript), callable functions return `successResponse`/`errorResponse`
-- **Frontend:** Flutter with Provider pattern
-- **Naming:** `{entity}{Action}` (e.g., `caseCreate`, `taskList`)
+- **Frontend:** Flutter with Provider pattern, GoRouter for navigation
+- **Naming:** `{entity}{Action}` (e.g., `caseCreate`, `eventList`)
 - **Timestamps:** Firestore Timestamps converted to ISO strings in responses
+- **Visibility Enforcement:** Always at backend, frontend is convenience only
+
+---
+
+## Extensibility Notes
+
+**Saved Filter Views (Future Enhancement):**
+- Easy to add with current architecture
+- New collection: `orgs/{orgId}/savedViews/{viewId}`
+- Store filter parameters (caseId, status, dateRange, etc.)
+- ~1-2 hours implementation
 
 ---
 

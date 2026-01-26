@@ -40,3 +40,12 @@ export {
   aiChatGetMessages,
   aiChatDelete,
 } from './functions/ai-chat';
+
+// Export Slice 7 - Calendar & Court Dates functions
+export {
+  eventCreate,
+  eventGet,
+  eventList,
+  eventUpdate,
+  eventDelete,
+} from './functions/event';
