@@ -2,7 +2,7 @@
 
 **Purpose:** Capture key learnings, insights, and solutions discovered during development to prevent repeating mistakes and share knowledge.
 
-**Last Updated:** 2026-01-20
+**Last Updated:** 2026-01-25
 
 ---
 
@@ -1298,8 +1298,8 @@ When you discover a new learning:
 
 ---
 
-**Last Updated:** 2026-01-24  
-**Next Review:** After Slice 6b completion
+**Last Updated:** 2026-01-25  
+**Next Review:** After Slice 7 completion
 
 ---
 
@@ -1628,3 +1628,478 @@ When you discover a new learning:
 
 **Files:**
 - `functions/src/services/extraction-service.ts` - Truncation logic
+
+---
+
+### Learning 43: Firebase Functions .env Files for API Keys
+**Date:** 2026-01-25  
+**Context:** Slice 6b - OpenAI API key not being read by deployed functions
+
+**Issue:**
+- Tried `firebase functions:config:set openai.key=...`
+- Tried `firebase functions:secrets:set OPENAI_API_KEY`
+- Neither worked reliably with Node.js 22 runtime
+- Functions deployed but API key was undefined
+
+**Root Cause:**
+- Firebase Functions v2/Node.js 22 changed how config and secrets work
+- `functions.config()` is deprecated in newer runtimes
+- Secrets require special setup and permissions
+- Environment variables need explicit loading
+
+**Solution:**
+- **Create `functions/.env` file:**
+  ```
+  OPENAI_API_KEY=sk-proj-...
+  ```
+- **Read with `process.env`:**
+  ```typescript
+  const apiKey = process.env.OPENAI_API_KEY;
+  ```
+- **Add `.env` to `.gitignore`** (never commit secrets!)
+- Firebase automatically loads `.env` on deploy
+
+**Lesson:**
+- **Use `.env` files for Firebase Functions secrets** (simplest approach)
+- **`process.env` is the standard way** to read environment variables
+- **Never commit `.env` to Git** - add to `.gitignore`
+- **For production, consider Firebase Secrets Manager** for better security
+- **Test locally with `.env.local`** if needed
+
+**Files:**
+- `functions/.env` - API key storage (gitignored)
+- `functions/.gitignore` - Exclude .env files
+- `functions/src/services/ai-service.ts` - Read API key
+
+---
+
+### Learning 44: Firestore Cannot Store Undefined Values
+**Date:** 2026-01-25  
+**Context:** Slice 6b - Chat message save failing with undefined pageNumber
+
+**Issue:**
+- Error: "Cannot use 'undefined' as a Firestore value (found in field 'citations.0.pageNumber')"
+- Citation object had `pageNumber: undefined` explicitly set
+- Firestore rejected the document save
+
+**Root Cause:**
+- Firestore doesn't allow `undefined` values in documents
+- TypeScript allows optional fields (`pageNumber?: number`)
+- But if you explicitly set `pageNumber: undefined`, Firestore rejects it
+- Undefined is different from omitting the field
+
+**Solution:**
+- **Don't explicitly set undefined:**
+  ```typescript
+  // BAD - sets undefined value
+  citations.push({
+    documentId: doc.documentId,
+    documentName: doc.name,
+    pageNumber: undefined, // WRONG!
+  });
+  
+  // GOOD - omit the field entirely
+  citations.push({
+    documentId: doc.documentId,
+    documentName: doc.name,
+    // pageNumber is not included, which Firestore accepts
+  });
+  ```
+- **For optional fields, use spread operator:**
+  ```typescript
+  const data = {
+    ...requiredFields,
+    ...(optionalField !== undefined && { optionalField }),
+  };
+  ```
+
+**Lesson:**
+- **Never explicitly set `undefined` in Firestore documents**
+- **Omit fields instead of setting to undefined**
+- **Use conditional spread for optional fields**
+- **TypeScript optional fields (?) are for type safety, not Firestore semantics**
+
+**Files:**
+- `functions/src/services/ai-service.ts` - Citation extraction
+- `functions/src/functions/ai-chat.ts` - Message storage
+
+---
+
+### Learning 45: Return All Required Fields in API Responses
+**Date:** 2026-01-25  
+**Context:** Slice 6b - Frontend parsing errors from backend responses
+
+**Issue:**
+- `FormatException: Invalid timestamp format for ChatThreadModel`
+- `TypeError: null: type 'Null' is not a subtype of type 'String'`
+- Backend created data successfully but response was missing fields
+
+**Root Cause:**
+- Backend `aiChatCreate` returned only some fields
+- Frontend `ChatThreadModel.fromJson` expected all fields
+- Missing fields caused null/type errors in Dart
+
+**Solution:**
+- **Return ALL model fields in API response:**
+  ```typescript
+  return successResponse({
+    threadId: threadRef.id,
+    caseId,
+    title: threadTitle,
+    createdAt: toIso(now),
+    updatedAt: toIso(now),      // Was missing!
+    createdBy: uid,
+    messageCount: 0,             // Was missing!
+    lastMessageAt: toIso(now),   // Was missing!
+    status: 'active',            // Was missing!
+  });
+  ```
+- **Match frontend model exactly**
+
+**Lesson:**
+- **API responses must match frontend model expectations**
+- **Document required fields in API spec**
+- **Test frontend parsing with real API responses**
+- **Use same model definition on backend and frontend**
+
+**Files:**
+- `functions/src/functions/ai-chat.ts` - Complete response fields
+- `legal_ai_app/lib/core/models/chat_thread_model.dart` - Model definition
+
+---
+
+### Learning 46: AI Context Building for Legal Applications
+**Date:** 2026-01-25  
+**Context:** Slice 6b - Building document context for AI queries
+
+**Issue:**
+- Need to give AI context from case documents
+- Context window has limits (tokens)
+- Multiple documents need to be combined
+- AI needs to cite sources
+
+**Solution:**
+- **Structured context building:**
+  ```typescript
+  function buildCaseContext(documents: DocumentInfo[]): string {
+    let context = '';
+    const MAX_CONTEXT_CHARS = 50000; // Leave room for response
+    
+    for (const doc of documents) {
+      if (!doc.extractedText) continue;
+      
+      const docSection = `
+  --- Document: ${doc.name} ---
+  ${doc.extractedText}
+  --- End of ${doc.name} ---
+  `;
+      
+      if (context.length + docSection.length > MAX_CONTEXT_CHARS) {
+        // Truncate or skip
+        break;
+      }
+      context += docSection;
+    }
+    return context;
+  }
+  ```
+- **Clear document delimiters** help AI cite sources
+- **Truncation prevents token overflow**
+
+**Lesson:**
+- **Structure context clearly for AI** - delimit documents
+- **Set context limits** based on model capabilities
+- **Enable source citation** through clear formatting
+- **Design for extensibility** - context can include jurisdiction, templates, etc.
+
+**Files:**
+- `functions/src/services/ai-service.ts` - `buildCaseContext` function
+
+---
+
+### Learning 47: Legal Disclaimers Must Not Duplicate
+**Date:** 2026-01-25  
+**Context:** Slice 6b - AI responses showing disclaimer twice
+
+**Issue:**
+- AI response showed legal disclaimer twice
+- Once from system prompt, once from `addDisclaimer` function
+- Looked unprofessional
+
+**Solution:**
+- **Check before adding disclaimer:**
+  ```typescript
+  export function addDisclaimer(response: string): string {
+    const disclaimer = '\n\n---\n⚠️ *AI-generated content. Review before use in legal matters.*';
+    
+    // Don't add if already present
+    if (response.includes('AI-generated content')) {
+      return response;
+    }
+    return response + disclaimer;
+  }
+  ```
+
+**Lesson:**
+- **Check for existing content before appending**
+- **Idempotent operations are safer**
+- **AI might include similar text** in its response
+- **Simple string check works well**
+
+**Files:**
+- `functions/src/services/ai-service.ts` - `addDisclaimer` function
+
+---
+
+### Learning 48: Modular AI Service Design for Future Extensions
+**Date:** 2026-01-25  
+**Context:** Slice 6b - Planning for future AI features
+
+**Issue:**
+- Current AI just uses document context
+- Future needs: jurisdiction context, practice area templates, drafting prompts
+- Need architecture that supports extension
+
+**Solution:**
+- **Modular service design:**
+  ```typescript
+  // Current
+  const documentContext = buildCaseContext(documents);
+  
+  // Future extension points
+  // const jurisdictionContext = buildJurisdictionContext(country, state);
+  // const practiceAreaContext = buildPracticeAreaContext('corporate');
+  // const draftingContext = buildDraftingContext(templateType, variables);
+  
+  // Combine contexts
+  const fullContext = [
+    documentContext,
+    // jurisdictionContext,
+    // practiceAreaContext,
+  ].filter(Boolean).join('\n\n');
+  ```
+- **Context builder functions are composable**
+- **Each returns string that can be combined**
+
+**Lesson:**
+- **Design for extension from the start**
+- **Composable functions are easier to extend**
+- **Comment future extension points**
+- **Don't over-engineer, but plan ahead**
+
+**Files:**
+- `functions/src/services/ai-service.ts` - Modular design
+- `docs/FEATURE_ROADMAP.md` - Future AI features
+
+---
+
+### Learning 49: Persist Context Settings at Entity Level
+**Date:** 2026-01-25  
+**Context:** Slice 6b Enhancement - Jurisdiction settings lost when user leaves chat
+
+**Issue:**
+- Jurisdiction was only stored in widget's local state
+- When user left chat and returned, jurisdiction was gone
+- AI lost context between sessions
+- Poor user experience
+
+**Root Cause:**
+- State was only in Flutter widget (`_selectedCountry`, `_selectedState`)
+- Not persisted to Firestore with the chat thread
+- Widget state resets when navigating away
+
+**Solution:**
+- **Store context settings at entity level (thread):**
+  ```typescript
+  // Backend: Store jurisdiction in thread document
+  interface ChatThread {
+    // ... other fields
+    jurisdiction?: {
+      country?: string;
+      state?: string;
+      region?: string;
+    };
+  }
+  
+  // When sending message, update thread jurisdiction
+  if (jurisdictionContext) {
+    threadUpdate.jurisdiction = jurisdictionContext;
+  }
+  
+  // When loading thread, use stored jurisdiction if none provided
+  const effectiveJurisdiction = providedJurisdiction || threadData.jurisdiction;
+  ```
+
+- **Frontend: Load and pass jurisdiction:**
+  ```dart
+  // Pass initial jurisdiction when opening thread
+  initialJurisdiction: thread.jurisdiction,
+  
+  // In initState, load from widget
+  if (widget.initialJurisdiction != null) {
+    _selectedCountry = widget.initialJurisdiction!.country;
+    _selectedState = widget.initialJurisdiction!.state;
+  }
+  ```
+
+**Lesson:**
+- **Persist context settings, not just UI state**
+- **Settings should survive navigation and session restart**
+- **Backend is the source of truth for persistent data**
+- **Widget state is only for ephemeral UI state**
+- **Consider: "Would user expect this setting to be remembered?"**
+
+**Files:**
+- `functions/src/functions/ai-chat.ts` - Thread jurisdiction storage
+- `legal_ai_app/lib/core/models/chat_thread_model.dart` - JurisdictionModel
+- `legal_ai_app/lib/features/ai_chat/screens/chat_thread_screen.dart` - Load from widget
+
+---
+
+### Learning 50: Use Simple Field Queries Over Null Comparisons in Firestore
+**Date:** 2026-01-25  
+**Context:** Slice 6b Enhancement - Chat threads not appearing in list
+
+**Issue:**
+- Query: `where('deletedAt', '==', null)` not returning results
+- Threads were created but not appearing in list
+- Firestore index existed but query still failed
+
+**Root Cause:**
+- When documents are created without `deletedAt` field, the field is **undefined** (not set)
+- Firestore `where('field', '==', null)` only matches documents where field **explicitly equals null**
+- Documents with missing field don't match `== null` query
+
+**Solution:**
+- **Option 1: Always explicitly set `deletedAt: null` when creating:**
+  ```typescript
+  const threadData = {
+    // ... other fields
+    deletedAt: null,  // Explicitly set for query compatibility
+  };
+  ```
+
+- **Option 2 (Better): Query on a field that's always set:**
+  ```typescript
+  // Instead of: where('deletedAt', '==', null)
+  // Use: where('status', '==', 'active')
+  const snapshot = await threadsRef
+    .where('status', '==', 'active')  // Always set to 'active' on create
+    .orderBy('lastMessageAt', 'desc')
+    .get();
+  ```
+
+**Lesson:**
+- **Firestore `== null` only matches explicit null, not missing fields**
+- **Always explicitly set nullable fields on document creation**
+- **Prefer querying on required fields that are always set**
+- **Use `status` field pattern instead of `deletedAt == null` pattern**
+- **Test queries with newly created documents, not just existing ones**
+
+**Files:**
+- `functions/src/functions/ai-chat.ts` - Changed query to use status field
+- `firestore.indexes.json` - Added index for `status` + `lastMessageAt`
+
+---
+
+### Learning 51: Show Entity Metadata in List Views for Better UX
+**Date:** 2026-01-25  
+**Context:** Slice 6b Enhancement - Jurisdiction not visible in thread list
+
+**Issue:**
+- User set jurisdiction in a chat thread
+- When viewing thread list, couldn't tell which threads had jurisdiction set
+- Had to open each thread to see its settings
+- Poor discoverability
+
+**Solution:**
+- **Show important metadata in list item cards:**
+  ```dart
+  Widget _buildThreadCard(thread) {
+    final hasJurisdiction = thread.hasJurisdiction;
+    
+    return Card(
+      child: Column(
+        children: [
+          // Title, message count, time
+          // ...
+          
+          // Show jurisdiction if set
+          if (hasJurisdiction) ...[
+            Row(
+              children: [
+                Icon(Icons.gavel, size: 14),
+                Text(thread.jurisdiction!.displayLabel),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+  ```
+
+**Lesson:**
+- **Important settings should be visible in list views**
+- **Don't hide context that affects behavior**
+- **Use icons to indicate special states (gavel for jurisdiction)**
+- **Keep list items scannable but informative**
+- **Consider: "What info helps user choose which item to open?"**
+
+**Files:**
+- `legal_ai_app/lib/features/ai_chat/screens/case_ai_chat_screen.dart` - Thread card with jurisdiction
+
+---
+
+### Learning 52: AI System Prompts Should Be Comprehensive for Legal Applications
+**Date:** 2026-01-25  
+**Context:** Slice 6b Enhancement - Making AI truly useful for legal work
+
+**Issue:**
+- Original system prompt was minimal: "You are a legal research assistant"
+- AI responses were generic, not professional-grade
+- Needed to compete with specialized legal AI tools
+
+**Solution:**
+- **Create comprehensive professional system prompt:**
+  ```typescript
+  const BASE_SYSTEM_PROMPT = `You are an expert legal AI assistant helping lawyers and legal professionals.
+
+  YOUR CAPABILITIES:
+  1. **Document Analysis**: Analyze case documents, extract key info, cite sources
+  2. **Legal Research**: Case law references, statutory analysis
+  3. **Legal Opinions**: Preliminary opinions based on facts provided
+  4. **Practice Guidance**: Strategies, procedures, best practices
+  5. **Drafting Assistance**: Document structure and language
+
+  IMPORTANT RULES:
+  1. When documents provided, cite them explicitly
+  2. Distinguish between: document info, general principles, your analysis
+  3. Note when advice should be verified with local counsel
+  4. Be precise and factual - this is for legal work
+  5. Highlight risks and considerations
+  6. Acknowledge limitations when uncertain
+
+  RESPONSE FORMAT:
+  - Structure with headings when appropriate
+  - Use bullet points for lists
+  - Cite sources inline: (Source: [Document Name])
+  - Flag jurisdictional variations
+
+  Remember: Accuracy and clarity are critical for legal professionals.`;
+  ```
+
+**Lesson:**
+- **Professional tools need professional prompts**
+- **Define capabilities explicitly for user understanding**
+- **Set clear rules for AI behavior (cite sources, acknowledge limits)**
+- **Include formatting guidance for consistent output**
+- **Legal work requires extra caution - build it into the prompt**
+
+**Files:**
+- `functions/src/services/ai-service.ts` - BASE_SYSTEM_PROMPT
+
+---
+
+**Last Updated:** 2026-01-25  
+**Next Review:** After Slice 7 completion

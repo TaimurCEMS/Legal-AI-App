@@ -1,7 +1,7 @@
 # LEGAL AI APP - MASTER SPECIFICATION (SOURCE OF TRUTH)
-Version: 1.3.2
+Version: 1.4.0
 Owner: Taimur (Product Owner)
-Last Updated: 2026-01-23
+Last Updated: 2026-01-25
 Status: Active Master Spec (All builds must follow this document)
 
 ---
@@ -262,12 +262,6 @@ This section defines the development roadmap as vertical slices. Each slice deli
   - Case visibility (ORG_WIDE, PRIVATE)
   - Client-case relationships
 
-- ✅ **Slice 3:** Client Hub
-  - Client CRUD operations
-  - Client list with search
-  - Client-case relationships
-  - Conflict checks (cannot delete client with cases)
-
 - ✅ **Slice 2.5:** Member Management & Role Assignment (Mini-slice)
   - List organization members
   - View member roles
@@ -275,48 +269,143 @@ This section defines the development roadmap as vertical slices. Each slice deli
   - Safety checks (cannot change own role, cannot remove last ADMIN)
   - **Note:** Moved from Slice 15 due to blocking multi-user testing
 
-### Active Development
+- ✅ **Slice 3:** Client Hub
+  - Client CRUD operations
+  - Client list with search
+  - Client-case relationships
+  - Conflict checks (cannot delete client with cases)
 
-- 🔄 **Slice 4:** Document Hub (Ready to start)
+- ✅ **Slice 4:** Document Hub
   - Document CRUD operations
   - Document upload to Cloud Storage
   - Document-case linking
   - Document list with search and filtering
 
-### Planned Slices
-
-- **Slice 5:** Task Hub
+- ✅ **Slice 5:** Task Hub
   - Task management (CRUD)
   - Task-case relationships
   - Task assignment to team members
   - Task status tracking
+  - Priority and due date management
 
-- **Slice 6+:** AI Features
-  - Document OCR/text extraction
-  - AI legal research
-  - AI drafting with citations
-  - Document analysis
-  - AI outputs stored in case records
+- ✅ **Slice 5.5:** Case Participants & Private Case Sharing (Mini-slice)
+  - Add/remove participants to private cases
+  - Task-level visibility (`restrictedToAssignee`)
+  - Enhanced assignee selection for private cases
+
+- ✅ **Slice 6a:** Document Text Extraction
+  - PDF text extraction (pdf-parse)
+  - DOCX text extraction (mammoth)
+  - TXT/RTF text extraction
+  - Job queue pattern for async processing
+  - Extraction status tracking
+
+- ✅ **Slice 6b:** AI Chat/Research (Enhanced)
+  - OpenAI GPT integration (gpt-4o-mini)
+  - Document-based Q&A with context building
+  - Citation extraction (references document sources)
+  - Thread management (create, list, delete, history)
+  - Legal disclaimer handling (with duplicate prevention)
+  - **Jurisdiction-aware legal opinions** (country/state/region)
+  - **Jurisdiction persistence** (saved per thread, remembered across sessions)
+  - **Comprehensive legal AI system prompt** (analysis, research, opinions, guidance, drafting)
+  - Modular architecture for future extensions
+
+### Planned Slices (Prioritized Roadmap)
+
+**Priority 1: Critical for Adoption**
+
+- **Slice 7:** Calendar & Court Dates
+  - Court date management (hearings, trials, filing deadlines)
+  - Statute of limitations tracking
+  - Reminder notifications
+  - Calendar views (day, week, month)
+  - Case-event linking
+
+- **Slice 8:** Notes/Memos on Cases
+  - Rich text notes attached to cases
+  - Note categories and templates
+  - Note search across cases
+  - Pin important notes
+
+- **Slice 9:** AI Document Drafting
+  - Template library (contracts, letters, motions)
+  - AI-powered drafting from prompts
+  - Document variables (client name, dates)
+  - Export to DOCX/PDF
+  - Jurisdiction-aware templates
+
+**Priority 2: Important for Revenue**
+
+- **Slice 10:** Time Tracking
+  - Timer (start/stop/pause)
+  - Manual time entry
+  - Time entries linked to cases/tasks
+  - Billable vs non-billable tracking
+  - Time entry reports
+
+- **Slice 11:** Billing & Invoicing
+  - Invoice generation from time entries
+  - Hourly rates per lawyer/client/matter
+  - Invoice PDF export
+  - Payment tracking
+  - Trust account tracking (IOLTA compliance)
 
 - **Slice 12:** Audit Trail UI
   - View audit logs
   - Filter and search audit events
-  - Compliance reporting
+  - Export audit logs
+  - Compliance dashboards
 
-- **Slice 13:** Billing & Plan Management
-  - Plan upgrade UI
-  - Billing management
-  - Subscription management
-  - Usage tracking
+**Priority 3: Competitive Differentiators**
+
+- **Slice 13:** AI Contract Analysis
+  - Clause identification (indemnity, liability, etc.)
+  - Risk flagging (unusual terms, missing clauses)
+  - Contract comparison
+  - Obligation extraction
+
+- **Slice 14:** AI Summarization
+  - One-click document summarization
+  - Key points extraction
+  - Entity extraction (parties, dates, amounts)
 
 - **Slice 15:** Advanced Admin Features
   - Member invitations (email-based)
   - Bulk member operations
-  - Advanced member filtering and search
-  - Member profiles and activity tracking
   - Organization settings UI
-  - Advanced permission customization
+  - Custom role definitions
   - **Note:** Basic member management already done in Slice 2.5
+
+- **Slice 16:** Reporting Dashboard
+  - Case statistics
+  - Productivity metrics
+  - Time tracking reports (if Slice 10 complete)
+  - Custom report builder
+
+**Priority 4: Full Feature Parity**
+
+- **Slice 17:** Contact Management
+  - Contact database (beyond clients)
+  - Contact categories (opposing counsel, experts)
+  - Link contacts to cases
+
+- **Slice 18:** Email Integration
+  - Email capture to case record
+  - Attachment extraction
+  - Email search
+
+- **Slice 19:** Conflict of Interest Checks
+  - Automatic conflict check on new case/client
+  - Party name matching (fuzzy)
+  - Conflict waiver tracking
+
+- **Slice 20:** Vector Search / Embeddings
+  - Document embedding generation
+  - Semantic search across documents
+  - Cross-case document search
+
+**See `docs/FEATURE_ROADMAP.md` for comprehensive feature analysis and competitive comparison.**
 
 ### Mini-Slice Pattern
 

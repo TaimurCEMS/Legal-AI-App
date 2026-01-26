@@ -25,6 +25,8 @@ import '../../tasks/providers/task_provider.dart';
 import '../providers/case_provider.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../ai_chat/screens/case_ai_chat_screen.dart';
+
 class CaseDetailsScreen extends StatefulWidget {
   final String caseId;
 
@@ -623,6 +625,8 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
                         _buildDocumentsSection(),
                         const SizedBox(height: AppSpacing.xl),
                         _buildTasksSection(),
+                        const SizedBox(height: AppSpacing.xl),
+                        _buildAIResearchSection(),
                       ],
                     ),
                   ),
@@ -1074,6 +1078,94 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
               });
             }
           : null,
+    );
+  }
+
+  Widget _buildAIResearchSection() {
+    final caseProvider = context.watch<CaseProvider>();
+    final caseModel = caseProvider.selectedCase;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'AI Research',
+              style: AppTypography.titleLarge,
+            ),
+            TextButton.icon(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => CaseAIChatScreen(
+                      caseId: widget.caseId,
+                      caseTitle: caseModel?.title ?? 'Case',
+                    ),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.smart_toy, size: 18),
+              label: const Text('Open AI Chat'),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Card(
+          child: InkWell(
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => CaseAIChatScreen(
+                    caseId: widget.caseId,
+                    caseTitle: caseModel?.title ?? 'Case',
+                  ),
+                ),
+              );
+            },
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(AppSpacing.sm),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      Icons.smart_toy,
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Chat with your documents',
+                          style: AppTypography.titleSmall,
+                        ),
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          'Ask questions about case documents and get AI-powered answers with citations.',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

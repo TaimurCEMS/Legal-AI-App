@@ -10,16 +10,25 @@ Legal AI App/
 │   ├── status/             # Slice status and progress
 │   ├── reports/            # Test results, cleanup reports
 │   ├── slices/             # Slice implementation details
-│   ├── MASTER_SPEC V1.3.2.md  # Master specification (source of truth)
-│   ├── SLICE_0_BUILD_CARD.md  # Slice 0 build card
-│   ├── SLICE_1_BUILD_CARD.md  # Slice 1 build card
-│   └── SLICE_2_BUILD_CARD.md  # Slice 2 build card
+│   ├── MASTER_SPEC V1.4.0.md  # Master specification (source of truth)
+│   ├── FEATURE_ROADMAP.md    # Comprehensive roadmap
+│   ├── ARCHITECTURE_SCALABILITY_ASSESSMENT.md  # Architecture review
+│   ├── DEVELOPMENT_LEARNINGS.md  # Key learnings and best practices
+│   └── SLICE_*_BUILD_CARD.md  # Slice build cards
 ├── scripts/                 # Utility scripts
 │   ├── dev/                # Development scripts (git, commits)
 │   └── ops/                # Operations scripts (deployment, checks)
 ├── functions/               # Firebase Cloud Functions (TypeScript)
 │   ├── src/                # Source code
+│   │   ├── functions/     # Cloud Functions (case, client, document, task, ai-chat)
+│   │   ├── services/      # Service layer (ai-service, extraction-service)
+│   │   ├── constants/     # Constants (entitlements, errors, permissions)
+│   │   └── utils/         # Utilities (audit, case-access)
 │   └── lib/                # Compiled JavaScript
+├── legal_ai_app/            # Flutter app (Dart)
+│   └── lib/                # Source code
+│       ├── core/          # Core models and services
+│       └── features/      # Feature modules (cases, clients, documents, tasks, ai_chat)
 ├── firebase.json            # Firebase configuration
 ├── firestore.rules          # Firestore security rules
 └── firestore.indexes.json   # Firestore indexes
@@ -48,8 +57,12 @@ firebase deploy --only functions
 ## 📚 Documentation
 
 ### Master Specification
-- **[Master Spec](docs/MASTER_SPEC%20V1.3.2.md)** - Complete project specification (source of truth)
+- **[Master Spec](docs/MASTER_SPEC%20V1.4.0.md)** - Complete project specification (source of truth)
   - Includes repository structure guidelines (Section 2.7)
+
+### Strategic Documents
+- **[Feature Roadmap](docs/FEATURE_ROADMAP.md)** - Comprehensive roadmap and competitive analysis
+- **[Architecture Assessment](docs/ARCHITECTURE_SCALABILITY_ASSESSMENT.md)** - Scalability and architecture review
 
 ### Slice Status
 - **[Slice Status](docs/status/SLICE_STATUS.md)** - Current slice progress and deployment status
@@ -167,6 +180,18 @@ See [Slice Status](docs/status/SLICE_STATUS.md) for details.
 - **Features:** PDF/DOCX/TXT/RTF text extraction, job queue, status tracking
 - **See:** [Slice 6a Build Card](docs/SLICE_6A_BUILD_CARD.md) for details
 
+### Slice 6b: AI Chat/Research ✅ COMPLETE (Enhanced)
+- **Status:** Complete & Deployed
+- **Backend:** ✅ 5 new functions (aiChatCreate, aiChatSend, aiChatList, aiChatGetMessages, aiChatDelete)
+- **Frontend:** ✅ AI chat screens, jurisdiction selector, chat history
+- **Features:**
+  - Document-based Q&A with citations
+  - **Jurisdiction-aware legal opinions** (50+ countries/regions)
+  - **Jurisdiction persistence** per thread
+  - Chat history and thread management
+  - Comprehensive legal AI system prompt
+- **See:** [Slice 6b Build Card](docs/SLICE_6B_BUILD_CARD.md) for details
+
 ## 🔐 Security
 
 - All writes go through Cloud Functions
@@ -180,6 +205,6 @@ Proprietary - All rights reserved
 
 ---
 
-**Last Updated:** 2026-01-24  
+**Last Updated:** 2026-01-25  
 **Project:** legal-ai-app-1203e  
 **Region:** us-central1

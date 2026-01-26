@@ -12,7 +12,7 @@ export const PLAN_FEATURES = {
     TASKS: true, // Enabled for MVP (like TEAM_MEMBERS for Slice 2.5)
     DOCUMENT_UPLOAD: true,
     OCR_EXTRACTION: true, // Enabled for testing (Slice 6a)
-    AI_RESEARCH: false,
+    AI_RESEARCH: true, // Enabled for testing (Slice 6b)
     AI_DRAFTING: false,
     EXPORTS: false,
     AUDIT_TRAIL: false,

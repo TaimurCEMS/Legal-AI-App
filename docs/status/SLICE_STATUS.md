@@ -757,3 +757,194 @@ firebase deploy --only functions
 - **Build Card:** `docs/SLICE_6A_BUILD_CARD.md`
 
 **Overall:** ✅ **COMPLETE**
+
+---
+
+## Slice 6b: AI Chat/Research ✅ COMPLETE (Enhanced)
+
+**Status:** ✅ **COMPLETE & DEPLOYED**  
+**Last Updated:** 2026-01-25  
+**Dependencies:** Slice 0 ✅, Slice 1 ✅, Slice 4 ✅, Slice 6a ✅  
+**Type:** Core AI feature
+
+### Backend Status: ✅ COMPLETE
+
+**New Functions (5):**
+1. ✅ `aiChatCreate` – Create new AI chat thread for a case (with optional jurisdiction)
+2. ✅ `aiChatSend` – Send message and get AI response (jurisdiction-aware)
+3. ✅ `aiChatList` – List chat threads for a case (returns jurisdiction)
+4. ✅ `aiChatGetMessages` – Get messages in a thread
+5. ✅ `aiChatDelete` – Soft delete a chat thread
+
+**New Services:**
+- ✅ `functions/src/services/ai-service.ts` – OpenAI integration, context building, citation extraction, jurisdiction-aware prompts
+
+**Features:**
+- ✅ OpenAI GPT-4o-mini integration
+- ✅ Document context building (combines extracted text from case documents)
+- ✅ Citation extraction (references document sources)
+- ✅ Legal disclaimer auto-appended (with duplicate prevention)
+- ✅ Thread title generation
+- ✅ Message history support
+- ✅ Token usage tracking
+- ✅ Entitlement check (AI_RESEARCH feature)
+- ✅ Audit logging for chat operations
+- ✅ API key secured via `.env` file
+- ✅ **Jurisdiction-aware legal opinions** (NEW!)
+- ✅ **Jurisdiction persistence at thread level** (NEW!)
+- ✅ **Comprehensive legal AI system prompt** (NEW!)
+
+**Enhanced AI Capabilities:**
+- ✅ Document Analysis
+- ✅ Legal Research (case law, statutory analysis)
+- ✅ Legal Opinions (jurisdiction-specific)
+- ✅ Practice Guidance (strategies, procedures)
+- ✅ Drafting Assistance (document structure, language)
+
+**Configuration:**
+- ✅ OpenAI API key stored in `functions/.env`
+- ✅ Firestore index for chat threads (`status` + `lastMessageAt`)
+
+### Frontend Status: ✅ COMPLETE
+
+**New Files:**
+- ✅ `ChatThreadModel` – Data model for chat threads (with `JurisdictionModel`)
+- ✅ `JurisdictionModel` – Data model for jurisdiction context
+- ✅ `ChatMessageModel` – Data model for chat messages and citations
+- ✅ `AIChatService` – Service for AI chat operations
+- ✅ `AIChatProvider` – State management for AI chat
+
+**New Screens:**
+- ✅ `CaseAIChatScreen` – List chat threads for a case (shows jurisdiction)
+- ✅ `ChatThreadScreen` – Chat conversation UI (with jurisdiction selector)
+
+**Modified Screens:**
+- ✅ `CaseDetailsScreen` – Added "AI Research" section entry point
+
+**UI Features:**
+- ✅ Chat thread list with creation time and jurisdiction indicator
+- ✅ Message bubbles (user/AI differentiated)
+- ✅ Loading indicator during AI response
+- ✅ Legal disclaimer banner
+- ✅ **Jurisdiction indicator banner** (clickable to change)
+- ✅ **Jurisdiction selector modal** (country + state/region)
+- ✅ Citation display below AI messages
+- ✅ Empty state handling
+- ✅ **"Tap to continue conversation"** hint
+- ✅ **Jurisdiction shown in thread list**
+
+### Key Features
+
+1. **Document-Based Q&A:** AI answers questions based on case documents
+2. **Citations:** AI references specific documents in responses
+3. **Thread Management:** Multiple chat threads per case
+4. **Jurisdiction-Aware Legal Opinions:** AI provides jurisdiction-specific analysis
+5. **Jurisdiction Persistence:** Set once, remembered for the thread
+6. **Modular Architecture:** Easy to extend with practice area context, templates
+
+### Jurisdiction Feature Details
+
+**Supported Countries:**
+- United States (with 50 states + DC)
+- United Kingdom (England & Wales, Scotland, Northern Ireland)
+- United Arab Emirates (including DIFC, ADGM)
+- Canada (provinces)
+- Australia (states/territories)
+- India (major states)
+- Pakistan (provinces)
+- Singapore, Hong Kong, Germany, France, Other
+
+**How Jurisdiction Affects AI:**
+- System prompt includes jurisdiction context
+- AI prioritizes jurisdiction-specific laws and procedures
+- AI notes federal vs local law differences
+- AI references relevant courts and regulatory bodies
+- AI flags multi-jurisdiction issues
+
+### Architecture Notes
+
+The AI service is designed for future extensibility:
+
+```typescript
+// Implemented:
+// - buildSystemPrompt(options?: { jurisdiction })
+// - buildCaseContext(documents)
+
+// Future extension points:
+// - buildPracticeAreaContext(practiceArea)
+// - buildDraftingContext(templateType, variables)
+// - Streaming responses (show AI typing)
+// - Markdown rendering in chat
+```
+
+### Documentation
+
+- **Build Card:** `docs/SLICE_6B_BUILD_CARD.md`
+- **Feature Roadmap:** `docs/FEATURE_ROADMAP.md`
+
+**Overall:** ✅ **COMPLETE (Enhanced)**
+
+### Next Steps
+
+1. **High Priority UX Improvements:**
+   - Markdown rendering in AI responses
+   - Streaming responses (show AI "typing")
+   - Export chat to PDF
+
+2. **Proceed to Slice 7:** Calendar & Court Dates
+
+---
+
+## 🔧 Immediate Enhancements (Slice 6b+)
+
+These can be added incrementally to improve AI chat experience:
+
+| Enhancement | Priority | Impact | Effort |
+|-------------|----------|--------|--------|
+| **Markdown Rendering** | High | High | Low |
+| **Streaming Responses** | High | High | Medium |
+| **Export Chat to PDF** | Medium | Medium | Low |
+| **Citation Links** | Medium | Medium | Low |
+| **ChatGPT-style UI** | Low | High | Medium |
+| **Quick Prompts** | Low | Medium | Low |
+
+---
+
+## 📋 Future Slices (Prioritized Roadmap)
+
+See **`docs/FEATURE_ROADMAP.md`** for comprehensive roadmap and competitive analysis.
+
+### Priority 1: Critical for Adoption (Parity with Clio)
+- **Slice 7:** Calendar & Court Dates (lawyers live by deadlines)
+- **Slice 8:** Notes/Memos on Cases (capture conversations, research)
+- **Slice 9:** AI Document Drafting (major differentiator)
+
+### Priority 2: Important for Revenue (Business Operations)
+- **Slice 10:** Time Tracking (how firms track billable hours)
+- **Slice 11:** Billing/Invoicing (how firms get paid)
+- **Slice 12:** Audit Trail UI (compliance visibility)
+
+### Priority 3: Competitive Differentiators (Beat Harvey.ai)
+- **Slice 13:** AI Contract Analysis (clause identification, risk flagging)
+- **Slice 14:** AI Summarization (one-click document summaries)
+- **Slice 15:** Advanced Admin Features (invitations, bulk ops, org settings)
+- **Slice 16:** Reporting Dashboard (case stats, productivity metrics)
+
+### Priority 4: Full Feature Parity (Enterprise Ready)
+- **Slice 17:** Contact Management (opposing counsel, experts, witnesses)
+- **Slice 18:** Email Integration (capture emails to cases)
+- **Slice 19:** Conflict of Interest Checks (ethical compliance)
+- **Slice 20:** Vector Search / Embeddings (semantic document search)
+
+---
+
+## 🎯 Competitive Position Summary
+
+| Competitor | Their Strength | Our Advantage |
+|------------|---------------|---------------|
+| **Clio** | Complete practice mgmt | AI-first, lower price |
+| **Harvey.ai** | Best AI research | Full practice mgmt |
+| **CaseTrak.ai** | All-in-one | Better architecture |
+| **LexisNexis** | Legal database | Modern UX, affordable |
+
+**Our Unique Position:** AI-first practice management at accessible price

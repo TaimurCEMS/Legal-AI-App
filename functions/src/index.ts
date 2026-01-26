@@ -31,3 +31,12 @@ export { taskCreate, taskGet, taskList, taskUpdate, taskDelete } from './functio
 
 // Export Slice 6a - Document Text Extraction functions
 export { documentExtract, documentGetExtractionStatus, extractionProcessJob } from './functions/extraction';
+
+// Export Slice 6b - AI Chat/Research functions
+export {
+  aiChatCreate,
+  aiChatSend,
+  aiChatList,
+  aiChatGetMessages,
+  aiChatDelete,
+} from './functions/ai-chat';
