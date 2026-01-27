@@ -189,6 +189,18 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // Slice 8: Notes under organizations collection
+    // Note visibility inherits from case (checked in Cloud Functions)
+    match /organizations/{orgId}/notes/{noteId} {
+      // Read: org members can read non-deleted notes
+      // Case-level access is enforced in Cloud Functions
+      allow read: if isOrgMember(orgId) &&
+        (!('deletedAt' in resource.data) || resource.data.deletedAt == null);
+
+      // All writes are via Admin SDK (Cloud Functions); deny direct client writes
+      allow create, update, delete: if false;
+    }
+
     // Default deny for all other paths
     match /{document=**} {
       allow read, write: if false;

@@ -282,41 +282,28 @@ class OrgProvider with ChangeNotifier {
   bool _isSettingOrg = false; // Guard against concurrent setSelectedOrg calls
   
   Future<void> setSelectedOrg(OrgModel org) async {
-    // Prevent concurrent calls
+    // Prevent concurrent calls for different orgs
     if (_isSettingOrg) {
       return;
     }
     
-    if (_selectedOrg?.orgId == org.orgId) {
-      // Already selected, but ensure membership is loaded
-      if (_currentMembership == null) {
-        _isSettingOrg = true;
-        try {
-          await getMyMembership(orgId: org.orgId);
-        } finally {
-          _isSettingOrg = false;
-        }
-      }
-      return;
+    // Set org immediately for instant UI feedback (before any async work)
+    _selectedOrg = org;
+    _saveOrgToStorage(org);
+    notifyListeners();
+    
+    // Verify org exists in user's org list
+    final existsInList = _userOrgs.any((o) => o.orgId == org.orgId);
+    if (!existsInList) {
+      _addToUserOrgsList(org);
     }
     
+    // Load membership details in background (don't block navigation)
     _isSettingOrg = true;
     try {
-      // Verify org exists in user's org list before setting (prevents ghost orgs)
-      final existsInList = _userOrgs.any((o) => o.orgId == org.orgId);
-      if (!existsInList) {
-        // Add to list if not present (user might have just created/joined it)
-        _addToUserOrgsList(org);
-      }
-      
-      // Set org immediately for instant UI feedback
-      _selectedOrg = org;
-      _saveOrgToStorage(org);
-      notifyListeners(); // Notify immediately so UI updates
-      
-      // Load membership details to get role (async, doesn't block UI)
       await getMyMembership(orgId: org.orgId);
-      notifyListeners(); // Notify again after membership loads
+    } catch (e) {
+      debugPrint('OrgProvider.setSelectedOrg: Error loading membership: $e');
     } finally {
       _isSettingOrg = false;
     }

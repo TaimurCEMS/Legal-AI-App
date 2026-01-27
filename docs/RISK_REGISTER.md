@@ -1,9 +1,9 @@
 # Legal AI App — Risk Register
 
 **Version:** 1.0  
-**Last Updated:** 2026-01-26  
-**Last Slice Completed:** Slice 6b (AI Chat/Research Enhanced)  
-**Next Review:** After Slice 7 completion
+**Last Updated:** 2026-01-27  
+**Last Slice Completed:** Slice 8 (Notes/Memos on Cases)  
+**Next Review:** After Slice 9 completion
 
 ---
 
@@ -25,8 +25,10 @@
 | R-012 | Two-query merge for case visibility adds latency | Case list runs separate queries for ORG_WIDE and PRIVATE cases, merges in memory; doubles read cost and latency | Scalability | Slice 2, 5.5 | Medium | Medium | Medium | Accepted | Backend Dev | Acceptable for MVP; consider composite index optimization if latency becomes noticeable | Case list load times exceed 2 seconds | 2026-01-26 | MVP tradeoff; works well for current scale |
 | R-013 | Complex provider state tracking causes race conditions | Providers use multiple tracking variables (_lastLoadedOrgId, _lastLoadedCaseId, etc.) creating complex state that can cause race conditions | Technical | Slice 2, 3, 4, 5 | Medium | Medium | Medium | In Progress | Frontend Dev | Documented in DEVELOPMENT_LEARNINGS.md; listener pattern adopted; ongoing refinement | Intermittent bugs with data not loading or loading wrong data | 2026-01-26 | Improving with each slice; monitor for new issues |
 | R-014 | No conflict of interest check on new cases | No automated check for conflicts when creating cases/clients; required by legal ethics rules | Compliance | Slice 3 | Low | High | Medium | Open | Backend Dev | Planned for Slice 19; manual checks required until then | Ethical violation due to missed conflict | 2026-01-26 | Lower priority; most solo practitioners manage manually |
-| R-015 | Calendar and deadline tracking not implemented | No calendar, court dates, or deadline tracking; lawyers depend heavily on deadline management | Business | Not started | High | High | High | Open | Product | Planned for Slice 7 (next slice); critical for adoption | Users choose competitor for deadline tracking | 2026-01-26 | Priority 1 feature; blocking wider adoption |
+| R-015 | Calendar and deadline tracking not implemented | Previously missing; Slice 7 implemented calendar/events with backend-enforced visibility and case linkage. Risk is now closed. | Business | Slice 7 | High | High | High | Closed | Product | Implemented Slice 7 calendar (events CRUD, views, visibility) | N/A (feature delivered) | 2026-01-27 | Closed after Slice 7 completion |
 | R-016 | Time tracking and billing not implemented | No time tracking or billing features; core revenue feature for law firms | Business | Not started | High | High | High | Open | Product | Planned for Slices 10-11; important for revenue generation | Users need separate billing software | 2026-01-26 | Priority 2 feature; important for firm adoption |
+| R-017 | Notes visibility regression could leak data | Changes to notes access control could accidentally expose notes across users/cases/orgs; legal apps require strict isolation and “not found” semantics | Security | Slice 8 | Medium | Critical | High | Mitigated | Backend Dev | Server-side enforcement: `canUserAccessCase` + `isPrivate` creator-only; unauthorized returns NOT_FOUND; added logging during debugging | Users report seeing notes they shouldn’t; audit review finds cross-case exposure | 2026-01-27 | Mitigated by backend checks; keep as a standing security regression risk |
+| R-018 | Notes list may omit older notes at scale | Org-wide notes list caps the initial query (MVP limit) and then filters in-memory; users may not see older notes without additional pagination/scroll logic | Scalability | Slice 8 | Medium | Medium | Medium | Accepted | Backend Dev | MVP tradeoff; pagination/streaming list improvements planned post-MVP | Users report “missing notes” when note volume grows | 2026-01-27 | Acceptable for early MVP; revisit before larger org adoption |
 
 ---
 
@@ -34,16 +36,16 @@
 
 | Metric | Count |
 |--------|-------|
-| **Total Risks** | 16 |
-| **Open** | 7 |
+| **Total Risks** | 18 |
+| **Open** | 6 |
 | **In Progress** | 1 |
-| **Mitigated** | 2 |
-| **Accepted** | 6 |
-| **Closed** | 0 |
+| **Mitigated** | 3 |
+| **Accepted** | 7 |
+| **Closed** | 1 |
 | **Critical Severity** | 0 |
-| **High Severity** | 6 |
-| **Medium Severity** | 8 |
-| **Low Severity** | 2 |
+| **High Severity** | 8 |
+| **Medium Severity** | 9 |
+| **Low Severity** | 1 |
 
 ---
 
@@ -51,9 +53,9 @@
 
 | Category | Count | High/Critical |
 |----------|-------|---------------|
-| Scalability | 4 | 2 |
+| Scalability | 5 | 2 |
 | UX | 3 | 2 |
-| Security | 2 | 1 |
+| Security | 3 | 2 |
 | Compliance | 3 | 0 |
 | Technical | 1 | 0 |
 | Operations | 1 | 0 |
@@ -68,10 +70,10 @@
 3. **R-003** (High) — Offset pagination inefficient at scale
 4. **R-004** (High) — No rate limiting on Cloud Functions
 5. **R-007** (High) — AI responses not streamed; feels slow
-6. **R-015** (High) — Calendar and deadline tracking not implemented
-7. **R-016** (High) — Time tracking and billing not implemented
+6. **R-016** (High) — Time tracking and billing not implemented
+7. **R-017** (High) — Notes visibility regression could leak data
 
-*(Note: 7 risks tied at High severity)*
+*(Note: multiple risks tied at High severity)*
 
 ---
 
@@ -80,16 +82,16 @@
 | Version | Date | Slice | Changes |
 |---------|------|-------|---------|
 | 1.0 | 2026-01-26 | Post-6b | Initial risk register created with 16 risks from architecture assessment and known issues |
+| 1.1 | 2026-01-27 | Post-8 | Closed R-015 (Calendar delivered in Slice 7); added Slice 8 risks (R-017, R-018); updated counts and next review |
 
 ---
 
 ## Next Update
 
-**After Slice 7 (Calendar & Court Dates) completion:**
-- Add new risks discovered during calendar implementation
-- Review and update R-015 status
-- Update mitigation progress for UX risks
-- Assess if R-007 (streaming) should be addressed
+**After Slice 9 (AI Document Drafting) completion:**
+- Add new risks discovered during drafting implementation (security, compliance, cost)
+- Re-review top risks (R-001/R-004/R-007/R-016/R-017)
+- Update mitigation progress and dates
 
 ---
 

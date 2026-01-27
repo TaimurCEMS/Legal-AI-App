@@ -11,6 +11,7 @@ import 'features/documents/providers/document_provider.dart';
 import 'features/tasks/providers/task_provider.dart';
 import 'features/calendar/providers/event_provider.dart';
 import 'features/ai_chat/providers/ai_chat_provider.dart';
+import 'features/notes/providers/note_provider.dart';
 
 /// Main app widget
 class MyApp extends StatelessWidget {
@@ -29,6 +30,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => TaskProvider()),
         ChangeNotifierProvider(create: (_) => EventProvider()),
         ChangeNotifierProvider(create: (_) => AIChatProvider()),
+        ChangeNotifierProvider(create: (_) => NoteProvider()),
       ],
       child: MaterialApp.router(
         title: 'Legal AI App',

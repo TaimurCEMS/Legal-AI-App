@@ -22,6 +22,9 @@ import '../../features/tasks/screens/task_details_screen.dart';
 import '../../features/calendar/screens/calendar_screen.dart';
 import '../../features/calendar/screens/event_form_screen.dart';
 import '../../features/calendar/screens/event_details_screen.dart';
+import '../../features/notes/screens/note_list_screen.dart';
+import '../../features/notes/screens/note_form_screen.dart';
+import '../../features/notes/screens/note_details_screen.dart';
 import '../../features/home/screens/settings_screen.dart';
 import '../../features/home/screens/member_management_screen.dart';
 
@@ -170,6 +173,37 @@ class AppRouter {
           final eventId = state.extra as String? ??
               (state.uri.queryParameters['eventId'] ?? '');
           return EventFormScreen(eventId: eventId);
+        },
+      ),
+      // Note routes
+      GoRoute(
+        path: RouteNames.noteList,
+        builder: (context, state) {
+          final caseId = state.uri.queryParameters['caseId'];
+          final caseName = state.uri.queryParameters['caseName'];
+          return NoteListScreen(caseId: caseId, caseName: caseName);
+        },
+      ),
+      GoRoute(
+        path: RouteNames.noteCreate,
+        builder: (context, state) {
+          final caseId = state.uri.queryParameters['caseId'];
+          final caseName = state.uri.queryParameters['caseName'];
+          return NoteFormScreen(caseId: caseId, caseName: caseName);
+        },
+      ),
+      GoRoute(
+        path: '${RouteNames.noteDetails}/:noteId',
+        builder: (context, state) {
+          final noteId = state.pathParameters['noteId'] ?? '';
+          return NoteDetailsScreen(noteId: noteId);
+        },
+      ),
+      GoRoute(
+        path: '${RouteNames.noteEdit}/:noteId',
+        builder: (context, state) {
+          final noteId = state.pathParameters['noteId'] ?? '';
+          return NoteFormScreen(noteId: noteId);
         },
       ),
     ],

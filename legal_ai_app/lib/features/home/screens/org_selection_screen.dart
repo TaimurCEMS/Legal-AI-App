@@ -298,7 +298,7 @@ class _OrgSelectionScreenState extends State<OrgSelectionScreen> {
                     ? Icon(Icons.check_circle, color: AppColors.primary)
                     : const Icon(Icons.chevron_right),
             onTap: () async {
-              // Prevent double-clicks
+              // Prevent double-clicks on the SAME org while processing
               if (_selectingOrgId == org.orgId) {
                 return;
               }
@@ -308,17 +308,19 @@ class _OrgSelectionScreenState extends State<OrgSelectionScreen> {
               });
 
               try {
-                await orgProvider.setSelectedOrg(org);
+                // Set the org - don't await, navigate immediately for responsiveness
+                orgProvider.setSelectedOrg(org);
                 
-                // Always use pop if we can, otherwise go to home
-                // This ensures browser back button works
+                // Navigate to home immediately
                 if (context.mounted) {
-                  if (context.canPop()) {
-                    context.pop(); // Go back if we came from another screen
-                  } else {
-                    // If direct navigation, go to home and clear any navigation history issues
-                    context.go(RouteNames.home);
-                  }
+                  context.go(RouteNames.home);
+                }
+              } catch (e) {
+                debugPrint('OrgSelectionScreen: Error selecting org: $e');
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error selecting organization: $e')),
+                  );
                 }
               } finally {
                 if (mounted) {

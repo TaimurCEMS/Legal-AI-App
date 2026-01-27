@@ -11,6 +11,7 @@ export const PLAN_FEATURES = {
     TEAM_MEMBERS: true, // Enabled for multi-user testing (Slice 2.5)
     TASKS: true, // Enabled for MVP (like TEAM_MEMBERS for Slice 2.5)
     CALENDAR: true, // Enabled for MVP testing (Slice 7)
+    NOTES: true, // Enabled for MVP testing (Slice 8)
     DOCUMENT_UPLOAD: true,
     OCR_EXTRACTION: true, // Enabled for testing (Slice 6a)
     AI_RESEARCH: true, // Enabled for testing (Slice 6b)
@@ -29,6 +30,7 @@ export const PLAN_FEATURES = {
     TEAM_MEMBERS: true,
     TASKS: true,
     CALENDAR: true,
+    NOTES: true,
     DOCUMENT_UPLOAD: true,
     OCR_EXTRACTION: true,
     AI_RESEARCH: true,
@@ -47,6 +49,7 @@ export const PLAN_FEATURES = {
     TEAM_MEMBERS: true,
     TASKS: true,
     CALENDAR: true,
+    NOTES: true,
     DOCUMENT_UPLOAD: true,
     OCR_EXTRACTION: true,
     AI_RESEARCH: true,
@@ -65,6 +68,7 @@ export const PLAN_FEATURES = {
     TEAM_MEMBERS: true,
     TASKS: true,
     CALENDAR: true,
+    NOTES: true,
     DOCUMENT_UPLOAD: true,
     OCR_EXTRACTION: true,
     AI_RESEARCH: true,

@@ -22,6 +22,8 @@ import '../../documents/providers/document_provider.dart';
 import '../../home/providers/member_provider.dart';
 import '../../home/providers/org_provider.dart';
 import '../../tasks/providers/task_provider.dart';
+import '../../notes/providers/note_provider.dart';
+import '../../../core/models/note_model.dart';
 import '../providers/case_provider.dart';
 import 'package:go_router/go_router.dart';
 
@@ -57,18 +59,52 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
   String? _selectedMemberToAdd;
   final CaseParticipantsService _participantsService = CaseParticipantsService();
   bool _loadingMembers = false;
+  bool _loadingNotes = false;
+  List<NoteModel> _caseNotes = [];
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadDetails();
-      _loadClients();
-      _loadDocuments();
-      _loadTasks();
-      _loadParticipants();
-      _loadMembers();
+      _loadProgressively();
     });
+  }
+  
+  /// Load data progressively - critical data first, then secondary
+  Future<void> _loadProgressively() async {
+    final org = context.read<OrgProvider>().selectedOrg;
+    if (org == null) {
+      setState(() {
+        _loading = false;
+        _error = 'No organization selected.';
+      });
+      return;
+    }
+    
+    // Priority 1: Case details (what user came to see)
+    await _loadDetails();
+    
+    // If case failed to load, don't bother loading secondary data
+    if (_error != null || !mounted) return;
+    
+    // Priority 2: Load secondary data with small delays to not overwhelm
+    // These run in parallel but staggered
+    _loadDocuments();
+    await Future.delayed(const Duration(milliseconds: 50));
+    if (!mounted) return;
+    
+    _loadTasks();
+    await Future.delayed(const Duration(milliseconds: 50));
+    if (!mounted) return;
+    
+    _loadNotes();
+    await Future.delayed(const Duration(milliseconds: 50));
+    if (!mounted) return;
+    
+    // Priority 3: Load less critical data
+    _loadClients(); // Only needed if editing
+    _loadParticipants();
+    _loadMembers();
   }
 
   @override
@@ -99,51 +135,47 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
   Future<void> _loadDocuments() async {
     if (_loadingDocuments) return; // Prevent concurrent loads
 
+    var org = context.read<OrgProvider>().selectedOrg;
+    
+    // Brief wait if org not ready yet (max 1 second)
+    if (org == null) {
+      for (int i = 0; i < 5 && mounted; i++) {
+        await Future.delayed(const Duration(milliseconds: 200));
+        org = context.read<OrgProvider>().selectedOrg;
+        if (org != null) break;
+      }
+    }
+    
+    if (org == null || !mounted) return;
+
     setState(() {
       _loadingDocuments = true;
     });
 
     try {
-      // Wait for org to be available (mirrors list screens behaviour)
-      final orgProvider = context.read<OrgProvider>();
-      int retries = 0;
-      const maxRetries = 30;
-      while (orgProvider.selectedOrg == null && retries < maxRetries) {
-        await Future.delayed(const Duration(milliseconds: 200));
-        retries++;
-        if (!mounted) {
-          return;
-        }
-      }
-
-      final org = orgProvider.selectedOrg;
-      if (org == null) {
-        if (mounted) {
-          setState(() {
-            _loadingDocuments = false;
-          });
-        }
-        return;
-      }
-
+      debugPrint('CaseDetailsScreen._loadDocuments: Starting for caseId=${widget.caseId}');
       final documentProvider = context.read<DocumentProvider>();
       await documentProvider.loadDocuments(
         org: org,
         caseId: widget.caseId,
       );
 
+      debugPrint('CaseDetailsScreen._loadDocuments: Provider has ${documentProvider.documents.length} documents');
+      
       if (mounted) {
         // Filter documents to only show those linked to this case
         final caseDocs = documentProvider.documents
             .where((doc) => doc.caseId == widget.caseId)
             .toList();
+        debugPrint('CaseDetailsScreen._loadDocuments: Filtered to ${caseDocs.length} docs for caseId=${widget.caseId}');
         setState(() {
-          _loadingDocuments = false;
           _caseDocuments = caseDocs;
         });
       }
+    } catch (e) {
+      debugPrint('CaseDetailsScreen._loadDocuments: Error - $e');
     } finally {
-      if (mounted && _loadingDocuments) {
+      if (mounted) {
         setState(() {
           _loadingDocuments = false;
         });
@@ -154,62 +186,83 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
   Future<void> _loadTasks() async {
     if (_loadingTasks) return;
 
+    var org = context.read<OrgProvider>().selectedOrg;
+    
+    // Brief wait if org not ready yet (max 1 second)
+    if (org == null) {
+      for (int i = 0; i < 5 && mounted; i++) {
+        await Future.delayed(const Duration(milliseconds: 200));
+        org = context.read<OrgProvider>().selectedOrg;
+        if (org != null) break;
+      }
+    }
+    
+    if (org == null || !mounted) return;
+
     setState(() {
       _loadingTasks = true;
     });
 
     try {
-      // Wait for org to be available (mirrors list screens behaviour)
-      final orgProvider = context.read<OrgProvider>();
-      int retries = 0;
-      const maxRetries = 30;
-      while (orgProvider.selectedOrg == null && retries < maxRetries) {
-        await Future.delayed(const Duration(milliseconds: 200));
-        retries++;
-        if (!mounted) {
-          return;
-        }
-      }
-
-      final org = orgProvider.selectedOrg;
-      if (org == null) {
-        if (mounted) {
-          setState(() {
-            _loadingTasks = false;
-          });
-        }
-        return;
-      }
-
+      debugPrint('CaseDetailsScreen._loadTasks: Starting for caseId=${widget.caseId}');
       final taskProvider = context.read<TaskProvider>();
-      debugPrint('CaseDetailsScreen._loadTasks: Loading tasks for case ${widget.caseId}');
       await taskProvider.loadTasks(
         org: org,
         caseId: widget.caseId,
       );
 
+      debugPrint('CaseDetailsScreen._loadTasks: Provider has ${taskProvider.tasks.length} tasks');
+
       if (mounted) {
         // Filter tasks to only show those linked to this case
-        // Note: taskProvider.loadTasks was called with caseId, so tasks should already be filtered
-        // But we do an additional filter here to be safe
-        debugPrint('CaseDetailsScreen._loadTasks: TaskProvider has ${taskProvider.tasks.length} tasks total');
         final caseTasks = taskProvider.tasks
             .where((task) => task.caseId == widget.caseId)
             .toList();
-        debugPrint('CaseDetailsScreen._loadTasks: Filtered to ${caseTasks.length} tasks for case ${widget.caseId}');
-        for (final task in taskProvider.tasks) {
-          debugPrint('CaseDetailsScreen._loadTasks: Task ${task.taskId} has caseId: ${task.caseId}');
-        }
+        debugPrint('CaseDetailsScreen._loadTasks: Filtered to ${caseTasks.length} tasks for caseId=${widget.caseId}');
         setState(() {
-          _loadingTasks = false;
           _caseTasks = caseTasks;
         });
       }
     } catch (e) {
-      debugPrint('CaseDetailsScreen._loadTasks: Error loading tasks: $e');
+      debugPrint('CaseDetailsScreen._loadTasks: Error - $e');
+    } finally {
       if (mounted) {
         setState(() {
           _loadingTasks = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadNotes() async {
+    if (_loadingNotes) return;
+
+    final org = context.read<OrgProvider>().selectedOrg;
+    if (org == null) return;
+
+    setState(() {
+      _loadingNotes = true;
+    });
+
+    try {
+      final noteProvider = context.read<NoteProvider>();
+      await noteProvider.loadNotes(
+        orgId: org.orgId,
+        caseId: widget.caseId,
+        refresh: true,
+      );
+
+      if (mounted) {
+        setState(() {
+          _loadingNotes = false;
+          _caseNotes = noteProvider.notes;
+        });
+      }
+    } catch (e) {
+      debugPrint('CaseDetailsScreen._loadNotes: Error loading notes: $e');
+      if (mounted) {
+        setState(() {
+          _loadingNotes = false;
         });
       }
     }
@@ -626,6 +679,8 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
                         const SizedBox(height: AppSpacing.xl),
                         _buildTasksSection(),
                         const SizedBox(height: AppSpacing.xl),
+                        _buildNotesSection(),
+                        const SizedBox(height: AppSpacing.xl),
                         _buildAIResearchSection(),
                       ],
                     ),
@@ -1039,6 +1094,114 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
       case TaskStatus.cancelled:
         return Colors.red;
     }
+  }
+
+  Widget _buildNotesSection() {
+    final caseProvider = context.watch<CaseProvider>();
+    final caseModel = caseProvider.selectedCase;
+    final caseName = caseModel?.title ?? 'Case';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Notes',
+              style: AppTypography.titleLarge,
+            ),
+            TextButton.icon(
+              onPressed: () {
+                context.push('${RouteNames.noteCreate}?caseId=${widget.caseId}&caseName=${Uri.encodeComponent(caseName)}');
+              },
+              icon: const Icon(Icons.add),
+              label: const Text('Add Note'),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        if (_loadingNotes)
+          const Center(child: CircularProgressIndicator())
+        else if (_caseNotes.isEmpty)
+          Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Center(
+              child: Text(
+                'No notes for this case',
+                style: AppTypography.bodyMedium.copyWith(
+                  color: Colors.grey,
+                ),
+              ),
+            ),
+          )
+        else
+          ..._caseNotes.take(3).map((note) => Card(
+                margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+                child: ListTile(
+                  leading: Icon(
+                    note.isPinned ? Icons.push_pin : _getCategoryIcon(note.category),
+                    color: note.isPinned ? Colors.orange : AppColors.textSecondary,
+                    size: 24,
+                  ),
+                  title: Text(
+                    note.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  subtitle: Text(
+                    '${note.category.displayLabel} • ${_formatRelativeTime(note.updatedAt)}',
+                    style: AppTypography.bodySmall.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    context.push('${RouteNames.noteDetails}/${note.noteId}');
+                  },
+                ),
+              )),
+        if (_caseNotes.length > 3)
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.sm),
+            child: Center(
+              child: TextButton(
+                onPressed: () {
+                  context.push('${RouteNames.noteList}?caseId=${widget.caseId}&caseName=${Uri.encodeComponent(caseName)}');
+                },
+                child: Text('View all ${_caseNotes.length} notes'),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  IconData _getCategoryIcon(NoteCategory category) {
+    switch (category) {
+      case NoteCategory.clientMeeting:
+        return Icons.people_outline;
+      case NoteCategory.research:
+        return Icons.search;
+      case NoteCategory.strategy:
+        return Icons.lightbulb_outline;
+      case NoteCategory.internal:
+        return Icons.lock_outline;
+      case NoteCategory.other:
+        return Icons.note_outlined;
+    }
+  }
+
+  String _formatRelativeTime(DateTime date) {
+    final now = DateTime.now();
+    final diff = now.difference(date);
+    
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inHours < 1) return '${diff.inMinutes}m ago';
+    if (diff.inDays < 1) return '${diff.inHours}h ago';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
+    
+    return '${date.month}/${date.day}/${date.year}';
   }
 
   Widget _buildClientDropdown() {

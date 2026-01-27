@@ -11,6 +11,7 @@ import '../../cases/screens/case_list_screen.dart';
 import '../../clients/screens/client_list_screen.dart';
 import '../../documents/screens/document_list_screen.dart';
 import '../../tasks/screens/task_list_screen.dart';
+import '../../notes/screens/note_list_screen.dart';
 import '../../calendar/screens/calendar_screen.dart';
 import '../providers/org_provider.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -39,6 +40,7 @@ class _AppShellState extends State<AppShell> {
     const ClientListScreen(),
     const DocumentListScreen(),
     const TaskListScreen(),
+    const NoteListScreen(),
     const CalendarScreen(),
   ];
 
@@ -49,16 +51,17 @@ class _AppShellState extends State<AppShell> {
   }
 
   String? _lastUserId; // Track last user ID to detect changes
+  AuthProvider? _authProvider; // Store reference for dispose
   
   @override
   void initState() {
     super.initState();
-    // Track current user ID
-    final authProvider = context.read<AuthProvider>();
-    _lastUserId = authProvider.currentUser?.uid;
+    // Track current user ID and store reference for dispose
+    _authProvider = context.read<AuthProvider>();
+    _lastUserId = _authProvider?.currentUser?.uid;
     
     // Listen to auth state changes to detect user switches
-    authProvider.addListener(_onAuthStateChanged);
+    _authProvider?.addListener(_onAuthStateChanged);
     
     // Initialize org provider early to load saved org (only once)
     WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -126,8 +129,7 @@ class _AppShellState extends State<AppShell> {
   
   @override
   void dispose() {
-    final authProvider = context.read<AuthProvider>();
-    authProvider.removeListener(_onAuthStateChanged);
+    _authProvider?.removeListener(_onAuthStateChanged);
     super.dispose();
   }
 
@@ -257,6 +259,11 @@ class _AppShellState extends State<AppShell> {
             icon: Icon(Icons.task_outlined),
             activeIcon: Icon(Icons.task),
             label: 'Tasks',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.note_outlined),
+            activeIcon: Icon(Icons.note),
+            label: 'Notes',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.calendar_today_outlined),

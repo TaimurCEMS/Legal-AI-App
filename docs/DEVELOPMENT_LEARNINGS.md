@@ -2303,5 +2303,52 @@ When you discover a new learning:
 
 ---
 
-**Last Updated:** 2026-01-26  
-**Next Review:** After Slice 8 completion
+### Learning 57: Avoid Cross-Org Scans — Require `orgId` in Callable Inputs
+**Date:** 2026-01-27  
+**Context:** Slice 8 - Notes (multi-tenant data access + performance)
+
+**Issue:**
+- “Convenient” patterns like scanning all orgs/collection groups to locate a record are:
+  - Slow (unbounded reads)
+  - Risky (easy to introduce data leaks)
+  - Hard to secure consistently
+
+**Solution:**
+- Require `orgId` explicitly in callable inputs for CRUD:
+  - `noteCreate`, `noteGet`, `noteList`, `noteUpdate`, `noteDelete`
+- Keep lookups scoped to `organizations/{orgId}/...`
+
+**Lesson:**
+- **Make tenancy explicit** in API inputs
+- **Prefer scoped queries** over discovery scans
+- Reduces index complexity and improves debuggability
+
+**Files:**
+- `functions/src/functions/note.ts`
+
+---
+
+### Learning 58: Browser Refresh & Auth Timing — Wait for Org Readiness
+**Date:** 2026-01-27  
+**Context:** Slice 8 - Notes not loading after refresh/sign-in
+
+**Issue:**
+- On Flutter Web refresh, screens can build before org context is restored.
+- If loaders silently return on `orgId == null`, the UI can get stuck empty until manual navigation.
+
+**Solution:**
+- Make screens react to org availability (watch provider state and trigger loads when org becomes available/changes).
+- Clear feature provider state on sign-out to avoid cross-session leakage.
+
+**Lesson:**
+- Treat “state rehydration after refresh” as a first-class requirement.
+- Avoid silent no-ops; surface loading states while prerequisites are missing.
+
+**Files:**
+- `legal_ai_app/lib/features/notes/screens/note_list_screen.dart`
+- `legal_ai_app/lib/features/home/screens/settings_screen.dart`
+
+---
+
+**Last Updated:** 2026-01-27  
+**Next Review:** After Slice 9 completion

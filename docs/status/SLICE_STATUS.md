@@ -891,7 +891,7 @@ The AI service is designed for future extensibility:
    - Streaming responses (show AI "typing")
    - Export chat to PDF
 
-2. ✅ **Slice 7 Complete** - Proceed to Slice 8: Notes/Memos
+2. ✅ **Slice 8 Complete** - Proceed to Slice 9: AI Document Drafting
 
 ---
 
@@ -971,6 +971,46 @@ The AI service is designed for future extensibility:
 
 ---
 
+## Slice 8: Notes/Memos on Cases ✅ COMPLETE
+
+**Status:** ✅ **COMPLETE & DEPLOYED**  
+**Last Updated:** 2026-01-27  
+**Dependencies:** Slice 0 ✅, Slice 1 ✅, Slice 2 ✅, Slice 5.5 ✅
+
+### Backend Status: ✅ COMPLETE
+
+**Functions (5):**
+1. ✅ `noteCreate` – Create note linked to a case (supports `isPrivate`)
+2. ✅ `noteGet` – Get note details (case access + private enforcement)
+3. ✅ `noteList` – List notes (org-wide or by case) with filters/search
+4. ✅ `noteUpdate` – Update note fields (including moving between cases)
+5. ✅ `noteDelete` – Soft delete note (idempotent)
+
+**Security & Access Control:**
+- ✅ Notes inherit case visibility via `canUserAccessCase`
+- ✅ `isPrivate` override: creator-only read/update/delete
+- ✅ Unauthorized access returns “not found” (no existence leakage)
+- ✅ Case access results cached per request in `noteList` (performance)
+
+### Frontend Status: ✅ COMPLETE
+
+**Implemented:**
+- ✅ Notes screens: list, details, create/edit
+- ✅ Category filtering, search, pin/unpin
+- ✅ Private toggle (`isPrivate`) with UI indicator
+- ✅ **Edit note includes case selector** (move note to another case)
+- ✅ Notes integrated into case details
+- ✅ Notes state cleared on sign-out
+
+### Documentation
+
+- **Build Card:** `docs/SLICE_8_BUILD_CARD.md`
+- **Completion Report:** `docs/slices/SLICE_8_COMPLETE.md`
+
+**Overall:** ✅ **COMPLETE**
+
+---
+
 ## 🔧 Immediate Enhancements (Slice 6b+)
 
 These can be added incrementally to improve AI chat experience:
@@ -991,8 +1031,8 @@ These can be added incrementally to improve AI chat experience:
 See **`docs/FEATURE_ROADMAP.md`** for comprehensive roadmap and competitive analysis.
 
 ### Priority 1: Critical for Adoption (Parity with Clio)
-- **Slice 7:** Calendar & Court Dates (lawyers live by deadlines)
-- **Slice 8:** Notes/Memos on Cases (capture conversations, research)
+- **Slice 7:** Calendar & Court Dates ✅
+- **Slice 8:** Notes/Memos on Cases ✅
 - **Slice 9:** AI Document Drafting (major differentiator)
 
 ### Priority 2: Important for Revenue (Business Operations)

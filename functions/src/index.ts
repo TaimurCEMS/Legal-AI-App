@@ -49,3 +49,12 @@ export {
   eventUpdate,
   eventDelete,
 } from './functions/event';
+
+// Export Slice 8 - Notes/Memos functions
+export {
+  noteCreate,
+  noteGet,
+  noteList,
+  noteUpdate,
+  noteDelete,
+} from './functions/note';

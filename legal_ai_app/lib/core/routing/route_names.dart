@@ -23,6 +23,10 @@ class RouteNames {
   static const String eventCreate = '/calendar/create';
   static const String eventDetails = '/calendar/details';
   static const String eventEdit = '/calendar/edit';
+  static const String noteList = '/notes';
+  static const String noteCreate = '/notes/create';
+  static const String noteDetails = '/notes/details';
+  static const String noteEdit = '/notes/edit';
   static const String settings = '/settings';
   static const String memberManagement = '/settings/team-members';
 }
