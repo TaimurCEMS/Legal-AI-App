@@ -81,3 +81,13 @@ export {
   timeEntryUpdate,
   timeEntryDelete,
 } from './functions/time-entry';
+
+// Export Slice 11 - Billing & Invoicing functions
+export {
+  invoiceCreate,
+  invoiceList,
+  invoiceGet,
+  invoiceUpdate,
+  invoiceRecordPayment,
+  invoiceExport,
+} from './functions/invoice';

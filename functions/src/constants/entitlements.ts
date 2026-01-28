@@ -22,6 +22,7 @@ export const PLAN_FEATURES = {
     NOTIFICATIONS: false,
     ADVANCED_SEARCH: false,
     BILLING_SUBSCRIPTION: true,
+    BILLING_INVOICING: false,
     ADMIN_PANEL: false,
   },
   BASIC: {
@@ -42,6 +43,7 @@ export const PLAN_FEATURES = {
     NOTIFICATIONS: true,
     ADVANCED_SEARCH: false,
     BILLING_SUBSCRIPTION: true,
+    BILLING_INVOICING: true,
     ADMIN_PANEL: true,
   },
   PRO: {
@@ -62,6 +64,7 @@ export const PLAN_FEATURES = {
     NOTIFICATIONS: true,
     ADVANCED_SEARCH: true,
     BILLING_SUBSCRIPTION: true,
+    BILLING_INVOICING: true,
     ADMIN_PANEL: true,
   },
   ENTERPRISE: {
@@ -82,6 +85,7 @@ export const PLAN_FEATURES = {
     NOTIFICATIONS: true,
     ADVANCED_SEARCH: true,
     BILLING_SUBSCRIPTION: true,
+    BILLING_INVOICING: true,
     ADMIN_PANEL: true,
   },
 } as const;

@@ -1078,6 +1078,55 @@ The AI service is designed for future extensibility:
 
 ---
 
+## Slice 11: Billing & Invoicing ✅ COMPLETE (MVP)
+
+**Status:** ✅ **COMPLETE (MVP)**  
+**Last Updated:** 2026-01-28  
+**Dependencies:** Slice 0 ✅, Slice 1 ✅, Slice 2 ✅, Slice 3 ✅, Slice 4 ✅, Slice 10 ✅
+
+### Backend Status: ✅ COMPLETE
+
+**Functions (6):**
+1. ✅ `invoiceCreate` – Create invoice from unbilled time entries (case-scoped)
+2. ✅ `invoiceList` – List invoices (server-side case access filtering)
+3. ✅ `invoiceGet` – Get invoice + line items + payments
+4. ✅ `invoiceUpdate` – Update invoice status/dueAt/note (MVP)
+5. ✅ `invoiceRecordPayment` – Record payments and update paid totals/status
+6. ✅ `invoiceExport` – Export invoice to PDF and save as Document Hub document
+
+**Security & Access Control:**
+- All calls require `orgId`
+- Billing endpoints require `billing.manage` (ADMIN-only in permissions matrix)
+- Invoice/case access enforced via `canUserAccessCase`
+- Exports gated by `EXPORTS` + `document.create` (same export pattern as Slice 9)
+- Firestore rules updated for `organizations/{orgId}/invoices/...` (defense-in-depth)
+
+**Invoice export storage structure (Storage):**
+- Invoice PDFs are stored under a dedicated prefix (grouped by case):
+  - `organizations/{orgId}/documents/invoices/{CaseName}__{caseId}/{documentId}/{filename}`
+
+**Document Hub metadata (for future folder UI):**
+- Exported invoice documents include:
+  - `category: "invoice"`
+  - `folderPath: "Invoices/<Case Name>"`
+- UI folder rendering is intentionally deferred; Documents page remains a flat list for now.
+
+### Frontend Status: ✅ COMPLETE (MVP)
+- New **Billing** tab (ADMIN-only UI) with:
+  - invoice list + filters
+  - create invoice (date range + rate)
+  - invoice details (line items + payments)
+  - record payment
+  - export PDF (creates a Document Hub document)
+
+### Tests
+- ✅ `npm run test:slice11` (deployed functions)
+
+### Documentation
+- **Build Card:** `docs/SLICE_11_BUILD_CARD.md`
+
+---
+
 ## 🔧 Immediate Enhancements (Slice 6b+)
 
 These can be added incrementally to improve AI chat experience:
@@ -1104,7 +1153,7 @@ See **`docs/FEATURE_ROADMAP.md`** for comprehensive roadmap and competitive anal
 
 ### Priority 2: Important for Revenue (Business Operations)
 - **Slice 10:** Time Tracking ✅ (how firms track billable hours)
-- **Slice 11:** Billing/Invoicing (how firms get paid)
+- **Slice 11:** Billing/Invoicing ✅ (MVP shipped)
 - **Slice 12:** Audit Trail UI (compliance visibility)
 
 ### Priority 3: Competitive Differentiators (Beat Harvey.ai)

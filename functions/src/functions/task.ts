@@ -574,6 +574,18 @@ export const taskGet = functions.https.onCall(async (data, context) => {
       );
     }
 
+    // If the task is linked to a case, enforce case access (especially for PRIVATE cases).
+    // We return NOT_FOUND to avoid leaking existence.
+    if (taskData.caseId) {
+      const access = await canUserAccessCase(orgId, taskData.caseId as string, uid);
+      if (!access.allowed) {
+        return errorResponse(
+          ErrorCode.NOT_FOUND,
+          'Task not found'
+        );
+      }
+    }
+
     // Get assignee name if assigned
     const assigneeName = await getAssigneeName(orgId, taskData.assigneeId);
 

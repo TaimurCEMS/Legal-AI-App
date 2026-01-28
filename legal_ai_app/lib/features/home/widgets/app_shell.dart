@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
@@ -24,6 +23,8 @@ import '../providers/member_provider.dart';
 import '../../drafting/providers/draft_provider.dart';
 import '../../time_tracking/providers/time_entry_provider.dart';
 import '../../time_tracking/screens/time_tracking_screen.dart';
+import '../../billing/providers/invoice_provider.dart';
+import '../../billing/screens/billing_screen.dart';
 
 /// Main app shell with navigation
 class AppShell extends StatefulWidget {
@@ -44,6 +45,7 @@ class _AppShellState extends State<AppShell> {
     const DocumentListScreen(),
     const TaskListScreen(),
     const TimeTrackingScreen(),
+    const BillingScreen(),
     const NoteListScreen(),
     const CalendarScreen(),
   ];
@@ -95,6 +97,7 @@ class _AppShellState extends State<AppShell> {
       final memberProvider = context.read<MemberProvider>();
       final draftProvider = context.read<DraftProvider>();
       final timeEntryProvider = context.read<TimeEntryProvider>();
+      final invoiceProvider = context.read<InvoiceProvider>();
       
       orgProvider.clearOrg();
       caseProvider.clearCases();
@@ -105,6 +108,7 @@ class _AppShellState extends State<AppShell> {
       memberProvider.clearMembers();
       draftProvider.clear();
       timeEntryProvider.clear();
+      invoiceProvider.clear();
       
       // Re-initialize org provider for new user
       WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -124,6 +128,7 @@ class _AppShellState extends State<AppShell> {
       final memberProvider = context.read<MemberProvider>();
       final draftProvider = context.read<DraftProvider>();
       final timeEntryProvider = context.read<TimeEntryProvider>();
+      final invoiceProvider = context.read<InvoiceProvider>();
       
       orgProvider.clearOrg();
       caseProvider.clearCases();
@@ -134,6 +139,7 @@ class _AppShellState extends State<AppShell> {
       memberProvider.clearMembers();
       draftProvider.clear();
       timeEntryProvider.clear();
+      invoiceProvider.clear();
     }
     
     _lastUserId = currentUserId;
@@ -278,6 +284,11 @@ class _AppShellState extends State<AppShell> {
             label: 'Time',
           ),
           BottomNavigationBarItem(
+            icon: Icon(Icons.receipt_long_outlined),
+            activeIcon: Icon(Icons.receipt_long),
+            label: 'Billing',
+          ),
+          BottomNavigationBarItem(
             icon: Icon(Icons.note_outlined),
             activeIcon: Icon(Icons.note),
             label: 'Notes',
@@ -305,6 +316,7 @@ class _AppShellState extends State<AppShell> {
     final eventProvider = context.read<EventProvider>();
     final draftProvider = context.read<DraftProvider>();
     final timeEntryProvider = context.read<TimeEntryProvider>();
+    final invoiceProvider = context.read<InvoiceProvider>();
     
     // Clear all state
     orgProvider.clearOrg();
@@ -315,6 +327,7 @@ class _AppShellState extends State<AppShell> {
     eventProvider.clearEvents();
     draftProvider.clear();
     timeEntryProvider.clear();
+    invoiceProvider.clear();
     
     // Then sign out
     await authProvider.signOut();
@@ -336,7 +349,7 @@ class PlaceholderScreen extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
+          const Icon(
             Icons.construction,
             size: 64,
             color: AppColors.textTertiary,

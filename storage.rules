@@ -12,5 +12,14 @@ service firebase.storage {
       // This allows direct client uploads for MVP, with backend validation
       allow write: if request.auth != null;
     }
+
+    // Invoice exports stored under a dedicated invoices/ subfolder (grouped by case)
+    match /organizations/{orgId}/documents/invoices/{caseFolder}/{documentId}/{fileName} {
+      // Same MVP posture as documents:
+      // - Signed URLs enforce membership/case access in Cloud Functions
+      // - Direct reads/writes require auth (client-side convenience)
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/material.dart';
 import 'package:legal_ai_app/core/models/document_model.dart';
 
 void main() {
@@ -136,7 +137,7 @@ void main() {
         createdBy: 'user',
         updatedBy: 'user',
       );
-      expect(pdfModel.fileTypeIcon, equals('description'));
+      expect(pdfModel.fileTypeIcon, equals(Icons.description));
 
       final docxModel = DocumentModel(
         documentId: 'doc-2',
@@ -150,7 +151,7 @@ void main() {
         createdBy: 'user',
         updatedBy: 'user',
       );
-      expect(docxModel.fileTypeIcon, equals('description'));
+      expect(docxModel.fileTypeIcon, equals(Icons.description));
 
       final txtModel = DocumentModel(
         documentId: 'doc-3',
@@ -164,7 +165,7 @@ void main() {
         createdBy: 'user',
         updatedBy: 'user',
       );
-      expect(txtModel.fileTypeIcon, equals('text_snippet'));
+      expect(txtModel.fileTypeIcon, equals(Icons.text_snippet));
 
       final unknownModel = DocumentModel(
         documentId: 'doc-4',
@@ -178,7 +179,7 @@ void main() {
         createdBy: 'user',
         updatedBy: 'user',
       );
-      expect(unknownModel.fileTypeIcon, equals('insert_drive_file'));
+      expect(unknownModel.fileTypeIcon, equals(Icons.insert_drive_file));
     });
 
     test('toJson serializes all fields correctly', () {

@@ -76,6 +76,28 @@ This document captures the current development state, recent decisions, and next
     - VIEWER restricted to mine-only (defense-in-depth)
     - In team view, “no-case” entries are only visible to admin/owner
 
+**Slice 11 - Billing & Invoicing (MVP complete)**
+- Backend (Cloud Functions):
+  - `invoiceCreate`, `invoiceList`, `invoiceGet`, `invoiceUpdate`, `invoiceRecordPayment`, `invoiceExport`
+  - Invoice generation from unbilled billable time entries (case-scoped) + payment tracking
+  - Export to PDF saved into Document Hub (server-side export pattern)
+  - Invoice PDF Storage path now stored under a dedicated prefix (grouped by case):
+    - `organizations/{orgId}/documents/invoices/{CaseName}__{caseId}/{documentId}/{filename}`
+  - Exported Document metadata includes:
+    - `category: "invoice"`
+    - `folderPath: "Invoices/<Case Name>"` (for future UI foldering)
+  - Added `BILLING_INVOICING` feature flag and Firestore rules/indexes for invoices
+- Frontend (Flutter):
+  - New **Billing** tab (ADMIN-only UI) with invoice list, create invoice flow, invoice details, record payment, export PDF
+  - Converted Slice 10 time dropdowns to `initialValue` (fix deprecated FormField `value`) and improved member loading in team view
+- Tests:
+  - Added `functions/src/__tests__/slice11-terminal-test.ts` + `npm run test:slice11`
+  - Added `functions/src/__tests__/task-terminal-test.ts` + task access hardening test coverage
+
+**Documents UI note (2026-01-28):**
+- A folder-tree UI was attempted for Documents, but deferred after UX issues (e.g. confusing “undefined” grouping).
+- Documents page remains a flat list for now; folder metadata is retained for a future, cleaner folder UX.
+
 ### Deployments
 - ✅ Cloud Functions deployed to `legal-ai-app-1203e` (`us-central1`) on 2026-01-28.
 - Non-blocking Firebase CLI warning: `firebase-functions` SDK is outdated (upgrade in maintenance/polish pass).
@@ -84,14 +106,10 @@ This document captures the current development state, recent decisions, and next
 
 ## Next Steps
 
-### Slice 11: Billing & Invoicing (Next Slice)
-**Priority:** 🟡 HIGH  
-**Rationale:** Critical for revenue + depends on Slice 10 time capture.
-
-Expected scope (high level):
-- Hourly rates, invoice generation, invoice line items (from time entries)
-- Approval workflow + export (PDF) + audit trail
-- Reporting views (billed vs unbilled, by case/client/user)
+### Post-Slice 11 follow-ups (deferred)
+- Invoice numbering (org-global + per-case) using transactional counters
+- Document Hub folder UX (use `folderPath/category`, with backfill for existing docs)
+- Flutter analyzer cleanup (warnings/infos) and incremental UI polish
 
 ### Future Priorities
 | Slice | Priority | Description |
@@ -106,8 +124,6 @@ Expected scope (high level):
 
 ### Slice 9/10 Polish Backlog (Deferred)
 - Standardize “All …” filters everywhere (avoid null/hint state; use explicit sentinel values).
-- Replace deprecated Flutter form-field `value` usage with `initialValue` where applicable.
-- Improve team time display (“By user” should prefer displayName/email when available).
 
 ---
 

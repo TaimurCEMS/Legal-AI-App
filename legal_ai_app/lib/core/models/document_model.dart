@@ -14,6 +14,9 @@ class DocumentModel {
   final String documentId;
   final String orgId;
   final String? caseId;
+  // Foldering / categorization metadata (optional; used by UI)
+  final String? category;
+  final String? folderPath; // e.g. "Invoices/Case A"
   final String name;
   final String? description;
   final String fileType;
@@ -37,6 +40,8 @@ class DocumentModel {
     required this.documentId,
     required this.orgId,
     this.caseId,
+    this.category,
+    this.folderPath,
     required this.name,
     this.description,
     required this.fileType,
@@ -116,6 +121,8 @@ class DocumentModel {
       documentId: json['documentId'] as String? ?? json['id'] as String,
       orgId: json['orgId'] as String,
       caseId: json['caseId'] as String?,
+      category: json['category'] as String?,
+      folderPath: json['folderPath'] as String?,
       name: json['name'] as String,
       description: json['description'] as String?,
       fileType: json['fileType'] as String,
@@ -146,6 +153,8 @@ class DocumentModel {
       'documentId': documentId,
       'orgId': orgId,
       'caseId': caseId,
+      'category': category,
+      'folderPath': folderPath,
       'name': name,
       'description': description,
       'fileType': fileType,
@@ -180,6 +189,8 @@ class DocumentModel {
       documentId: documentId,
       orgId: orgId,
       caseId: caseId,
+      category: category,
+      folderPath: folderPath,
       name: name,
       description: description,
       fileType: fileType,

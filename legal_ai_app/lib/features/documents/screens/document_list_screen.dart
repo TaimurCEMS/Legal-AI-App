@@ -307,7 +307,7 @@ class _DocumentListScreenState extends State<DocumentListScreen> {
       },
       child: ListTile(
         leading: Icon(
-          Icons.description,
+          document.fileTypeIcon,
           color: Theme.of(context).colorScheme.primary,
         ),
         title: Text(document.name),

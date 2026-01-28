@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/material.dart';
 import 'package:legal_ai_app/core/models/document_model.dart';
 
 void main() {
@@ -68,7 +69,7 @@ void main() {
         createdBy: 'user',
         updatedBy: 'user',
       );
-      expect(model1.fileTypeIcon, equals('description'));
+      expect(model1.fileTypeIcon, equals(Icons.description));
 
       final model2 = DocumentModel(
         documentId: 'doc-2',
@@ -82,7 +83,7 @@ void main() {
         createdBy: 'user',
         updatedBy: 'user',
       );
-      expect(model2.fileTypeIcon, equals('description'));
+      expect(model2.fileTypeIcon, equals(Icons.description));
     });
   });
 }

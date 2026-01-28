@@ -122,6 +122,16 @@ service cloud.firestore {
         );
     }
 
+    // Helper: Invoice access (invoice exists, not deleted, and user can access its case)
+    function canAccessInvoice(orgId, invoiceId) {
+      let inv = get(/databases/$(database)/documents/organizations/$(orgId)/invoices/$(invoiceId));
+      return inv != null &&
+        (!('deletedAt' in inv.data) || inv.data.deletedAt == null) &&
+        ('caseId' in inv.data) &&
+        inv.data.caseId != null &&
+        canAccessCase(orgId, inv.data.caseId);
+    }
+
     match /organizations/{orgId}/cases/{caseId} {
       // Read: user must be org member AND
       //   (case is ORG_WIDE OR PRIVATE creator OR PRIVATE participant) AND
@@ -253,6 +263,29 @@ service cloud.firestore {
 
       // All writes are via Admin SDK (Cloud Functions); deny direct client writes
       allow create, update, delete: if false;
+    }
+
+    // Slice 11: Invoices under organizations collection
+    // Invoices are case-linked; enforce case access defense-in-depth.
+    match /organizations/{orgId}/invoices/{invoiceId} {
+      allow read: if isOrgMember(orgId) &&
+        (!('deletedAt' in resource.data) || resource.data.deletedAt == null) &&
+        ('caseId' in resource.data) &&
+        resource.data.caseId != null &&
+        canAccessCase(orgId, resource.data.caseId);
+
+      // All writes are via Admin SDK (Cloud Functions); deny direct client writes
+      allow create, update, delete: if false;
+
+      match /lineItems/{lineItemId} {
+        allow read: if isOrgMember(orgId) && canAccessInvoice(orgId, invoiceId);
+        allow write: if false;
+      }
+
+      match /payments/{paymentId} {
+        allow read: if isOrgMember(orgId) && canAccessInvoice(orgId, invoiceId);
+        allow write: if false;
+      }
     }
 
     // Default deny for all other paths

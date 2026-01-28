@@ -113,6 +113,7 @@ class _TimeTrackingScreenState extends State<TimeTrackingScreen> {
     final authProvider = context.read<AuthProvider>();
     final caseProvider = context.read<CaseProvider>();
     final timeProvider = context.read<TimeEntryProvider>();
+    final memberProvider = context.read<MemberProvider>();
 
     final org = orgProvider.selectedOrg;
     final userId = authProvider.currentUser?.uid;
@@ -127,6 +128,13 @@ class _TimeTrackingScreenState extends State<TimeTrackingScreen> {
       if (caseProvider.cases.isEmpty && !caseProvider.isLoading) {
         await caseProvider.loadCases(org: org);
       }
+
+      // Best-effort: in team view, load members so "By user" shows displayName/email (ADMIN-only endpoint).
+      final isAdmin = orgProvider.currentMembership?.role == 'ADMIN';
+      if (!_entriesMineOnly && isAdmin && memberProvider.members.isEmpty && !memberProvider.isLoading) {
+        await memberProvider.loadMembers(org: org);
+      }
+
       await timeProvider.loadMyTimeToday(
         org: org,
         userId: _entriesMineOnly
@@ -265,7 +273,8 @@ class _TimeTrackingScreenState extends State<TimeTrackingScreen> {
                     ),
                     const SizedBox(height: AppSpacing.md),
                     DropdownButtonFormField<String?>(
-                      value: selectedCaseId,
+                      key: ValueKey(selectedCaseId),
+                      initialValue: selectedCaseId,
                       decoration: const InputDecoration(labelText: 'Case (optional)'),
                       items: [
                         const DropdownMenuItem(value: null, child: Text('No case')),
@@ -362,7 +371,8 @@ class _TimeTrackingScreenState extends State<TimeTrackingScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     DropdownButtonFormField<String?>(
-                      value: selectedCaseId,
+                      key: ValueKey(selectedCaseId),
+                      initialValue: selectedCaseId,
                       decoration: const InputDecoration(labelText: 'Case (optional)'),
                       items: [
                         const DropdownMenuItem(value: null, child: Text('No case')),
@@ -518,7 +528,8 @@ class _TimeTrackingScreenState extends State<TimeTrackingScreen> {
 
                 if (running == null) ...[
                   DropdownButtonFormField<String?>(
-                    value: _timerCaseId,
+                    key: ValueKey(_timerCaseId),
+                    initialValue: _timerCaseId,
                     decoration: const InputDecoration(labelText: 'Case (optional)'),
                     items: [
                       const DropdownMenuItem(value: null, child: Text('No case')),

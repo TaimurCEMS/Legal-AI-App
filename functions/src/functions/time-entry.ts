@@ -34,6 +34,8 @@ interface TimeEntryDocument {
   durationSeconds: number;
   rateCents?: number | null;
   currency?: string | null;
+  invoiceId?: string | null;
+  invoicedAt?: FirestoreTimestamp | null;
   createdAt: FirestoreTimestamp;
   updatedAt: FirestoreTimestamp;
   createdBy: string;
@@ -202,6 +204,8 @@ export const timeEntryCreate = functions.https.onCall(async (data, context) => {
     durationSeconds,
     rateCents: null,
     currency: null,
+    invoiceId: null,
+    invoicedAt: null,
     createdAt: now,
     updatedAt: now,
     createdBy: uid,
@@ -320,6 +324,8 @@ export const timeEntryStartTimer = functions.https.onCall(async (data, context) 
     durationSeconds: 0,
     rateCents: null,
     currency: null,
+    invoiceId: null,
+    invoicedAt: null,
     createdAt: now,
     updatedAt: now,
     createdBy: uid,

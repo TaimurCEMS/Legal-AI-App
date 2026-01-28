@@ -22,6 +22,9 @@ interface DocumentDocument {
   id: string;
   orgId: string;
   caseId?: string | null;
+  // Foldering / categorization metadata (optional; used by UI)
+  category?: string | null;
+  folderPath?: string | null; // e.g. "Invoices/Case A"
   name: string;
   description?: string | null;
   fileType: string;
@@ -74,14 +77,35 @@ function parseFileSize(raw: unknown): number | null {
   return raw;
 }
 
-function parseStoragePath(raw: unknown): string | null {
+function parseStoragePath(raw: unknown, orgId: string): string | null {
   if (typeof raw !== 'string') return null;
   const trimmed = raw.trim();
   if (!trimmed || trimmed.length === 0) return null;
-  // Verify path matches expected pattern: organizations/{orgId}/documents/{documentId}/{filename}
-  const pathPattern = /^organizations\/[^/]+\/documents\/[^/]+\/[^/]+$/;
-  if (!pathPattern.test(trimmed)) return null;
-  return trimmed;
+  if (!orgId || orgId.trim().length === 0) return null;
+
+  // Supported patterns (for safety):
+  // - organizations/{orgId}/documents/{documentId}/{filename}
+  // - organizations/{orgId}/documents/invoices/{caseFolder}/{documentId}/{filename}
+  const parts = trimmed.split('/');
+  if (parts.some((p) => p.length === 0)) return null;
+  if (parts.some((p) => p === '.' || p === '..')) return null;
+
+  if (parts.length !== 5 && parts.length !== 7) return null;
+  if (parts[0] !== 'organizations') return null;
+  if (parts[1] !== orgId) return null;
+  if (parts[2] !== 'documents') return null;
+
+  // Base documents path
+  if (parts.length === 5) {
+    return trimmed;
+  }
+
+  // Invoices subfolder path
+  if (parts.length === 7 && parts[3] === 'invoices') {
+    return trimmed;
+  }
+
+  return null;
 }
 
 function toIso(ts: FirestoreTimestamp): string {
@@ -194,7 +218,7 @@ export const documentCreate = functions.https.onCall(async (data, context) => {
     );
   }
 
-  const parsedStoragePath = parseStoragePath(storagePath);
+  const parsedStoragePath = parseStoragePath(storagePath, orgId);
   if (!parsedStoragePath) {
     return errorResponse(
       ErrorCode.VALIDATION_ERROR,
@@ -308,6 +332,8 @@ export const documentCreate = functions.https.onCall(async (data, context) => {
       documentId,
       orgId,
       caseId: documentData.caseId,
+      category: (documentData as any).category ?? null,
+      folderPath: (documentData as any).folderPath ?? null,
       name: sanitizedName,
       description: sanitizedDescription,
       fileType: parsedFileType,
@@ -409,6 +435,8 @@ export const documentGet = functions.https.onCall(async (data, context) => {
       documentId: documentData.id,
       orgId: documentData.orgId,
       caseId: documentData.caseId || null,
+      category: (documentData as any).category ?? null,
+      folderPath: (documentData as any).folderPath ?? null,
       name: documentData.name,
       description: documentData.description || null,
       fileType: documentData.fileType,
@@ -505,6 +533,8 @@ export const documentList = functions.https.onCall(async (data, context) => {
         documentId: data.id,
         orgId: data.orgId,
         caseId: data.caseId || null,
+        category: (data as any).category ?? null,
+        folderPath: (data as any).folderPath ?? null,
         name: data.name,
         description: data.description || null,
         fileType: data.fileType,
@@ -752,6 +782,8 @@ export const documentUpdate = functions.https.onCall(async (data, context) => {
       documentId: updatedData.id,
       orgId: updatedData.orgId,
       caseId: updatedData.caseId || null,
+      category: (updatedData as any).category ?? null,
+      folderPath: (updatedData as any).folderPath ?? null,
       name: updatedData.name,
       description: updatedData.description || null,
       fileType: updatedData.fileType,
