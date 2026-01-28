@@ -12,6 +12,8 @@ import '../../clients/providers/client_provider.dart';
 import '../../documents/providers/document_provider.dart';
 import '../providers/member_provider.dart';
 import '../../notes/providers/note_provider.dart';
+import '../../drafting/providers/draft_provider.dart';
+import '../../time_tracking/providers/time_entry_provider.dart';
 
 /// Settings/Profile screen
 class SettingsScreen extends StatefulWidget {
@@ -213,6 +215,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         final documentProvider = context.read<DocumentProvider>();
                         final memberProvider = context.read<MemberProvider>();
                         final noteProvider = context.read<NoteProvider>();
+                        final draftProvider = context.read<DraftProvider>();
+                        final timeEntryProvider = context.read<TimeEntryProvider>();
                         
                         orgProvider.clearOrg();
                         caseProvider.clearCases();
@@ -220,6 +224,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         documentProvider.clearDocuments();
                         memberProvider.clearMembers();
                         noteProvider.clearNotes();
+                        draftProvider.clear();
+                        timeEntryProvider.clear();
                         
                         await authProvider.signOut();
                         if (context.mounted) {

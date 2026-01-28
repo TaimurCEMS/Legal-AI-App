@@ -27,6 +27,8 @@ import '../../features/notes/screens/note_form_screen.dart';
 import '../../features/notes/screens/note_details_screen.dart';
 import '../../features/home/screens/settings_screen.dart';
 import '../../features/home/screens/member_management_screen.dart';
+import '../../features/drafting/screens/case_drafting_screen.dart';
+import '../../features/drafting/screens/draft_editor_screen.dart';
 
 /// App router configuration
 class AppRouter {
@@ -204,6 +206,25 @@ class AppRouter {
         builder: (context, state) {
           final noteId = state.pathParameters['noteId'] ?? '';
           return NoteFormScreen(noteId: noteId);
+        },
+      ),
+
+      // Drafting routes (Slice 9)
+      GoRoute(
+        path: RouteNames.drafts,
+        builder: (context, state) {
+          final caseId = state.uri.queryParameters['caseId'] ?? '';
+          final caseTitle = state.uri.queryParameters['caseTitle'] ?? 'Case';
+          return CaseDraftingScreen(caseId: caseId, caseTitle: caseTitle);
+        },
+      ),
+      GoRoute(
+        path: '${RouteNames.draftEditor}/:draftId',
+        builder: (context, state) {
+          final draftId = state.pathParameters['draftId'] ?? '';
+          final caseId = state.uri.queryParameters['caseId'] ?? '';
+          final caseTitle = state.uri.queryParameters['caseTitle'] ?? 'Case';
+          return DraftEditorScreen(draftId: draftId, caseId: caseId, caseTitle: caseTitle);
         },
       ),
     ],

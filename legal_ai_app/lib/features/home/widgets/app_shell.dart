@@ -21,6 +21,9 @@ import '../../documents/providers/document_provider.dart';
 import '../../tasks/providers/task_provider.dart';
 import '../../calendar/providers/event_provider.dart';
 import '../providers/member_provider.dart';
+import '../../drafting/providers/draft_provider.dart';
+import '../../time_tracking/providers/time_entry_provider.dart';
+import '../../time_tracking/screens/time_tracking_screen.dart';
 
 /// Main app shell with navigation
 class AppShell extends StatefulWidget {
@@ -40,6 +43,7 @@ class _AppShellState extends State<AppShell> {
     const ClientListScreen(),
     const DocumentListScreen(),
     const TaskListScreen(),
+    const TimeTrackingScreen(),
     const NoteListScreen(),
     const CalendarScreen(),
   ];
@@ -89,6 +93,8 @@ class _AppShellState extends State<AppShell> {
       final taskProvider = context.read<TaskProvider>();
       final eventProvider = context.read<EventProvider>();
       final memberProvider = context.read<MemberProvider>();
+      final draftProvider = context.read<DraftProvider>();
+      final timeEntryProvider = context.read<TimeEntryProvider>();
       
       orgProvider.clearOrg();
       caseProvider.clearCases();
@@ -97,6 +103,8 @@ class _AppShellState extends State<AppShell> {
       taskProvider.clearTasks();
       eventProvider.clearEvents();
       memberProvider.clearMembers();
+      draftProvider.clear();
+      timeEntryProvider.clear();
       
       // Re-initialize org provider for new user
       WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -114,6 +122,8 @@ class _AppShellState extends State<AppShell> {
       final taskProvider = context.read<TaskProvider>();
       final eventProvider = context.read<EventProvider>();
       final memberProvider = context.read<MemberProvider>();
+      final draftProvider = context.read<DraftProvider>();
+      final timeEntryProvider = context.read<TimeEntryProvider>();
       
       orgProvider.clearOrg();
       caseProvider.clearCases();
@@ -122,6 +132,8 @@ class _AppShellState extends State<AppShell> {
       taskProvider.clearTasks();
       eventProvider.clearEvents();
       memberProvider.clearMembers();
+      draftProvider.clear();
+      timeEntryProvider.clear();
     }
     
     _lastUserId = currentUserId;
@@ -261,6 +273,11 @@ class _AppShellState extends State<AppShell> {
             label: 'Tasks',
           ),
           BottomNavigationBarItem(
+            icon: Icon(Icons.timer_outlined),
+            activeIcon: Icon(Icons.timer),
+            label: 'Time',
+          ),
+          BottomNavigationBarItem(
             icon: Icon(Icons.note_outlined),
             activeIcon: Icon(Icons.note),
             label: 'Notes',
@@ -286,6 +303,8 @@ class _AppShellState extends State<AppShell> {
     final documentProvider = context.read<DocumentProvider>();
     final taskProvider = context.read<TaskProvider>();
     final eventProvider = context.read<EventProvider>();
+    final draftProvider = context.read<DraftProvider>();
+    final timeEntryProvider = context.read<TimeEntryProvider>();
     
     // Clear all state
     orgProvider.clearOrg();
@@ -294,6 +313,8 @@ class _AppShellState extends State<AppShell> {
     documentProvider.clearDocuments();
     taskProvider.clearTasks();
     eventProvider.clearEvents();
+    draftProvider.clear();
+    timeEntryProvider.clear();
     
     // Then sign out
     await authProvider.signOut();

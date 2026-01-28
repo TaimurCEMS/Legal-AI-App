@@ -58,3 +58,26 @@ export {
   noteUpdate,
   noteDelete,
 } from './functions/note';
+
+// Export Slice 9 - AI Document Drafting functions
+export {
+  draftTemplateList,
+  draftCreate,
+  draftGenerate,
+  draftProcessJob,
+  draftGet,
+  draftList,
+  draftUpdate,
+  draftDelete,
+  draftExport,
+} from './functions/draft';
+
+// Export Slice 10 - Time Tracking functions
+export {
+  timeEntryCreate,
+  timeEntryStartTimer,
+  timeEntryStopTimer,
+  timeEntryList,
+  timeEntryUpdate,
+  timeEntryDelete,
+} from './functions/time-entry';

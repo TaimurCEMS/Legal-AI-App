@@ -24,6 +24,14 @@ class CaseProvider with ChangeNotifier {
   String? get error => _error;
   CaseModel? get selectedCase => _selectedCase;
 
+  static List<CaseModel> _dedupeByCaseId(Iterable<CaseModel> input) {
+    final map = <String, CaseModel>{};
+    for (final c in input) {
+      map[c.caseId] = c; // keep last occurrence (usually newest fetch)
+    }
+    return map.values.toList();
+  }
+
   Future<void> loadCases({
     required OrgModel org,
     CaseStatus? status,
@@ -46,7 +54,9 @@ class CaseProvider with ChangeNotifier {
         clientId: clientId,
         search: search,
       );
-      _cases.addAll(result.cases);
+      _cases
+        ..clear()
+        ..addAll(_dedupeByCaseId(result.cases));
       _hasMore = result.hasMore;
       _offset = _cases.length;
       // Clear error on success
@@ -84,7 +94,11 @@ class CaseProvider with ChangeNotifier {
         clientId: clientId,
         search: search,
       );
-      _cases.addAll(result.cases);
+      // Merge + de-dupe to avoid duplicates from offset pagination edge cases
+      final merged = _dedupeByCaseId([..._cases, ...result.cases]);
+      _cases
+        ..clear()
+        ..addAll(merged);
       _hasMore = result.hasMore;
       _offset = _cases.length;
     } catch (e) {

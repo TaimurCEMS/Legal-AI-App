@@ -2,7 +2,7 @@
 
 **Purpose:** Capture key learnings, insights, and solutions discovered during development to prevent repeating mistakes and share knowledge.
 
-**Last Updated:** 2026-01-26
+**Last Updated:** 2026-01-28
 
 ---
 
@@ -2350,5 +2350,157 @@ When you discover a new learning:
 
 ---
 
-**Last Updated:** 2026-01-27  
-**Next Review:** After Slice 9 completion
+### Learning 59: Firestore Rules Defense-in-Depth — Enforce Case Access, Not Just Org Membership
+**Date:** 2026-01-27  
+**Context:** Slice 9 - Drafts/Templates security alignment with Master Spec
+
+**Issue:**
+- Even if the Flutter app uses Cloud Functions for reads/writes, permissive Firestore rules can still:
+  - Allow direct client reads (e.g. via REST/SDK misuse) across PRIVATE case boundaries
+  - Create a false sense of security during future feature work (someone adds direct Firestore reads later)
+
+**Solution:**
+- Add a shared Firestore rules helper:
+  - `canAccessCase(orgId, caseId)` checks:
+    - case exists and not deleted
+    - ORG_WIDE, or PRIVATE creator, or PRIVATE participant
+- Use it for case-linked collections (`documents`, `tasks`, `events`, `notes`, `drafts`) so PRIVATE case boundaries are enforced at the rules layer too.
+
+**Lesson:**
+- **Cloud Functions enforcement is necessary, but not sufficient** for legal apps.
+- Keep Firestore rules and Cloud Functions access logic aligned (defense-in-depth).
+
+**Files:**
+- `firestore.rules`
+
+---
+
+### Learning 60: Server-Side Export Pattern — Save Generated DOCX/PDF as a Real “Document”
+**Date:** 2026-01-27  
+**Context:** Slice 9 - Draft export into Document Hub
+
+**Issue:**
+- “Export” is not just downloading a string — it must become a durable artifact:
+  - Stored in Cloud Storage under the org namespace
+  - Has metadata in Firestore (Document Hub)
+  - Linked to the case for auditability and retrieval
+
+**Solution:**
+- Create a single backend endpoint that:
+  - Generates DOCX/PDF bytes server-side
+  - Uploads to Storage path: `organizations/{orgId}/documents/{documentId}/{filename}`
+  - Writes the matching `organizations/{orgId}/documents/{documentId}` Firestore record
+
+**Lesson:**
+- Treat exports as first-class “Documents” (consistent permissions, audit, retention).
+- Keep the exported artifact linked to its source (`sourceDraftId`) for traceability.
+
+**Files:**
+- `functions/src/functions/draft.ts`
+
+---
+
+### Learning 61: “All …” Filters Should Not Use Null/Hint State
+**Date:** 2026-01-28  
+**Context:** Slice 10 - Time Tracking (“All cases” filter reliability)
+
+**Issue:**
+- Using `null` as “All …” in dropdowns often creates ambiguous states:
+  - UI shows hint, not a selected value
+  - Reload logic or `onChanged` may not fire consistently
+  - “All …” looks selected but actually behaves like “no selection”
+
+**Solution:**
+- Use an explicit sentinel value (e.g., `__ALL_CASES__`) as the real selected dropdown value.
+- When the sentinel is selected, omit the filter parameter entirely in backend calls.
+
+**Lesson:**
+- “All …” should be an explicit selection, not a null/hint placeholder.
+- This pattern prevents repeated “All status / All …” bugs across screens.
+
+**Files:**
+- `legal_ai_app/lib/features/time_tracking/screens/time_tracking_screen.dart`
+
+---
+
+### Learning 62: Timezone Safety — Send UTC to Backend, Display Local
+**Date:** 2026-01-28  
+**Context:** Slice 10 - Date range filters (“Today/Week”)
+
+**Issue:**
+- Local date ranges can behave incorrectly if timestamps are sent/parsed without explicit UTC offsets.
+- Users perceive filters as “broken” when entries fall near midnight or across timezones.
+
+**Solution:**
+- Always send timestamps as UTC ISO strings: `dt.toUtc().toIso8601String()`
+- Convert backend ISO timestamps to local for display: `DateTime.parse(iso).toLocal()`
+
+**Lesson:**
+- Keep the backend canonical in UTC; only the UI should localize.
+
+**Files:**
+- `legal_ai_app/lib/core/services/time_entry_service.dart`
+- `legal_ai_app/lib/core/models/time_entry_model.dart`
+
+---
+
+### Learning 63: Update Endpoints Should Allow Clearing Optional Text Fields
+**Date:** 2026-01-28  
+**Context:** Slice 10 - Editing time entry description
+
+**Issue:**
+- Create endpoints may require non-empty descriptions, but edit flows often need “clear field” behavior.
+- Rejecting empty strings during update causes frustrating UX (“Invalid description”).
+
+**Solution:**
+- Allow `''` on update for fields like `description` while keeping create validations strict.
+
+**Lesson:**
+- Validation rules can differ between create and update for better UX.
+
+**Files:**
+- `functions/src/functions/time-entry.ts` (`timeEntryUpdate`)
+
+---
+
+### Learning 64: Team Visibility for Time Entries Must Be Role-Scoped (Legal App Reality)
+**Date:** 2026-01-28  
+**Context:** Slice 10 - Multi-user time visibility
+
+**Issue:**
+- “Team time” visibility is sensitive in legal firms.
+- If not scoped properly, users may see other users’ entries, including “no-case” entries that are not case-governed.
+
+**Solution:**
+- Default UI to mine-only.
+- Backend hardening:
+  - Only ADMIN can list other users via `userId` filtering
+  - VIEWER restricted to mine-only (defense-in-depth)
+  - In team view, do not expose “no-case” entries unless admin/owner
+
+**Lesson:**
+- Tie visibility to case access wherever possible; treat no-case entries as private by default.
+
+**Files:**
+- `functions/src/functions/time-entry.ts` (`timeEntryList`)
+
+---
+
+### Learning 65: Persist User Preferences Without Cross-UI Coupling
+**Date:** 2026-01-28  
+**Context:** Slice 10 - Default billable toggle
+
+**Issue:**
+- Updating a saved “default” from inside dialogs can unintentionally change unrelated toggles on the main screen, confusing users.
+
+**Solution:**
+- Persist the preference (e.g., default billable) but avoid auto-syncing unrelated UI state when edits happen in a modal.
+
+**Lesson:**
+- Prefer “remember my last choice” without surprising global UI side effects.
+
+**Files:**
+- `legal_ai_app/lib/features/time_tracking/screens/time_tracking_screen.dart`
+
+**Last Updated:** 2026-01-28  
+**Next Review:** After Slice 11 completion

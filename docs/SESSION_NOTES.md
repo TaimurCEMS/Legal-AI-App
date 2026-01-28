@@ -1,6 +1,6 @@
 # Legal AI App - Session Notes
 
-**Last Updated:** 2026-01-27
+**Last Updated:** 2026-01-28
 
 This document captures the current development state, recent decisions, and next steps. Reference this file at the start of new chat sessions to provide context.
 
@@ -23,11 +23,13 @@ This document captures the current development state, recent decisions, and next
 | 6b | ✅ Complete | AI Chat/Research with jurisdiction-aware legal opinions |
 | 7 | ✅ Complete | Calendar & Court Dates (events, views, visibility) |
 | 8 | ✅ Complete | Notes/Memos on Cases (case-linked notes + private-to-me toggle) |
+| 9 | ✅ Complete | AI Document Drafting (templates, drafts, AI generate, export to Documents) |
+| 10 | ✅ Complete | Time Tracking (timer + manual entries + filters + permissions) |
 
 ### Git Status
 - **Branch:** main
-- **Status:** Local changes present (Slice 8 code + docs updates)
-- **Deployments:** Functions deployed during Slice 8 debugging
+- **Status:** Local changes present (Slices 9–10 code + docs updates)
+- **Deployments:** Functions deployed during Slice 9–10 work (latest: 2026-01-28)
 
 ---
 
@@ -52,23 +54,60 @@ This document captures the current development state, recent decisions, and next
 
 ---
 
+## Recent Session (2026-01-28)
+
+### Work Completed
+
+**Slice 9 - AI Document Drafting (MVP)**
+- Drafting flow implemented end-to-end with exports to Document Hub (DOCX/PDF).
+- Case access enforced server-side; Firestore rules include case-access defense-in-depth for drafts/templates.
+
+**Slice 10 - Time Tracking (MVP + polish)**
+- UI/UX:
+  - Billable defaults to ON and persists as a user preference.
+  - Date range filters have clear active highlighting.
+  - “All cases” filter fixed (explicit sentinel value instead of null/hint state).
+  - “Mine” filter is an explicit on/off toggle (mine-only vs team/overall view).
+  - Admin: optional user filter (All users vs specific user) when member list is available.
+- Backend:
+  - `timeEntryUpdate` allows clearing description to empty string (prevents VALIDATION_ERROR on edit).
+  - `timeEntryList` hardened:
+    - Only ADMIN can filter by another `userId`
+    - VIEWER restricted to mine-only (defense-in-depth)
+    - In team view, “no-case” entries are only visible to admin/owner
+
+### Deployments
+- ✅ Cloud Functions deployed to `legal-ai-app-1203e` (`us-central1`) on 2026-01-28.
+- Non-blocking Firebase CLI warning: `firebase-functions` SDK is outdated (upgrade in maintenance/polish pass).
+
+---
+
 ## Next Steps
 
-### Recommended: Slice 9 - AI Document Drafting
-**Priority:** 🔴 HIGH  
-**Rationale:** Major differentiator; builds on existing documents + extraction + AI foundations
+### Slice 11: Billing & Invoicing (Next Slice)
+**Priority:** 🟡 HIGH  
+**Rationale:** Critical for revenue + depends on Slice 10 time capture.
+
+Expected scope (high level):
+- Hourly rates, invoice generation, invoice line items (from time entries)
+- Approval workflow + export (PDF) + audit trail
+- Reporting views (billed vs unbilled, by case/client/user)
 
 ### Future Priorities
 | Slice | Priority | Description |
 |-------|----------|-------------|
-| 9 | 🔴 HIGH | AI Document Drafting |
-| 10 | 🟡 HIGH | Time Tracking |
-| 11 | 🟡 MEDIUM | Billing/Invoicing |
+| 11 | 🟡 HIGH | Billing/Invoicing |
+| 12 | 🟡 MEDIUM | Audit Trail UI |
 
 ### UI Polish Items (Deferred)
 - Calendar UI refinements
 - Month view event display improvements
 - Week view time slot interactions
+
+### Slice 9/10 Polish Backlog (Deferred)
+- Standardize “All …” filters everywhere (avoid null/hint state; use explicit sentinel values).
+- Replace deprecated Flutter form-field `value` usage with `initialValue` where applicable.
+- Improve team time display (“By user” should prefer displayName/email when available).
 
 ---
 

@@ -433,11 +433,14 @@ export const caseList = functions.https.onCall(async (data, context) => {
     const allCases: CaseDocument[] = [];
 
     orgWideSnap.forEach((doc) => {
-      allCases.push(doc.data() as CaseDocument);
+      // Ensure ID is always the Firestore document ID (avoids legacy field drift)
+      const data = doc.data() as CaseDocument;
+      allCases.push({ ...data, id: doc.id });
     });
 
     privateSnap.forEach((doc) => {
-      allCases.push(doc.data() as CaseDocument);
+      const data = doc.data() as CaseDocument;
+      allCases.push({ ...data, id: doc.id });
     });
 
     // Also include PRIVATE cases where the user is an explicit participant.
@@ -478,7 +481,8 @@ export const caseList = functions.https.onCall(async (data, context) => {
 
       caseSnaps.forEach((snap) => {
         if (!snap.exists) return;
-        const data = snap.data() as CaseDocument;
+        const raw = snap.data() as CaseDocument;
+        const data: CaseDocument = { ...raw, id: snap.id };
         // Only include non-deleted PRIVATE cases
         if (!data.deletedAt && data.visibility === 'PRIVATE') {
           allCases.push(data);
@@ -487,16 +491,29 @@ export const caseList = functions.https.onCall(async (data, context) => {
       });
     }
 
-    // Sort merged results by updatedAt desc (defensive, queries already sorted)
-    allCases.sort(
-      (a, b) => b.updatedAt.toMillis() - a.updatedAt.toMillis()
-    );
+    // De-dupe by case ID (defense-in-depth) then sort deterministically.
+    const byId = new Map<string, CaseDocument>();
+    for (const c of allCases) {
+      // Prefer the most recently updated version if somehow duplicated
+      const prev = byId.get(c.id);
+      if (!prev || c.updatedAt.toMillis() >= prev.updatedAt.toMillis()) {
+        byId.set(c.id, c);
+      }
+    }
+    const mergedCases = Array.from(byId.values());
+
+    // Sort merged results by updatedAt desc; tie-break by id asc for stable pagination
+    mergedCases.sort((a, b) => {
+      const diff = b.updatedAt.toMillis() - a.updatedAt.toMillis();
+      if (diff !== 0) return diff;
+      return a.id.localeCompare(b.id);
+    });
 
     // In-memory search filter on title if search provided
-    let filteredCases = allCases;
+    let filteredCases = mergedCases;
     if (typeof search === 'string' && search.trim().length > 0) {
       const term = search.trim().toLowerCase();
-      filteredCases = allCases.filter((c) =>
+      filteredCases = mergedCases.filter((c) =>
         c.title.toLowerCase().includes(term)
       );
     }

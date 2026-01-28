@@ -1011,6 +1011,73 @@ The AI service is designed for future extensibility:
 
 ---
 
+## Slice 9: AI Document Drafting ✅ COMPLETE
+
+**Status:** ✅ **COMPLETE**  
+**Last Updated:** 2026-01-28  
+**Dependencies:** Slice 0 ✅, Slice 1 ✅, Slice 2 ✅, Slice 4 ✅, Slice 6a ✅, Slice 6b ✅
+
+### Backend Status: ✅ COMPLETE
+
+**Functions (9):**
+1. ✅ `draftTemplateList` – List drafting templates (built-in + optional org templates)
+2. ✅ `draftCreate` – Create a case-linked draft
+3. ✅ `draftGenerate` – Queue AI generation via jobs (`type: AI_DRAFT`)
+4. ✅ `draftProcessJob` – Firestore trigger that processes queued AI draft jobs
+5. ✅ `draftGet` – Get a draft
+6. ✅ `draftList` – List drafts for a case
+7. ✅ `draftUpdate` – Update title/content/variables (+ optional version snapshot)
+8. ✅ `draftDelete` – Soft delete (idempotent)
+9. ✅ `draftExport` – Export to DOCX/PDF and save into Document Hub
+
+**Security & Access Control:**
+- ✅ All calls require `orgId`
+- ✅ Case access enforced via `canUserAccessCase`
+- ✅ Exports gated by `EXPORTS` + `document.create`
+- ✅ Firestore rules updated to enforce case access defense-in-depth for drafts/templates (and tightened for other case-linked collections)
+
+### Frontend Status: ✅ COMPLETE
+
+- ✅ Drafting screens: templates + drafts list, draft editor (generate/save/export)
+- ✅ Drafting provider/service/models
+- ✅ CaseDetails integration ("AI Drafting" entry point)
+
+### Documentation
+
+- **Build Card:** `docs/SLICE_9_BUILD_CARD.md`
+
+---
+
+## Slice 10: Time Tracking ✅ COMPLETE
+
+**Status:** ✅ **COMPLETE**  
+**Last Updated:** 2026-01-28  
+**Dependencies:** Slice 0 ✅, Slice 1 ✅, Slice 2 ✅, Slice 3 ✅, Slice 5 ✅
+
+### Backend Scope (Cloud Functions)
+- ✅ `timeEntryCreate` (manual entry)
+- ✅ `timeEntryStartTimer` / `timeEntryStopTimer` (timer-based entry; backend enforces single running timer per user)
+- ✅ `timeEntryUpdate`
+- ✅ `timeEntryDelete` (soft delete)
+- ✅ `timeEntryList` (filters: caseId, clientId, userId, date range, billable)
+- ✅ `timeEntryList` hardened (admin-only userId filtering; viewer restricted to mine-only; no-case entries protected in team view)
+- ✅ `timeEntryUpdate` allows clearing description to empty string (edit UX fix)
+- ✅ Firestore rules updated for `organizations/{orgId}/timeEntries/{timeEntryId}` (read-only, case access defense-in-depth)
+- ✅ Firestore indexes added for common list queries
+
+### Frontend Scope (Flutter)
+- ✅ Time tab (timer + entries list)
+- ✅ Manual entry form (bottom sheet)
+- ✅ Entries list with filters (range, case, billable) + edit/delete
+- ✅ “All cases” filter reliability (explicit sentinel value; avoids null/hint-state bugs)
+- ✅ “Mine” filter is a true on/off toggle (mine-only vs team/overall view for allowed roles)
+- ✅ Billable defaults to ON and persists as user preference
+
+### Documentation
+- **Build Card:** `docs/SLICE_10_BUILD_CARD.md`
+
+---
+
 ## 🔧 Immediate Enhancements (Slice 6b+)
 
 These can be added incrementally to improve AI chat experience:
@@ -1033,10 +1100,10 @@ See **`docs/FEATURE_ROADMAP.md`** for comprehensive roadmap and competitive anal
 ### Priority 1: Critical for Adoption (Parity with Clio)
 - **Slice 7:** Calendar & Court Dates ✅
 - **Slice 8:** Notes/Memos on Cases ✅
-- **Slice 9:** AI Document Drafting (major differentiator)
+- **Slice 9:** AI Document Drafting ✅ (major differentiator)
 
 ### Priority 2: Important for Revenue (Business Operations)
-- **Slice 10:** Time Tracking (how firms track billable hours)
+- **Slice 10:** Time Tracking ✅ (how firms track billable hours)
 - **Slice 11:** Billing/Invoicing (how firms get paid)
 - **Slice 12:** Audit Trail UI (compliance visibility)
 

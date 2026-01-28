@@ -76,7 +76,16 @@ export async function checkEntitlement(
 
   // 3. Plan feature check
   if (requiredFeature && !PLAN_FEATURES[plan][requiredFeature as keyof typeof PLAN_FEATURES[typeof plan]]) {
-    return { allowed: false, reason: 'PLAN_LIMIT', plan, role };
+    /**
+     * TEMP OVERRIDE (requested): Allow ADMIN to bypass ALL plan feature gates.
+     * This unblocks development/testing while billing/plan enforcement is still being finalized.
+     *
+     * TODO: Remove this override when billing/plan enforcement is finalized.
+     */
+    if (role !== 'ADMIN') {
+      return { allowed: false, reason: 'PLAN_LIMIT', plan, role };
+    }
+    // role === 'ADMIN' => bypass plan feature gate (e.g. EXPORTS, AI_DRAFTING, etc.)
   }
 
   // 4. Role permission check

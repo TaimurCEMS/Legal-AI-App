@@ -110,15 +110,28 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid));
     }
 
+    // Helper: Case access (ORG_WIDE, PRIVATE creator, PRIVATE participants)
+    function canAccessCase(orgId, caseId) {
+      let caseDoc = get(/databases/$(database)/documents/organizations/$(orgId)/cases/$(caseId));
+      return caseDoc != null &&
+        (!('deletedAt' in caseDoc.data) || caseDoc.data.deletedAt == null) &&
+        (
+          caseDoc.data.visibility == 'ORG_WIDE' ||
+          caseDoc.data.createdBy == request.auth.uid ||
+          exists(/databases/$(database)/documents/organizations/$(orgId)/cases/$(caseId)/participants/$(request.auth.uid))
+        );
+    }
+
     match /organizations/{orgId}/cases/{caseId} {
       // Read: user must be org member AND
-      //   (case is ORG_WIDE OR user is creator for PRIVATE) AND
+      //   (case is ORG_WIDE OR PRIVATE creator OR PRIVATE participant) AND
       //   case is not soft-deleted
       allow read: if isOrgMember(orgId) &&
         resource.data.visibility != null &&
         (
           resource.data.visibility == 'ORG_WIDE' ||
-          resource.data.createdBy == request.auth.uid
+          resource.data.createdBy == request.auth.uid ||
+          exists(/databases/$(database)/documents/organizations/$(orgId)/cases/$(caseId)/participants/$(request.auth.uid))
         ) &&
         (!('deletedAt' in resource.data) || resource.data.deletedAt == null);
 
@@ -139,9 +152,10 @@ service cloud.firestore {
     // Slice 4: Documents under organizations collection
     match /organizations/{orgId}/documents/{documentId} {
       // Read: org members can read non-deleted documents
-      // If document is linked to a case, case visibility is checked in Cloud Functions
+      // If document is linked to a case, enforce case access defense-in-depth
       allow read: if isOrgMember(orgId) &&
-        (!('deletedAt' in resource.data) || resource.data.deletedAt == null);
+        (!('deletedAt' in resource.data) || resource.data.deletedAt == null) &&
+        (!('caseId' in resource.data) || resource.data.caseId == null || canAccessCase(orgId, resource.data.caseId));
 
       // All writes are via Admin SDK (Cloud Functions); deny direct client writes
       // Case-level permissions are enforced in Cloud Functions
@@ -163,7 +177,8 @@ service cloud.firestore {
     match /organizations/{orgId}/tasks/{taskId} {
       // Read: org members can read non-deleted tasks
       allow read: if isOrgMember(orgId) &&
-        (!('deletedAt' in resource.data) || resource.data.deletedAt == null);
+        (!('deletedAt' in resource.data) || resource.data.deletedAt == null) &&
+        (!('caseId' in resource.data) || resource.data.caseId == null || canAccessCase(orgId, resource.data.caseId));
 
       // All writes are via Admin SDK (Cloud Functions); deny direct client writes
       allow create, update, delete: if false;
@@ -173,7 +188,8 @@ service cloud.firestore {
     match /organizations/{orgId}/events/{eventId} {
       // Read: org members can read non-deleted events
       allow read: if isOrgMember(orgId) &&
-        (!('deletedAt' in resource.data) || resource.data.deletedAt == null);
+        (!('deletedAt' in resource.data) || resource.data.deletedAt == null) &&
+        (!('caseId' in resource.data) || resource.data.caseId == null || canAccessCase(orgId, resource.data.caseId));
 
       // All writes are via Admin SDK (Cloud Functions); deny direct client writes
       allow create, update, delete: if false;
@@ -193,9 +209,47 @@ service cloud.firestore {
     // Note visibility inherits from case (checked in Cloud Functions)
     match /organizations/{orgId}/notes/{noteId} {
       // Read: org members can read non-deleted notes
-      // Case-level access is enforced in Cloud Functions
+      // Case-level access enforced here (defense-in-depth) and in Cloud Functions.
+      // Private-to-me notes are creator-only.
+      allow read: if isOrgMember(orgId) &&
+        (!('deletedAt' in resource.data) || resource.data.deletedAt == null) &&
+        (!('caseId' in resource.data) || resource.data.caseId == null || canAccessCase(orgId, resource.data.caseId)) &&
+        (!('isPrivate' in resource.data) || resource.data.isPrivate != true || resource.data.createdBy == request.auth.uid);
+
+      // All writes are via Admin SDK (Cloud Functions); deny direct client writes
+      allow create, update, delete: if false;
+    }
+
+    // Slice 9: Draft templates and drafts under organizations collection
+    // Drafts are case-linked and must follow case access (defense-in-depth).
+    match /organizations/{orgId}/draftTemplates/{templateId} {
       allow read: if isOrgMember(orgId) &&
         (!('deletedAt' in resource.data) || resource.data.deletedAt == null);
+      allow create, update, delete: if false;
+    }
+
+    match /organizations/{orgId}/drafts/{draftId} {
+      allow read: if isOrgMember(orgId) &&
+        (!('deletedAt' in resource.data) || resource.data.deletedAt == null) &&
+        ('caseId' in resource.data) &&
+        resource.data.caseId != null &&
+        canAccessCase(orgId, resource.data.caseId);
+
+      allow create, update, delete: if false;
+
+      match /versions/{versionId} {
+        allow read: if isOrgMember(orgId) &&
+          canAccessCase(orgId, get(/databases/$(database)/documents/organizations/$(orgId)/drafts/$(draftId)).data.caseId);
+        allow write: if false;
+      }
+    }
+
+    // Slice 10: Time Entries under organizations collection
+    // Time entries may be case-linked; enforce case access defense-in-depth.
+    match /organizations/{orgId}/timeEntries/{timeEntryId} {
+      allow read: if isOrgMember(orgId) &&
+        (!('deletedAt' in resource.data) || resource.data.deletedAt == null) &&
+        (!('caseId' in resource.data) || resource.data.caseId == null || canAccessCase(orgId, resource.data.caseId));
 
       // All writes are via Admin SDK (Cloud Functions); deny direct client writes
       allow create, update, delete: if false;

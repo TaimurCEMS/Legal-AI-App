@@ -27,6 +27,8 @@ class RouteNames {
   static const String noteCreate = '/notes/create';
   static const String noteDetails = '/notes/details';
   static const String noteEdit = '/notes/edit';
+  static const String drafts = '/drafts';
+  static const String draftEditor = '/drafts/editor';
   static const String settings = '/settings';
   static const String memberManagement = '/settings/team-members';
 }

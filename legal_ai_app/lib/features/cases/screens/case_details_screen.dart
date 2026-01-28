@@ -682,6 +682,8 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
                         _buildNotesSection(),
                         const SizedBox(height: AppSpacing.xl),
                         _buildAIResearchSection(),
+                        const SizedBox(height: AppSpacing.xl),
+                        _buildAIDraftingSection(),
                       ],
                     ),
                   ),
@@ -1318,6 +1320,82 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAIDraftingSection() {
+    final caseProvider = context.watch<CaseProvider>();
+    final caseModel = caseProvider.selectedCase;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'AI Drafting',
+              style: AppTypography.titleLarge,
+            ),
+            TextButton.icon(
+              onPressed: () {
+                final title = caseModel?.title ?? 'Case';
+                context.push('${RouteNames.drafts}?caseId=${Uri.encodeComponent(widget.caseId)}&caseTitle=${Uri.encodeComponent(title)}');
+              },
+              icon: const Icon(Icons.edit_note, size: 18),
+              label: const Text('Open Drafting'),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Card(
+          child: InkWell(
+            onTap: () {
+              final title = caseModel?.title ?? 'Case';
+              context.push('${RouteNames.drafts}?caseId=${Uri.encodeComponent(widget.caseId)}&caseTitle=${Uri.encodeComponent(title)}');
+            },
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(AppSpacing.sm),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      Icons.edit_note,
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Generate legal drafts from templates',
+                          style: AppTypography.titleSmall,
+                        ),
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          'Choose a template, provide variables, and generate a draft using case documents for context. Export to DOCX/PDF as a Document.',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              ),
                         ),
                       ],
                     ),

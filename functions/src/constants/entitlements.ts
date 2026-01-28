@@ -16,6 +16,7 @@ export const PLAN_FEATURES = {
     OCR_EXTRACTION: true, // Enabled for testing (Slice 6a)
     AI_RESEARCH: true, // Enabled for testing (Slice 6b)
     AI_DRAFTING: false,
+    TIME_TRACKING: false,
     EXPORTS: false,
     AUDIT_TRAIL: false,
     NOTIFICATIONS: false,
@@ -35,6 +36,7 @@ export const PLAN_FEATURES = {
     OCR_EXTRACTION: true,
     AI_RESEARCH: true,
     AI_DRAFTING: false,
+    TIME_TRACKING: true,
     EXPORTS: true,
     AUDIT_TRAIL: false,
     NOTIFICATIONS: true,
@@ -54,6 +56,7 @@ export const PLAN_FEATURES = {
     OCR_EXTRACTION: true,
     AI_RESEARCH: true,
     AI_DRAFTING: true,
+    TIME_TRACKING: true,
     EXPORTS: true,
     AUDIT_TRAIL: true,
     NOTIFICATIONS: true,
@@ -73,6 +76,7 @@ export const PLAN_FEATURES = {
     OCR_EXTRACTION: true,
     AI_RESEARCH: true,
     AI_DRAFTING: true,
+    TIME_TRACKING: true,
     EXPORTS: true,
     AUDIT_TRAIL: true,
     NOTIFICATIONS: true,

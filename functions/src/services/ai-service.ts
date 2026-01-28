@@ -329,7 +329,8 @@ export function generateThreadTitle(firstMessage: string): string {
  * Add legal disclaimer to AI response (if not already present)
  */
 export function addDisclaimer(response: string): string {
-  const disclaimer = '\n\n---\n⚠️ *AI-generated content. Review before use in legal matters.*';
+  // NOTE: Keep this ASCII-only so downstream exports (e.g. PDF standard fonts) don't fail.
+  const disclaimer = '\n\n---\nAI-generated content. Review before use in legal matters.';
   // Don't add if already present
   if (response.includes('AI-generated content')) {
     return response;
