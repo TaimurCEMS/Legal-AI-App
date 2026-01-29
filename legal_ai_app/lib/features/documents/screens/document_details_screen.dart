@@ -14,6 +14,8 @@ import '../../common/widgets/loading/loading_spinner.dart';
 import '../../home/providers/org_provider.dart';
 import '../providers/document_provider.dart';
 import '../../../core/services/document_service.dart';
+import '../../contract_analysis/providers/contract_analysis_provider.dart';
+import '../../../core/models/contract_analysis_model.dart';
 
 class DocumentDetailsScreen extends StatefulWidget {
   final String documentId;
@@ -36,6 +38,7 @@ class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
   bool _showFullText = false;
   String? _error;
   DocumentModel? _documentModel;
+  bool _loadingAnalysis = false;
 
   @override
   void initState() {
@@ -78,6 +81,11 @@ class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
         _nameController.text = model.name;
         _descriptionController.text = model.description ?? '';
       });
+
+      // Load contract analysis if document has extracted text
+      if (model.extractionCompleted) {
+        _loadContractAnalysis();
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -509,6 +517,10 @@ class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
                   _buildExtractionSection(),
                   const SizedBox(height: AppSpacing.md),
                   
+                  // Contract Analysis Section (Slice 13)
+                  _buildContractAnalysisSection(),
+                  const SizedBox(height: AppSpacing.md),
+                  
                   PrimaryButton(
                     label: 'Download Document',
                     onPressed: _downloading ? null : _download,
@@ -767,5 +779,386 @@ class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
   String _truncateText(String text, int maxLength) {
     if (text.length <= maxLength) return text;
     return '${text.substring(0, maxLength)}...';
+  }
+
+  Future<void> _loadContractAnalysis() async {
+    final org = context.read<OrgProvider>().selectedOrg;
+    if (org == null || _documentModel == null) return;
+
+    setState(() {
+      _loadingAnalysis = true;
+    });
+
+    try {
+      final provider = context.read<ContractAnalysisProvider>();
+      await provider.loadAnalysisForDocument(
+        org: org,
+        documentId: widget.documentId,
+      );
+    } catch (e) {
+      debugPrint('Error loading contract analysis: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loadingAnalysis = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _analyzeContract() async {
+    final org = context.read<OrgProvider>().selectedOrg;
+    if (org == null || _documentModel == null) return;
+
+    if (!_documentModel!.extractionCompleted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please extract text from the document first.'),
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _loadingAnalysis = true;
+    });
+
+    try {
+      final provider = context.read<ContractAnalysisProvider>();
+      final success = await provider.analyzeContract(
+        org: org,
+        documentId: widget.documentId,
+      );
+
+      if (!mounted) return;
+
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Contract analysis completed successfully.'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              provider.errorMessage ?? 'Failed to analyze contract.',
+            ),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loadingAnalysis = false;
+        });
+      }
+    }
+  }
+
+  /// Build the contract analysis section (Slice 13)
+  Widget _buildContractAnalysisSection() {
+    final doc = _documentModel!;
+    
+    // Only show if document has extracted text
+    if (!doc.extractionCompleted) {
+      return const SizedBox.shrink();
+    }
+
+    return Consumer<ContractAnalysisProvider>(
+      builder: (context, provider, _) {
+        final analysis = provider.currentAnalysis;
+        final isAnalyzing = provider.isAnalyzing || _loadingAnalysis;
+
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.gavel, size: 20),
+                    const SizedBox(width: AppSpacing.sm),
+                    Text(
+                      'Contract Analysis',
+                      style: AppTypography.titleMedium,
+                    ),
+                    const Spacer(),
+                    if (analysis != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: analysis.isCompleted
+                              ? Colors.green.shade100
+                              : analysis.isFailed
+                                  ? Colors.red.shade100
+                                  : Colors.blue.shade100,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          analysis.isCompleted
+                              ? 'Completed'
+                              : analysis.isFailed
+                                  ? 'Failed'
+                                  : 'Processing',
+                          style: AppTypography.labelSmall.copyWith(
+                            color: analysis.isCompleted
+                                ? Colors.green.shade800
+                                : analysis.isFailed
+                                    ? Colors.red.shade800
+                                    : Colors.blue.shade800,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.sm),
+
+                if (analysis == null && !isAnalyzing) ...[
+                  Text(
+                    'Analyze this contract to identify clauses and flag risks.',
+                    style: AppTypography.bodyMedium.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  ElevatedButton.icon(
+                    onPressed: _analyzeContract,
+                    icon: const Icon(Icons.analytics),
+                    label: const Text('Analyze Contract'),
+                  ),
+                ] else if (isAnalyzing) ...[
+                  Row(
+                    children: [
+                      const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Text(
+                        'Analyzing contract...',
+                        style: AppTypography.bodyMedium,
+                      ),
+                    ],
+                  ),
+                ] else if (analysis != null && analysis.isFailed) ...[
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.error_outline,
+                        color: Theme.of(context).colorScheme.error,
+                        size: 20,
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: Text(
+                          analysis.error ?? 'Analysis failed',
+                          style: AppTypography.bodyMedium.copyWith(
+                            color: Theme.of(context).colorScheme.error,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  ElevatedButton.icon(
+                    onPressed: isAnalyzing ? null : _analyzeContract,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Retry Analysis'),
+                  ),
+                ] else if (analysis != null && analysis.hasResults) ...[
+                  // Summary
+                  if (analysis.summary != null && analysis.summary!.isNotEmpty) ...[
+                    Text(
+                      'Summary',
+                      style: AppTypography.titleSmall,
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      analysis.summary!,
+                      style: AppTypography.bodyMedium,
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                  ],
+
+                  // Clauses
+                  if (analysis.clauses.isNotEmpty) ...[
+                    Text(
+                      'Clauses (${analysis.clauses.length})',
+                      style: AppTypography.titleSmall,
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    ...analysis.clausesByType.entries.map((entry) {
+                      return ExpansionTile(
+                        title: Text('${entry.value.first.typeDisplayLabel} (${entry.value.length})'),
+                        children: entry.value.map((clause) {
+                          return ListTile(
+                            title: Text(clause.title),
+                            subtitle: Text(
+                              clause.content,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            isThreeLine: true,
+                          );
+                        }).toList(),
+                      );
+                    }),
+                    const SizedBox(height: AppSpacing.md),
+                  ],
+
+                  // Show info if no clauses found
+                  if (analysis.clauses.isEmpty) ...[
+                    Container(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.blue.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
+                          const SizedBox(width: AppSpacing.sm),
+                          Expanded(
+                            child: Text(
+                              'No contract clauses identified. This may not be a standard contract document.',
+                              style: AppTypography.bodySmall.copyWith(
+                                color: Colors.blue.shade900,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                  ],
+
+                  // Risks
+                  if (analysis.risks.isNotEmpty) ...[
+                    Text(
+                      'Risks (${analysis.risks.length})',
+                      style: AppTypography.titleSmall,
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    ...analysis.risksBySeverity.entries.where((e) => e.value.isNotEmpty).map((entry) {
+                      return ExpansionTile(
+                        title: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: entry.value.first.severityColor.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                entry.value.first.severityDisplayLabel,
+                                style: AppTypography.labelSmall.copyWith(
+                                  color: entry.value.first.severityColor,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            Text('${entry.value.length} risk(s)'),
+                          ],
+                        ),
+                        children: entry.value.map((risk) {
+                          return ListTile(
+                            title: Text(risk.title),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const SizedBox(height: 4),
+                                Text(risk.description),
+                                if (risk.recommendation != null && risk.recommendation!.isNotEmpty) ...[
+                                  const SizedBox(height: 8),
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Row(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Icon(
+                                          Icons.lightbulb_outline,
+                                          size: 16,
+                                          color: Theme.of(context).colorScheme.primary,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            risk.recommendation!,
+                                            style: AppTypography.bodySmall,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                            isThreeLine: true,
+                          );
+                        }).toList(),
+                      );
+                    }),
+                  ] else ...[
+                    // Show info if no risks found but clauses were found
+                    if (analysis.clauses.isNotEmpty) ...[
+                      Container(
+                        padding: const EdgeInsets.all(AppSpacing.md),
+                        decoration: BoxDecoration(
+                          color: Colors.green.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.green.shade200),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.check_circle_outline, color: Colors.green.shade700, size: 20),
+                            const SizedBox(width: AppSpacing.sm),
+                            Expanded(
+                              child: Text(
+                                'No significant risks identified in this contract.',
+                                style: AppTypography.bodySmall.copyWith(
+                                  color: Colors.green.shade900,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+
+                  const SizedBox(height: AppSpacing.md),
+                  OutlinedButton.icon(
+                    onPressed: isAnalyzing ? null : _analyzeContract,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Re-analyze Contract'),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 }

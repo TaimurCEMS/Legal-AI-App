@@ -1,7 +1,7 @@
 /**
- * AI Service (Slice 6b - AI Chat/Research)
+ * AI Service (Slice 6b - AI Chat/Research, Slice 13 - Contract Analysis)
  * 
- * Provides OpenAI integration for legal research chat.
+ * Provides OpenAI integration for legal research chat and contract analysis.
  * Builds context from case documents and manages chat completions.
  */
 
@@ -336,4 +336,264 @@ export function addDisclaimer(response: string): string {
     return response;
   }
   return response + disclaimer;
+}
+
+// ============================================================================
+// Contract Analysis (Slice 13)
+// ============================================================================
+
+export interface Clause {
+  id: string;
+  type: string; // e.g., "termination", "payment", "liability"
+  title: string;
+  content: string;
+  pageNumber?: number | null;
+  startChar?: number | null;
+  endChar?: number | null;
+}
+
+export interface Risk {
+  id: string;
+  severity: 'high' | 'medium' | 'low';
+  category: string;
+  title: string;
+  description: string;
+  clauseIds?: string[];
+  recommendation?: string | null;
+}
+
+export interface ContractAnalysisResult {
+  summary: string;
+  clauses: Clause[];
+  risks: Risk[];
+}
+
+export interface ContractAnalysisResponse {
+  result: ContractAnalysisResult;
+  tokensUsed: number;
+  model: string;
+  processingTimeMs: number;
+}
+
+/**
+ * Analyze contract document for clauses and risks
+ */
+export async function analyzeContract(
+  documentText: string,
+  documentName: string,
+  options?: {
+    model?: 'gpt-4o-mini' | 'gpt-4o';
+    jurisdiction?: {
+      country?: string;
+      state?: string;
+      region?: string;
+    };
+  }
+): Promise<ContractAnalysisResponse> {
+  const startTime = Date.now();
+  const model = options?.model || 'gpt-4o-mini';
+  
+  const client = getOpenAIClient();
+  
+  // Build contract analysis system prompt
+  const systemPrompt = buildContractAnalysisPrompt({
+    jurisdiction: options?.jurisdiction,
+  });
+  
+  // Build user prompt with document text
+  const userPrompt = buildContractAnalysisUserPrompt(documentText, documentName);
+  
+  const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
+    { role: 'system', content: systemPrompt },
+    { role: 'user', content: userPrompt },
+  ];
+  
+  try {
+    const response = await client.chat.completions.create({
+      model,
+      messages,
+      max_tokens: 4096,
+      temperature: 0.2, // Lower temperature for more structured output
+      response_format: { type: 'json_object' }, // Force JSON output
+    });
+    
+    const content = response.choices[0]?.message?.content || '{}';
+    const tokensUsed = response.usage?.total_tokens || 0;
+    const processingTimeMs = Date.now() - startTime;
+    
+    // Parse JSON response
+    let parsed: {
+      summary?: string;
+      clauses?: Clause[];
+      risks?: Risk[];
+    };
+    
+    try {
+      parsed = JSON.parse(content);
+    } catch (parseError) {
+      functions.logger.error('Failed to parse contract analysis JSON:', parseError);
+      throw new Error('AI returned invalid response format. Please try again.');
+    }
+    
+    // Validate and normalize structure
+    const result: ContractAnalysisResult = {
+      summary: parsed.summary || 'No summary available.',
+      clauses: Array.isArray(parsed.clauses) ? parsed.clauses : [],
+      risks: Array.isArray(parsed.risks) ? parsed.risks : [],
+    };
+    
+    // Ensure all clauses and risks have IDs
+    result.clauses = result.clauses.map((clause, index) => ({
+      ...clause,
+      id: clause.id || `clause-${index + 1}`,
+    }));
+    
+    result.risks = result.risks.map((risk, index) => ({
+      ...risk,
+      id: risk.id || `risk-${index + 1}`,
+    }));
+    
+    functions.logger.info(`Contract analysis: ${tokensUsed} tokens, ${processingTimeMs}ms`, {
+      model,
+      tokensUsed,
+      processingTimeMs,
+      clausesCount: result.clauses.length,
+      risksCount: result.risks.length,
+    });
+    
+    return {
+      result,
+      tokensUsed,
+      model,
+      processingTimeMs,
+    };
+  } catch (error) {
+    functions.logger.error('Contract analysis error:', error);
+    
+    if (error instanceof OpenAI.APIError) {
+      if (error.status === 429) {
+        throw new Error('AI service is temporarily overloaded. Please try again in a moment.');
+      }
+      if (error.status === 401) {
+        throw new Error('AI service configuration error. Please contact support.');
+      }
+    }
+    
+    const errorMessage = error instanceof Error ? error.message : 'Failed to analyze contract';
+    throw new Error(errorMessage);
+  }
+}
+
+function buildContractAnalysisPrompt(options?: {
+  jurisdiction?: {
+    country?: string;
+    state?: string;
+    region?: string;
+  };
+}): string {
+  let prompt = `You are an expert legal AI assistant specializing in contract analysis. Your task is to analyze documents and provide structured insights.
+
+YOUR TASK:
+1. Determine if the document is a contract or agreement
+2. If it IS a contract: Identify key clauses and flag risks
+3. If it is NOT a contract: Explain what type of document it is and whether it contains any contract-like terms
+4. Provide a high-level summary regardless of document type
+
+IMPORTANT: Always return valid JSON even if the document is not a contract. In that case, set clauses and risks to empty arrays and explain in the summary.
+
+OUTPUT FORMAT (JSON):
+{
+  "summary": "Brief overview of the contract (2-3 sentences)",
+  "clauses": [
+    {
+      "id": "clause-1",
+      "type": "termination|payment|liability|confidentiality|indemnification|warranty|intellectual_property|governing_law|dispute_resolution|other",
+      "title": "Short clause title",
+      "content": "Relevant text excerpt (100-300 characters)",
+      "pageNumber": 1,
+      "startChar": 100,
+      "endChar": 400
+    }
+  ],
+  "risks": [
+    {
+      "id": "risk-1",
+      "severity": "high|medium|low",
+      "category": "liability|termination|payment|confidentiality|indemnification|other",
+      "title": "Short risk description",
+      "description": "Detailed explanation of the risk",
+      "clauseIds": ["clause-1"],
+      "recommendation": "Suggested action or consideration"
+    }
+  ]
+}
+
+CLAUSE TYPES:
+- termination: Termination, cancellation, renewal terms
+- payment: Payment terms, pricing, fees, penalties
+- liability: Liability limitations, disclaimers, damages caps
+- confidentiality: NDA, confidentiality, non-disclosure terms
+- indemnification: Indemnification, hold harmless clauses
+- warranty: Warranties, representations, guarantees
+- intellectual_property: IP ownership, licensing, rights
+- governing_law: Choice of law, jurisdiction, venue
+- dispute_resolution: Arbitration, mediation, litigation terms
+- other: Other important clauses
+
+RISK SEVERITY:
+- high: Critical issues that could cause significant harm or liability
+- medium: Important concerns that should be addressed
+- low: Minor issues or areas to monitor
+
+RISK CATEGORIES:
+- liability: Excessive liability, uncapped damages, broad disclaimers
+- termination: Unfavorable termination terms, auto-renewal traps
+- payment: Unclear payment terms, penalties, late fees
+- confidentiality: Overly broad confidentiality, data security concerns
+- indemnification: One-sided indemnification, broad hold harmless
+- other: Other risk categories`;
+
+  if (options?.jurisdiction) {
+    const { country, state, region } = options.jurisdiction;
+    const jurisdictionParts: string[] = [];
+    if (state) jurisdictionParts.push(state);
+    if (region) jurisdictionParts.push(region);
+    if (country) jurisdictionParts.push(country);
+    
+    if (jurisdictionParts.length > 0) {
+      const jurisdictionStr = jurisdictionParts.join(', ');
+      prompt += `\n\nJURISDICTION CONTEXT:
+Analyze this contract within the jurisdiction of: ${jurisdictionStr}
+- Consider jurisdiction-specific legal requirements
+- Flag clauses that may be unenforceable in this jurisdiction
+- Note any conflicts with local law`;
+    }
+  }
+  
+  return prompt;
+}
+
+function buildContractAnalysisUserPrompt(documentText: string, documentName: string): string {
+  // Truncate document if too long (same limit as chat context)
+  const MAX_DOC_CHARS = 50000;
+  const truncatedText = documentText.length > MAX_DOC_CHARS
+    ? documentText.substring(0, MAX_DOC_CHARS) + '\n...[document truncated]'
+    : documentText;
+  
+  return `Analyze the following document: "${documentName}"
+
+DOCUMENT TEXT:
+${truncatedText}
+
+Provide a structured analysis with:
+1. A brief summary indicating the document type and purpose (2-3 sentences)
+2. Key clauses identified and categorized (if this is a contract or agreement)
+3. Potential risks flagged with severity levels (if applicable)
+
+If this document is NOT a contract or agreement:
+- Explain what type of document it is in the summary
+- Set clauses and risks to empty arrays []
+- Note if there are any contract-like terms or legal implications
+
+Return your analysis as a JSON object matching the specified format.`;
 }

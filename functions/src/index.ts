@@ -94,3 +94,10 @@ export {
 
 // Export Slice 12 - Audit Trail UI functions
 export { auditList, auditExport } from './functions/audit';
+
+// Export Slice 13 - AI Contract Analysis functions
+export {
+  contractAnalyze,
+  contractAnalysisGet,
+  contractAnalysisList,
+} from './functions/contract-analysis';
