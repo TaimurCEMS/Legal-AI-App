@@ -37,16 +37,248 @@ Convert captured time (Slice 10) into client-ready invoices with an auditable wo
 
 ---
 
-## 2) Data Model
+## 2) Scope In ✅
 
-### 2.1 Firestore Collections
+### Backend (Cloud Functions)
+- `invoiceCreate` – Create invoice from unbilled billable time entries (case-scoped; date range or explicit timeEntryIds; rateCents, currency, dueAt, note)
+- `invoiceGet` – Get invoice + line items + payments
+- `invoiceList` – List invoices (filters: caseId, status); pagination (limit, offset)
+- `invoiceUpdate` – Update status (draft/sent/void), dueAt, note
+- `invoiceRecordPayment` – Record payment (amountCents, paidAt, note); update paidCents and status (paid when full)
+- `invoiceExport` – Export invoice to PDF, upload to Storage, create Document Hub document (category invoice, folderPath)
+- Entitlement: BILLING_INVOICING; permission: billing.manage (MVP ADMIN); case access enforced; export requires EXPORTS + document.create
+
+### Frontend (Flutter)
+- Billing tab: invoice list; create flow (case, date range, rate, review entries, create); invoice details (status, record payment, export PDF)
+
+### Data Model
+- `organizations/{orgId}/invoices/{invoiceId}`, `invoices/{invoiceId}/lineItems/{lineItemId}`, `invoices/{invoiceId}/payments/{paymentId}`; TimeEntry extended with invoiceId, invoicedAt
+
+---
+
+## 3) Scope Out ❌
+
+- Trust/IOLTA accounting, trust ledgers; advanced rate rules (per client/matter/user), discounts, taxes, LEDES; automated invoice numbering; email sending; payment processing integrations
+
+---
+
+## 4) Dependencies
+
+**External Services:** Firebase Auth, Firestore, Cloud Functions, Cloud Storage (Slice 0).
+
+**Dependencies on Other Slices:** Slice 0 (org, entitlements), Slice 1 (Flutter UI), Slice 2 (cases), Slice 3 (clients – optional), Slice 4 (Document Hub for export), Slice 10 (time entries).
+
+**No Dependencies on:** Slice 5 (Tasks), Slice 6–9 (AI, Calendar, Notes, Drafting).
+
+---
+
+## 5) Backend Endpoints (Slice 4 style)
+
+### 5.1 `invoiceCreate` (Callable Function)
+
+**Function Name (Export):** `invoiceCreate`  
+**Auth Requirement:** Valid Firebase Auth token  
+**Required Feature:** `BILLING_INVOICING`  
+**Required Permission:** `billing.manage`
+
+**Request Payload:**
+```json
+{
+  "orgId": "string (required)",
+  "caseId": "string (required)",
+  "from": "string (optional, ISO date/time)",
+  "to": "string (optional, ISO date/time)",
+  "timeEntryIds": "string[] (optional – if provided, use these entries; else use case + date range)",
+  "rateCents": "number (required, positive integer)",
+  "currency": "string (required, 3-letter e.g. USD)",
+  "dueAt": "string (optional, ISO timestamp)",
+  "note": "string (optional, max 4000)"
+}
+```
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "invoiceId": "string",
+    "caseId": "string",
+    "status": "draft",
+    "invoiceNumber": "string",
+    "currency": "string",
+    "subtotalCents": "number",
+    "paidCents": 0,
+    "totalCents": "number",
+    "lineItemCount": "number",
+    "issuedAt": "ISO 8601",
+    "dueAt": "ISO 8601 | null",
+    "note": "string | null"
+  }
+}
+```
+
+**Error Responses:** `ORG_REQUIRED`, `VALIDATION_ERROR` (caseId, rateCents, currency, from/to, dueAt, note; no unbilled entries; too many entries), `NOT_AUTHORIZED`, `PLAN_LIMIT`, `NOT_FOUND` (case), `INTERNAL_ERROR` (index required).
+
+**Implementation Flow:** Validate auth, orgId, caseId, rateCents, currency → entitlement → case access → resolve entries (timeEntryIds or query by case+from/to); filter billable, stopped, unbilled → create invoice doc, line items, update time entries (invoiceId, invoicedAt) in batch → return invoice.
+
+---
+
+### 5.2 `invoiceGet` (Callable Function)
+
+**Function Name (Export):** `invoiceGet`  
+**Auth Requirement:** Valid Firebase Auth token  
+**Required Permission:** `billing.manage`
+
+**Request Payload:** `{ "orgId": "string (required)", "invoiceId": "string (required)" }`
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "invoice": { "invoiceId", "orgId", "caseId", "status", "invoiceNumber", "currency", "subtotalCents", "paidCents", "totalCents", "issuedAt", "dueAt", "note", "lineItemCount", "createdAt", "updatedAt", "createdBy", "updatedBy", "lineItems": [ { "lineItemId", "description", "timeEntryId", "startAt", "endAt", "durationSeconds", "rateCents", "amountCents" } ], "payments": [ { "paymentId", "amountCents", "paidAt", "note", "createdAt", "createdBy" } ] }
+  }
+}
+```
+
+**Error Responses:** `ORG_REQUIRED`, `VALIDATION_ERROR` (invoiceId), `NOT_AUTHORIZED`, `NOT_FOUND` (invoice or case access).
+
+**Implementation Flow:** Validate → entitlement → load invoice → case access → load lineItems and payments subcollections → return invoice + lineItems + payments.
+
+---
+
+### 5.3 `invoiceList` (Callable Function)
+
+**Function Name (Export):** `invoiceList`  
+**Auth Requirement:** Valid Firebase Auth token  
+**Required Permission:** `billing.manage`
+
+**Request Payload:**
+```json
+{
+  "orgId": "string (required)",
+  "caseId": "string (optional)",
+  "status": "string (optional, draft | sent | paid | void)",
+  "limit": "number (optional, default 50, max 100)",
+  "offset": "number (optional, default 0)"
+}
+```
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "invoices": [ { "invoiceId", "orgId", "caseId", "status", "invoiceNumber", "currency", "subtotalCents", "paidCents", "totalCents", "issuedAt", "dueAt", "lineItemCount" } ],
+    "total": "number",
+    "hasMore": "boolean"
+  }
+}
+```
+
+**Error Responses:** `ORG_REQUIRED`, `VALIDATION_ERROR` (invalid caseId/status), `NOT_AUTHORIZED`, `NOT_FOUND` (case if caseId provided), `INTERNAL_ERROR` (index).
+
+**Implementation Flow:** Validate → entitlement → query invoices (optional caseId filter); filter by case access; filter by status → paginate → return.
+
+---
+
+### 5.4 `invoiceUpdate` (Callable Function)
+
+**Function Name (Export):** `invoiceUpdate`  
+**Auth Requirement:** Valid Firebase Auth token  
+**Required Permission:** `billing.manage`
+
+**Request Payload:**
+```json
+{
+  "orgId": "string (required)",
+  "invoiceId": "string (required)",
+  "status": "string (optional, draft | sent | void – paid cannot be changed)",
+  "dueAt": "string | null (optional)",
+  "note": "string | null (optional)"
+}
+```
+
+**Success Response (200):** `data.invoice` (updated invoice fields).
+
+**Error Responses:** `ORG_REQUIRED`, `VALIDATION_ERROR` (invoiceId, invalid status, paid→other status), `NOT_AUTHORIZED`, `NOT_FOUND`.
+
+**Implementation Flow:** Validate → load invoice → case access → apply updates (status draft/sent/void only; paid immutable) → audit invoice.updated → return updated invoice.
+
+---
+
+### 5.5 `invoiceRecordPayment` (Callable Function)
+
+**Function Name (Export):** `invoiceRecordPayment`  
+**Auth Requirement:** Valid Firebase Auth token  
+**Required Permission:** `billing.manage`
+
+**Request Payload:**
+```json
+{
+  "orgId": "string (required)",
+  "invoiceId": "string (required)",
+  "amountCents": "number (required, positive integer)",
+  "paidAt": "string (optional, ISO timestamp)",
+  "note": "string (optional)"
+}
+```
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "payment": { "paymentId", "amountCents" },
+    "invoice": { "invoiceId", "status", "paidCents", "totalCents" }
+  }
+}
+```
+
+**Error Responses:** `ORG_REQUIRED`, `VALIDATION_ERROR` (invoiceId, amountCents, paidAt, note; void invoice), `NOT_AUTHORIZED`, `NOT_FOUND`.
+
+**Implementation Flow:** Validate → load invoice → case access; if status void return VALIDATION_ERROR → transaction: create payment doc, update invoice paidCents (min(totalCents, paidCents+amount)), status (paid if full) → audit invoice.payment_recorded → return payment + invoice summary.
+
+---
+
+### 5.6 `invoiceExport` (Callable Function)
+
+**Function Name (Export):** `invoiceExport`  
+**Auth Requirement:** Valid Firebase Auth token  
+**Required Feature:** `BILLING_INVOICING` + `EXPORTS`  
+**Required Permission:** `billing.manage` + `document.create`
+
+**Request Payload:** `{ "orgId": "string (required)", "invoiceId": "string (required)" }`
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "documentId": "string",
+    "name": "string",
+    "storagePath": "string",
+    "fileType": "application/pdf"
+  }
+}
+```
+
+**Error Responses:** `ORG_REQUIRED`, `VALIDATION_ERROR` (invoiceId), `NOT_AUTHORIZED`, `NOT_FOUND` (invoice or case access), `PLAN_LIMIT` (EXPORTS).
+
+**Implementation Flow:** Validate → load invoice → case access → check EXPORTS + document.create → generate PDF (invoice + line items + payments) → upload to Storage `organizations/{orgId}/documents/invoices/{CaseName}__{caseId}/{documentId}/{filename}` → create Document Hub document (category invoice, folderPath Invoices/<Case Name>) → return document info.
+
+---
+
+## 6) Data Model
+
+### 6.1 Firestore Collections
 ```
 organizations/{orgId}/invoices/{invoiceId}
 organizations/{orgId}/invoices/{invoiceId}/lineItems/{lineItemId}
 organizations/{orgId}/invoices/{invoiceId}/payments/{paymentId}
 ```
 
-### 2.2 Invoice (MVP)
+### 6.2 Invoice (MVP)
 ```typescript
 type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'void';
 
@@ -78,7 +310,7 @@ interface InvoiceDocument {
 }
 ```
 
-### 2.3 InvoiceLineItem (MVP)
+### 6.3 InvoiceLineItem (MVP)
 ```typescript
 interface InvoiceLineItemDocument {
   lineItemId: string;
@@ -99,7 +331,7 @@ interface InvoiceLineItemDocument {
 }
 ```
 
-### 2.4 TimeEntry (Slice 10 extension fields)
+### 6.4 TimeEntry (Slice 10 extension fields)
 ```typescript
 interface TimeEntryDocument {
   // ... existing Slice 10 fields ...
@@ -110,9 +342,9 @@ interface TimeEntryDocument {
 
 ---
 
-## 3) Backend (Cloud Functions)
+## 7) Backend Summary (see 5) for Slice 4 style)
 
-### 3.1 Functions (MVP)
+### 7.1 Functions (MVP)
 - `invoiceCreate` – create invoice for a case from unbilled time entries (creates line items + links time entries)
 - `invoiceGet` – get invoice + line items + payment summary
 - `invoiceList` – list invoices (filters: caseId, status)
@@ -120,7 +352,7 @@ interface TimeEntryDocument {
 - `invoiceRecordPayment` – record payment + update paid/paid status
 - `invoiceExport` – export invoice as PDF and save as Document Hub document
 
-### 3.2 Security & Access Control
+### 7.2 Security & Access Control
 - All calls require `orgId`
 - All invoice operations require:
   - Plan feature: `BILLING_INVOICING` (ADMIN bypass currently applies per `checkEntitlement`)
@@ -130,18 +362,18 @@ interface TimeEntryDocument {
 
 ---
 
-## 4) Frontend (Flutter)
+## 8) Frontend (Flutter)
 
-### 4.1 Models
+### 8.1 Models
 - `InvoiceModel`, `InvoiceLineItemModel`, `InvoicePaymentModel`
 
-### 4.2 Service
+### 8.2 Service
 - `InvoiceService` (Cloud Functions wrapper)
 
-### 4.3 Provider
+### 8.3 Provider
 - `InvoiceProvider` (list/get/create/export/payment)
 
-### 4.4 UI (MVP)
+### 8.4 UI (MVP)
 - Add **Billing** tab (Invoice list)
 - Create invoice flow:
   - Select case
@@ -156,7 +388,7 @@ interface TimeEntryDocument {
 
 ---
 
-## 5) Testing Checklist (Manual)
+## 9) Testing Checklist (Manual)
 
 ### Backend
 - [ ] Create invoice from case time entries (unbilled only)

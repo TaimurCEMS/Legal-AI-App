@@ -17,6 +17,7 @@ export const PLAN_FEATURES = {
     AI_RESEARCH: true, // Enabled for testing (Slice 6b)
     AI_DRAFTING: false,
     CONTRACT_ANALYSIS: true, // Enabled for testing (Slice 13)
+    DOCUMENT_SUMMARY: true, // Enabled for testing (Slice 14)
     TIME_TRACKING: false,
     EXPORTS: false,
     AUDIT_TRAIL: false,
@@ -39,6 +40,7 @@ export const PLAN_FEATURES = {
     AI_RESEARCH: true,
     AI_DRAFTING: false,
     CONTRACT_ANALYSIS: true,
+    DOCUMENT_SUMMARY: true,
     TIME_TRACKING: true,
     EXPORTS: true,
     AUDIT_TRAIL: false,
@@ -61,6 +63,7 @@ export const PLAN_FEATURES = {
     AI_RESEARCH: true,
     AI_DRAFTING: true,
     CONTRACT_ANALYSIS: true,
+    DOCUMENT_SUMMARY: true,
     TIME_TRACKING: true,
     EXPORTS: true,
     AUDIT_TRAIL: true,
@@ -83,6 +86,7 @@ export const PLAN_FEATURES = {
     AI_RESEARCH: true,
     AI_DRAFTING: true,
     CONTRACT_ANALYSIS: true,
+    DOCUMENT_SUMMARY: true,
     TIME_TRACKING: true,
     EXPORTS: true,
     AUDIT_TRAIL: true,

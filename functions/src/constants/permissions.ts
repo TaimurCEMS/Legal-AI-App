@@ -23,6 +23,7 @@ export const ROLE_PERMISSIONS = {
     'ai.ask': true,
     'ai.draft': true,
     'contract.analyze': true,
+    'document.summarize': true,
     'time.create': true,
     'time.read': true,
     'time.update': true,
@@ -65,6 +66,7 @@ export const ROLE_PERMISSIONS = {
     'ai.ask': true,
     'ai.draft': true,
     'contract.analyze': true,
+    'document.summarize': true,
     'time.create': true,
     'time.read': true,
     'time.update': true,
@@ -107,6 +109,7 @@ export const ROLE_PERMISSIONS = {
     'ai.ask': true,
     'ai.draft': true,
     'contract.analyze': true,
+    'document.summarize': true,
     'time.create': true,
     'time.read': true,
     'time.update': true,
@@ -170,6 +173,7 @@ export const ROLE_PERMISSIONS = {
     'admin.manage_users': false,
     'admin.manage_plan': false,
     'billing.manage': false,
+    'document.summarize': false,
   },
 } as const;
 

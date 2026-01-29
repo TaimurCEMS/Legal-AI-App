@@ -330,6 +330,83 @@ Return your analysis as a JSON object matching the specified format.`;
 - `functions/src/index.ts` (export new functions)
 - `functions/src/__tests__/slice13-terminal-test.ts` (new)
 
+### 3.4 Backend Endpoints (Slice 4 style)
+
+#### 3.4.1 `contractAnalyze` (Callable Function)
+
+**Function Name (Export):** `contractAnalyze`  
+**Type:** Firebase Callable Function  
+**Auth Requirement:** Valid Firebase Auth token  
+**Required Permission:** `contract.analyze` | **Plan Gating:** `CONTRACT_ANALYSIS`
+
+**Request Payload:**
+```json
+{
+  "orgId": "string (required)",
+  "documentId": "string (required)",
+  "options": { "model": "string (optional, 'gpt-4o-mini' | 'gpt-4o')" }
+}
+```
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "analysisId": "string",
+    "documentId": "string",
+    "caseId": "string | null",
+    "status": "completed",
+    "error": null,
+    "summary": "string",
+    "clauses": "[ { id, type, title, content, pageNumber?, ... } ]",
+    "risks": "[ { id, severity, category, title, description, clauseIds?, recommendation? } ]",
+    "createdAt": "ISO 8601",
+    "completedAt": "ISO 8601",
+    "createdBy": "string",
+    "model": "string",
+    "tokensUsed": "number | null",
+    "processingTimeMs": "number | null"
+  }
+}
+```
+
+**Error Responses:**
+- `VALIDATION_ERROR` (400): Missing orgId or documentId
+- `NOT_AUTHORIZED` (403): Not org member or role/plan does not allow
+- `NOT_FOUND` (404): Document not found or soft-deleted
+- `VALIDATION_ERROR` (400): Document has no extracted text or extractionStatus !== 'completed'
+- `NOT_AUTHORIZED` (403): No case access for document's caseId
+- `INTERNAL_ERROR` (500): AI or Firestore failure
+
+**Implementation Flow:**
+1. Validate auth; validate orgId, documentId
+2. Check entitlement: CONTRACT_ANALYSIS + `contract.analyze`
+3. Fetch document; verify exists, not deleted, has extractedText and extractionStatus === 'completed'
+4. If document.caseId: canUserAccessCase(orgId, caseId, uid) must allow
+5. Create analysis record (status processing); audit event contract.analyzed
+6. Call analyzeContract(extractedText, name, options); update record with summary, clauses, risks, completedAt; audit contract.analysis_completed
+7. Return successResponse (same shape as contractAnalysisGet)
+8. On error: update record status failed; audit contract.analysis_failed; return errorResponse
+
+---
+
+#### 3.4.2 `contractAnalysisGet` (Callable Function)
+
+**Request Payload:** `{ "orgId": "string (required)", "analysisId": "string (required)" }`  
+**Success Response (200):** Full analysis document (analysisId, documentId, caseId, status, error, summary, clauses, risks, createdAt, completedAt, createdBy, model, tokensUsed, processingTimeMs)  
+**Error Responses:** VALIDATION_ERROR (missing fields), NOT_AUTHORIZED (org/role or case access), NOT_FOUND (analysis not found)  
+**Implementation Flow:** 1. Validate auth, orgId, analysisId 2. Check entitlement contract.analyze 3. Fetch analysis; if caseId present verify canUserAccessCase 4. Return successResponse with full document
+
+---
+
+#### 3.4.3 `contractAnalysisList` (Callable Function)
+
+**Request Payload:** `{ "orgId": "string (required)", "documentId": "string (optional)", "caseId": "string (optional)", "limit": "number (optional, default 20, max 100)", "offset": "number (optional, default 0)" }`  
+**Success Response (200):** `{ "success": true, "data": { "analyses": [ { analysisId, documentId, caseId, status, error, summary, clausesCount, risksCount, createdAt, completedAt, createdBy, model } ], "total": number, "hasMore": boolean } }`  
+**Error Responses:** VALIDATION_ERROR, NOT_AUTHORIZED (org/role or case access for caseId filter)  
+**Implementation Flow:** 1. Validate auth, orgId; parse limit/offset 2. Check entitlement contract.analyze 3. If caseId: canUserAccessCase must allow 4. Build query contract_analyses (where documentId/caseId if provided), orderBy createdAt desc, limit(+1), offset 5. Filter results by case access for each analysis with caseId 6. Return analyses, total, hasMore. **Requires Firestore composite indexes:** documentId+createdAt, caseId+createdAt.
+
 ---
 
 ## 4) Frontend (Flutter)
@@ -406,9 +483,21 @@ npm run test:slice13
 - ✅ Re-analysis creates new record
 - ✅ List analyses by document/case
 
-### 6.3 Flutter
-- Manual testing: Upload contract → Extract text → Analyze → View results
-- Test error states (no extracted text, AI failure, etc.)
+### 6.3 Manual Testing Checklist
+
+**Backend**
+- [x] `contractAnalyze` with extracted text returns analysisId, summary, clauses, risks
+- [x] Document without extracted text returns validation error
+- [x] Unauthorized access (no org, wrong role) returns NOT_AUTHORIZED
+- [x] Case access enforced for PRIVATE case documents
+- [x] `contractAnalysisList` returns empty list when no analyses; requires Firestore indexes
+- [x] `contractAnalysisGet` with invalid id returns NOT_FOUND
+
+**Frontend**
+- [x] Document Details shows Contract Analysis section when extraction is complete
+- [x] Analyze Contract → loading → summary, clauses, risks displayed
+- [x] Re-analyze creates new analysis; latest shown
+- [x] Error states: no extracted text (SnackBar), AI failure (SnackBar)
 
 ---
 
@@ -442,3 +531,8 @@ npm run test:slice13
 - ✅ Tests passing (backend + manual frontend)
 
 **Overall:** ✅ **COMPLETE** (when all criteria met)
+
+---
+
+**Created:** 2026-01-29  
+**Last Updated:** 2026-01-29

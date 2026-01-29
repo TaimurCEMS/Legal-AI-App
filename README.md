@@ -56,6 +56,9 @@ firebase deploy --only functions
 
 ## 📚 Documentation
 
+### Documentation Index
+- **[Documentation Index](docs/DOCUMENTATION_INDEX.md)** – Single entry point to all docs (handoff, specs, build cards, status, reports)
+
 ### Master Specification
 - **[Master Spec](docs/MASTER_SPEC%20V1.4.0.md)** - Complete project specification (source of truth)
   - Includes repository structure guidelines (Section 2.7)
@@ -72,6 +75,7 @@ firebase deploy --only functions
 - **[Slice 1 Build Card](docs/SLICE_1_BUILD_CARD.md)** - Slice 1 implementation details
 - **[Slice 2 Build Card](docs/SLICE_2_BUILD_CARD.md)** - Slice 2 implementation details
 - **[Slice 3 Build Card](docs/SLICE_3_BUILD_CARD.md)** - Slice 3 implementation details
+- **[Slice 4–14 Build Cards](docs/)** - SLICE_4_BUILD_CARD.md through SLICE_14_BUILD_CARD.md
 
 ### Reports
 - **[Cleanup Report](docs/reports/CLEANUP_REPORT.md)** - Slice 0 cleanup and hardening
@@ -192,6 +196,60 @@ See [Slice Status](docs/status/SLICE_STATUS.md) for details.
   - Comprehensive legal AI system prompt
 - **See:** [Slice 6b Build Card](docs/SLICE_6B_BUILD_CARD.md) for details
 
+### Slice 7: Calendar & Court Dates ✅ COMPLETE
+- **Status:** Complete & Deployed
+- **Backend:** ✅ eventCreate, eventGet, eventList, eventUpdate, eventDelete
+- **Frontend:** ✅ Calendar (day/week/month/agenda), event form, visibility (ORG, CASE_ONLY, PRIVATE)
+- **See:** [Slice 7 Build Card](docs/SLICE_7_BUILD_CARD.md)
+
+### Slice 8: Notes/Memos on Cases ✅ COMPLETE
+- **Status:** Complete & Deployed
+- **Backend:** ✅ noteCreate, noteGet, noteList, noteUpdate, noteDelete (private-to-me support)
+- **Frontend:** ✅ Notes list/details/form, case selector, private toggle
+- **See:** [Slice 8 Build Card](docs/SLICE_8_BUILD_CARD.md)
+
+### Slice 9: AI Document Drafting ✅ COMPLETE
+- **Status:** Complete & Deployed
+- **Backend:** ✅ draftTemplateList, draftCreate, draftGenerate, draftProcessJob, draftGet, draftList, draftUpdate, draftDelete, draftExport
+- **Frontend:** ✅ Templates, drafts list, draft editor, export to Document Hub
+- **See:** [Slice 9 Build Card](docs/SLICE_9_BUILD_CARD.md)
+
+### Slice 10: Time Tracking ✅ COMPLETE
+- **Status:** Complete & Deployed
+- **Backend:** ✅ timeEntryCreate, timeEntryStartTimer, timeEntryStopTimer, timeEntryUpdate, timeEntryDelete, timeEntryList
+- **Frontend:** ✅ Timer, manual entries, filters (range, case, billable, mine)
+- **See:** [Slice 10 Build Card](docs/SLICE_10_BUILD_CARD.md)
+
+### Slice 11: Billing & Invoicing ✅ COMPLETE (MVP)
+- **Status:** Complete & Deployed
+- **Backend:** ✅ invoiceCreate, invoiceList, invoiceGet, invoiceUpdate, invoiceRecordPayment, invoiceExport
+- **Frontend:** ✅ Billing tab (ADMIN-only), create invoice, record payment, export PDF
+- **See:** [Slice 11 Build Card](docs/SLICE_11_BUILD_CARD.md)
+
+### Slice 12: Audit Trail UI ✅ COMPLETE
+- **Status:** Complete & Deployed
+- **Backend:** ✅ auditList, auditExport
+- **Frontend:** ✅ Settings → Audit Trail (ADMIN-only), filters, export CSV
+- **See:** [Slice 12 Build Card](docs/SLICE_12_BUILD_CARD.md)
+
+### Slice 13: AI Contract Analysis ✅ COMPLETE
+- **Status:** Complete & Deployed
+- **Backend:** ✅ contractAnalyze, contractAnalysisGet, contractAnalysisList
+- **Frontend:** ✅ Document Details → Contract Analysis (summary, clauses, risks by severity)
+- **See:** [Slice 13 Build Card](docs/SLICE_13_BUILD_CARD.md)
+
+### Slice 14: AI Document Summarization ✅ COMPLETE
+- **Status:** Complete & Deployed
+- **Backend:** ✅ summarizeDocument, documentSummaryGet, documentSummaryList
+- **Frontend:** ✅ Document Details → Document Summary (Summarize, re-summarize, summary text)
+- **See:** [Slice 14 Build Card](docs/SLICE_14_BUILD_CARD.md)
+
+## 📦 Deployment Summary
+
+- **Cloud Functions:** 67 functions deployed to `legal-ai-app-1203e` (us-central1)
+- **Firestore:** Indexes and rules deployed (contract_analyses, document_summaries, etc.)
+- **Verify:** `firebase functions:list` from repo root
+
 ## 🔐 Security
 
 - All writes go through Cloud Functions
@@ -205,6 +263,7 @@ Proprietary - All rights reserved
 
 ---
 
-**Last Updated:** 2026-01-25  
+**Last Updated:** 2026-01-29  
 **Project:** legal-ai-app-1203e  
-**Region:** us-central1
+**Region:** us-central1  
+**Deployed Functions:** 67 (Slices 0–14)

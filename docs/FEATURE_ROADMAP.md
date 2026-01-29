@@ -7,20 +7,18 @@
 
 ## 🎯 Executive Summary
 
-**Current Status:** 70% feature-complete for a professional legal AI application  
+**Current Status:** Slices 0–14 complete; 67 Cloud Functions deployed. Feature-complete for core practice management + AI (extraction, chat, contract analysis, summarization, drafting).  
 **Goal:** Become the **world leader** in legal AI applications
 
 **Strengths:**
 - ✅ Solid backend-first architecture
 - ✅ Comprehensive security & audit logging
-- ✅ Core practice management (cases, clients, documents, tasks)
-- ✅ AI foundation (text extraction + AI chat/research)
+- ✅ Core practice management (cases, clients, documents, tasks, calendar, notes, time, billing, audit)
+- ✅ AI foundation (text extraction + AI chat/research + contract analysis + document summarization + AI drafting)
 
-**Critical Gaps for Market Leadership:**
-- ⚠️ Calendar/Court Dates (lawyers live by deadlines)
-- ⚠️ Time Tracking & Billing (how law firms make money)
-- ⚠️ AI Document Drafting (major differentiator)
-- ⚠️ Advanced AI features (contract analysis, summarization)
+**Remaining for Market Leadership:**
+- 🟡 Slice 15: Advanced Admin (invitations, bulk ops, org settings) or AI Document Q&A
+- 🟡 Polishing & refinement phase (UI/UX, E2E tests, analyzer cleanup)
 
 ---
 
@@ -57,6 +55,8 @@
 | **Citation Extraction** | ✅ Complete | 6b | References document sources in AI responses |
 | **Legal Disclaimer** | ✅ Complete | 6b | Auto-appends legal disclaimer to AI responses |
 | **Chat History** | ✅ Complete | 6b+ | Multiple threads per case, history persistence |
+| **AI Contract Analysis** | ✅ Complete | 13 | Clause identification, risk flagging, summary; Document Details → Contract Analysis |
+| **AI Document Summarization** | ✅ Complete | 14 | One-click document summaries (~300 words); Document Details → Document Summary |
 
 ---
 

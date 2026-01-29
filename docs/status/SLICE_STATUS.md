@@ -1159,6 +1159,74 @@ The AI service is designed for future extensibility:
 
 ---
 
+## Slice 13: AI Contract Analysis ✅ COMPLETE
+
+**Status:** ✅ **COMPLETE & DEPLOYED**  
+**Last Updated:** 2026-01-29  
+**Dependencies:** Slice 0 ✅, Slice 1 ✅, Slice 4 ✅, Slice 6a ✅
+
+### Backend Status: ✅ DEPLOYED
+
+**Functions (3):**
+1. ✅ `contractAnalyze` – Trigger OpenAI analysis on document’s extracted text; returns analysisId, summary, clauses, risks
+2. ✅ `contractAnalysisGet` – Get analysis by analysisId
+3. ✅ `contractAnalysisList` – List analyses by documentId or caseId, pagination, orderBy createdAt desc
+
+**Key Details:**
+- AI service: `functions/src/services/ai-service.ts` – `analyzeContract()`, structured JSON (clauses, risks, summary)
+- Entitlements: CONTRACT_ANALYSIS feature, `contract.analyze` permission (ADMIN, LAWYER, PARALEGAL)
+- Firestore: `contract_analyses` collection; composite indexes (documentId+createdAt, caseId+createdAt)
+
+### Frontend Status: ✅ COMPLETE
+- Document Details → "Contract Analysis" section: Analyze button, loading state, summary, expandable clauses by type, risks by severity (color-coded)
+- ContractAnalysisModel, ContractAnalysisService, ContractAnalysisProvider
+- Null-safe fromJson; handles non-contract docs ("No contract clauses identified")
+
+### Tests
+- Backend: `npm run test:slice13` (requires FIREBASE_API_KEY)
+- Frontend: `legal_ai_app/test/contract_analysis_model_test.dart` (8 tests)
+
+### Documentation
+- **Build Card:** `docs/SLICE_13_BUILD_CARD.md`
+
+**Overall:** ✅ **COMPLETE**
+
+---
+
+## Slice 14: AI Document Summarization ✅ COMPLETE
+
+**Status:** ✅ **COMPLETE & DEPLOYED**  
+**Last Updated:** 2026-01-29  
+**Dependencies:** Slice 0 ✅, Slice 1 ✅, Slice 4 ✅, Slice 6a ✅
+
+### Backend Status: ✅ DEPLOYED
+
+**Functions (3):**
+1. ✅ `summarizeDocument` – Generate summary from extracted text; store in document_summaries; return summaryId, summary, createdAt, etc.
+2. ✅ `documentSummaryGet` – Get summary by summaryId
+3. ✅ `documentSummaryList` – List by documentId or caseId, pagination, orderBy createdAt desc
+
+**Key Details:**
+- AI service: `summarizeDocument()` in ai-service.ts (plain-language summary ~300 words)
+- Entitlements: DOCUMENT_SUMMARY feature, `document.summarize` permission (ADMIN, LAWYER, PARALEGAL)
+- Firestore: `document_summaries` collection; composite indexes (documentId+createdAt, caseId+createdAt); rules for org member + case access
+
+### Frontend Status: ✅ COMPLETE
+- Document Details → "Document Summary" section: Summarize button, loading state, summary text, "Last summarized" hint, Re-summarize
+- DocumentSummaryModel, DocumentSummaryService, DocumentSummaryProvider
+- Section visible only when document has extracted text (extraction completed)
+
+### Tests
+- Backend: `npm run test:slice14` (documentSummaryList empty, documentSummaryGet NOT_FOUND; requires FIREBASE_API_KEY)
+
+### Documentation
+- **Build Card:** `docs/SLICE_14_BUILD_CARD.md`
+- **Completion:** `docs/slices/SLICE_14_COMPLETE.md`
+
+**Overall:** ✅ **COMPLETE**
+
+---
+
 ## 🔧 Immediate Enhancements (Slice 6b+)
 
 These can be added incrementally to improve AI chat experience:
@@ -1189,8 +1257,8 @@ See **`docs/FEATURE_ROADMAP.md`** for comprehensive roadmap and competitive anal
 - **Slice 12:** Audit Trail UI ✅ (compliance visibility)
 
 ### Priority 3: Competitive Differentiators (Beat Harvey.ai)
-- **Slice 13:** AI Contract Analysis (clause identification, risk flagging)
-- **Slice 14:** AI Summarization (one-click document summaries)
+- **Slice 13:** AI Contract Analysis ✅ COMPLETE (clause identification, risk flagging)
+- **Slice 14:** AI Document Summarization ✅ COMPLETE (one-click document summaries)
 - **Slice 15:** Advanced Admin Features (invitations, bulk ops, org settings)
 - **Slice 16:** Reporting Dashboard (case stats, productivity metrics)
 

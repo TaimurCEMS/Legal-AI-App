@@ -15,7 +15,7 @@ import '../../home/providers/org_provider.dart';
 import '../providers/document_provider.dart';
 import '../../../core/services/document_service.dart';
 import '../../contract_analysis/providers/contract_analysis_provider.dart';
-import '../../../core/models/contract_analysis_model.dart';
+import '../../document_summary/providers/document_summary_provider.dart';
 
 class DocumentDetailsScreen extends StatefulWidget {
   final String documentId;
@@ -39,6 +39,7 @@ class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
   String? _error;
   DocumentModel? _documentModel;
   bool _loadingAnalysis = false;
+  bool _loadingSummary = false;
 
   @override
   void initState() {
@@ -82,9 +83,10 @@ class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
         _descriptionController.text = model.description ?? '';
       });
 
-      // Load contract analysis if document has extracted text
+      // Load contract analysis and summary if document has extracted text
       if (model.extractionCompleted) {
         _loadContractAnalysis();
+        _loadDocumentSummary();
       }
     } catch (e) {
       if (!mounted) return;
@@ -520,7 +522,9 @@ class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
                   // Contract Analysis Section (Slice 13)
                   _buildContractAnalysisSection(),
                   const SizedBox(height: AppSpacing.md),
-                  
+                  // Document Summary Section (Slice 14)
+                  _buildDocumentSummarySection(),
+                  const SizedBox(height: AppSpacing.md),
                   PrimaryButton(
                     label: 'Download Document',
                     onPressed: _downloading ? null : _download,
@@ -866,6 +870,199 @@ class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
         });
       }
     }
+  }
+
+  Future<void> _loadDocumentSummary() async {
+    final org = context.read<OrgProvider>().selectedOrg;
+    if (org == null || _documentModel == null) return;
+
+    setState(() {
+      _loadingSummary = true;
+    });
+
+    try {
+      final provider = context.read<DocumentSummaryProvider>();
+      await provider.loadSummaryForDocument(
+        org: org,
+        documentId: widget.documentId,
+      );
+    } catch (e) {
+      debugPrint('Error loading document summary: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loadingSummary = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _summarizeDocument() async {
+    final org = context.read<OrgProvider>().selectedOrg;
+    if (org == null || _documentModel == null) return;
+
+    if (!_documentModel!.extractionCompleted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please extract text from the document first.'),
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _loadingSummary = true;
+    });
+
+    try {
+      final provider = context.read<DocumentSummaryProvider>();
+      final success = await provider.summarizeDocument(
+        org: org,
+        documentId: widget.documentId,
+      );
+
+      if (!mounted) return;
+
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Document summarized successfully.'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              provider.errorMessage ?? 'Failed to summarize document.',
+            ),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loadingSummary = false;
+        });
+      }
+    }
+  }
+
+  /// Build the document summary section (Slice 14)
+  Widget _buildDocumentSummarySection() {
+    final doc = _documentModel!;
+
+    if (!doc.extractionCompleted) {
+      return const SizedBox.shrink();
+    }
+
+    return Consumer<DocumentSummaryProvider>(
+      builder: (context, provider, _) {
+        final summary = provider.currentSummary;
+        final isSummarizing = provider.isSummarizing || _loadingSummary;
+
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.summarize, size: 20),
+                    const SizedBox(width: AppSpacing.sm),
+                    Text(
+                      'Document Summary',
+                      style: AppTypography.titleMedium,
+                    ),
+                    if (summary != null)
+                      Padding(
+                        padding: const EdgeInsets.only(left: AppSpacing.sm),
+                        child: Text(
+                          _formatSummaryDate(summary.createdAt),
+                          style: AppTypography.labelSmall.copyWith(
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                if (summary == null && !isSummarizing) ...[
+                  Text(
+                    'Generate a concise summary of this document.',
+                    style: AppTypography.bodyMedium.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  ElevatedButton.icon(
+                    onPressed: _summarizeDocument,
+                    icon: const Icon(Icons.summarize),
+                    label: const Text('Summarize'),
+                  ),
+                ] else if (isSummarizing) ...[
+                  Row(
+                    children: [
+                      const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Text(
+                        'Generating summary...',
+                        style: AppTypography.bodyMedium,
+                      ),
+                    ],
+                  ),
+                ] else if (summary != null) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(AppSpacing.sm),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      summary.summary,
+                      style: AppTypography.bodyMedium,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  OutlinedButton.icon(
+                    onPressed: isSummarizing ? null : _summarizeDocument,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Re-summarize'),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  String _formatSummaryDate(DateTime date) {
+    final now = DateTime.now();
+    final diff = now.difference(date);
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
+    return '${date.day}/${date.month}/${date.year}';
   }
 
   /// Build the contract analysis section (Slice 13)

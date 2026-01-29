@@ -74,207 +74,249 @@ Enable AI-powered legal research by allowing users to chat with their case docum
 - ✅ **Slice 4**: Required (documents)
 - ✅ **Slice 6a**: Required (extracted text from documents)
 
+**No Dependencies on:** Slice 5 (Tasks), Slice 7+ (Calendar, Notes, etc.)
+
 ---
 
-## 5) Backend Endpoints (Cloud Functions)
+## 5) Backend Endpoints (Cloud Functions) — Slice 4 style
 
 ### 5.1 `aiChatCreate` (Callable Function)
 
 **Function Name (Export):** `aiChatCreate`  
+**Type:** Firebase Callable Function  
 **Auth Requirement:** Valid Firebase Auth token  
 **Required Feature:** `AI_RESEARCH` (BASIC+ plans)  
-**Required Permission:** `case.read` (must have access to case)
+**Required Permission:** `case.read`
 
-**Request:**
-```typescript
+**Request Payload:**
+```json
 {
-  orgId: string;
-  caseId: string;
-  title?: string;  // Optional, auto-generates if not provided
+  "orgId": "string (required)",
+  "caseId": "string (required)",
+  "title": "string (optional, auto-generated from first message if not provided)"
 }
 ```
 
-**Response (Success):**
-```typescript
+**Success Response (200):**
+```json
 {
-  success: true;
-  data: {
-    threadId: string;
-    caseId: string;
-    title: string;
-    createdAt: string;
-    createdBy: string;
+  "success": true,
+  "data": {
+    "threadId": "string",
+    "caseId": "string",
+    "title": "string",
+    "createdAt": "ISO 8601",
+    "createdBy": "string (uid)"
   }
 }
 ```
 
-**Behavior:**
-1. Validate auth and org membership
-2. Check `AI_RESEARCH` entitlement
-3. Verify user can access the case
-4. Create thread document in Firestore
-5. Create audit event
-6. Return thread data
+**Error Responses:**
+- `VALIDATION_ERROR` (400): Missing orgId or caseId
+- `NOT_AUTHORIZED` (403): User not org member or lacks AI_RESEARCH/case.read
+- `NOT_FOUND` (404): Case not found or soft-deleted
+- `NOT_AUTHORIZED` (403): User does not have case access (PRIVATE case)
+- `INTERNAL_ERROR` (500): Firestore write failure
+
+**Implementation Flow:**
+1. Validate auth token; validate orgId, caseId (required)
+2. Check entitlement: AI_RESEARCH feature + case.read permission
+3. Verify case access: canUserAccessCase(orgId, caseId, uid) must allow
+4. Create thread in organizations/{orgId}/cases/{caseId}/chatThreads/{threadId} (title, createdAt, updatedAt, createdBy, messageCount 0, lastMessageAt, status active)
+5. Create audit event ai.chat.thread_created
+6. Return successResponse with threadId, caseId, title, createdAt, createdBy
 
 ---
 
 ### 5.2 `aiChatSend` (Callable Function)
 
 **Function Name (Export):** `aiChatSend`  
+**Type:** Firebase Callable Function  
 **Auth Requirement:** Valid Firebase Auth token  
 **Required Feature:** `AI_RESEARCH`  
 **Required Permission:** `case.read`
 
-**Request:**
-```typescript
+**Request Payload:**
+```json
 {
-  orgId: string;
-  caseId: string;
-  threadId: string;
-  message: string;
-  options?: {
-    model?: 'gpt-4o-mini' | 'gpt-4o';  // Default: gpt-4o-mini
-    documentIds?: string[];  // Specific docs, or all if empty
+  "orgId": "string (required)",
+  "caseId": "string (required)",
+  "threadId": "string (required)",
+  "message": "string (required)",
+  "options": {
+    "model": "string (optional, 'gpt-4o-mini' | 'gpt-4o')",
+    "documentIds": "string[] (optional, specific docs; empty = all case docs)"
   }
 }
 ```
 
-**Response (Success):**
-```typescript
+**Success Response (200):**
+```json
 {
-  success: true;
-  data: {
-    userMessage: {
-      messageId: string;
-      role: 'user';
-      content: string;
-      createdAt: string;
-    };
-    assistantMessage: {
-      messageId: string;
-      role: 'assistant';
-      content: string;
-      citations: Citation[];
-      metadata: {
-        model: string;
-        tokensUsed: number;
-        processingTimeMs: number;
-      };
-      createdAt: string;
-    };
+  "success": true,
+  "data": {
+    "userMessage": {
+      "messageId": "string",
+      "role": "user",
+      "content": "string",
+      "createdAt": "ISO 8601"
+    },
+    "assistantMessage": {
+      "messageId": "string",
+      "role": "assistant",
+      "content": "string",
+      "citations": [ { "documentId": "string", "documentName": "string", "excerpt": "string", "pageNumber": "number | null" } ],
+      "metadata": { "model": "string", "tokensUsed": "number", "processingTimeMs": "number" },
+      "createdAt": "ISO 8601"
+    }
   }
 }
 ```
 
-**Citation Structure:**
-```typescript
-interface Citation {
-  documentId: string;
-  documentName: string;
-  excerpt: string;
-  pageNumber?: number;
-}
-```
+**Error Responses:**
+- `VALIDATION_ERROR` (400): Missing orgId, caseId, threadId, or message
+- `NOT_AUTHORIZED` (403): User not org member or no case/thread access
+- `NOT_FOUND` (404): Case or thread not found
+- `INTERNAL_ERROR` (500): OpenAI or Firestore failure
 
-**Behavior:**
-1. Validate auth and entitlements
-2. Verify thread exists and user has access
-3. Save user message to Firestore
-4. Build context from case documents (extracted text)
-5. Send to OpenAI with system prompt
-6. Extract citations from response
-7. Save assistant message with citations
-8. Update thread metadata (lastMessageAt, messageCount)
-9. Create audit event
-10. Return both messages
+**Implementation Flow:**
+1. Validate auth; validate orgId, caseId, threadId, message (required)
+2. Check entitlement: AI_RESEARCH + case.read
+3. Verify case access: canUserAccessCase(orgId, caseId, uid); load thread, verify exists
+4. Save user message to thread messages subcollection (messageId, role user, content, createdAt, createdBy)
+5. Build document context from case documents (extracted text); optionally filter by options.documentIds
+6. Call OpenAI (sendChatCompletion) with system prompt + document context + user message
+7. Extract citations from response (extractCitations); add disclaimer if configured
+8. Save assistant message (role assistant, content, citations, metadata: model, tokensUsed, processingTimeMs)
+9. Update thread: lastMessageAt, messageCount++; create audit event
+10. Return successResponse with userMessage and assistantMessage
 
 ---
 
 ### 5.3 `aiChatList` (Callable Function)
 
 **Function Name (Export):** `aiChatList`  
+**Type:** Firebase Callable Function  
 **Auth Requirement:** Valid Firebase Auth token  
 **Required Permission:** `case.read`
 
-**Request:**
-```typescript
+**Request Payload:**
+```json
 {
-  orgId: string;
-  caseId: string;
-  limit?: number;   // Default: 20
-  offset?: number;  // Default: 0
+  "orgId": "string (required)",
+  "caseId": "string (required)",
+  "limit": "number (optional, default 20, max 100)",
+  "offset": "number (optional, default 0)"
 }
 ```
 
-**Response (Success):**
-```typescript
+**Success Response (200):**
+```json
 {
-  success: true;
-  data: {
-    threads: ChatThread[];
-    total: number;
-    hasMore: boolean;
+  "success": true,
+  "data": {
+    "threads": [ { "threadId": "string", "caseId": "string", "title": "string", "createdAt": "ISO 8601", "updatedAt": "ISO 8601", "createdBy": "string", "messageCount": "number", "lastMessageAt": "ISO 8601", "status": "string" } ],
+    "total": "number",
+    "hasMore": "boolean"
   }
 }
 ```
+
+**Error Responses:**
+- `VALIDATION_ERROR` (400): Missing orgId or caseId
+- `NOT_AUTHORIZED` (403): User not org member or no case access
+- `NOT_FOUND` (404): Case not found
+- `INTERNAL_ERROR` (500): Firestore read failure
+
+**Implementation Flow:**
+1. Validate auth, orgId, caseId; parse limit (default 20, max 100), offset (default 0)
+2. Check entitlement: case.read; canUserAccessCase(orgId, caseId, uid) must allow
+3. Query organizations/{orgId}/cases/{caseId}/chatThreads orderBy lastMessageAt desc, limit(+1), offset
+4. Return threads array, total, hasMore
 
 ---
 
 ### 5.4 `aiChatGetMessages` (Callable Function)
 
 **Function Name (Export):** `aiChatGetMessages`  
+**Type:** Firebase Callable Function  
 **Auth Requirement:** Valid Firebase Auth token  
 **Required Permission:** `case.read`
 
-**Request:**
-```typescript
+**Request Payload:**
+```json
 {
-  orgId: string;
-  caseId: string;
-  threadId: string;
-  limit?: number;   // Default: 50
-  offset?: number;  // Default: 0
+  "orgId": "string (required)",
+  "caseId": "string (required)",
+  "threadId": "string (required)",
+  "limit": "number (optional, default 50)",
+  "offset": "number (optional, default 0)"
 }
 ```
 
-**Response (Success):**
-```typescript
+**Success Response (200):**
+```json
 {
-  success: true;
-  data: {
-    messages: ChatMessage[];
-    total: number;
-    hasMore: boolean;
+  "success": true,
+  "data": {
+    "messages": [ { "messageId": "string", "threadId": "string", "role": "string", "content": "string", "citations": [], "metadata": {}, "createdAt": "ISO 8601", "createdBy": "string" } ],
+    "total": "number",
+    "hasMore": "boolean"
   }
 }
 ```
+
+**Error Responses:**
+- `VALIDATION_ERROR` (400): Missing orgId, caseId, or threadId
+- `NOT_AUTHORIZED` (403): User not org member or no case/thread access
+- `NOT_FOUND` (404): Case or thread not found
+- `INTERNAL_ERROR` (500): Firestore read failure
+
+**Implementation Flow:**
+1. Validate auth, orgId, caseId, threadId; parse limit (default 50), offset
+2. Check entitlement: case.read; canUserAccessCase(orgId, caseId, uid); verify thread exists
+3. Query thread messages subcollection orderBy createdAt asc, limit(+1), offset
+4. Return messages array, total, hasMore
 
 ---
 
 ### 5.5 `aiChatDelete` (Callable Function)
 
 **Function Name (Export):** `aiChatDelete`  
+**Type:** Firebase Callable Function  
 **Auth Requirement:** Valid Firebase Auth token  
-**Required Permission:** `case.read` (thread creator or ADMIN)
+**Required Permission:** `case.read`; only thread creator or org ADMIN can delete
 
-**Request:**
-```typescript
+**Request Payload:**
+```json
 {
-  orgId: string;
-  caseId: string;
-  threadId: string;
+  "orgId": "string (required)",
+  "caseId": "string (required)",
+  "threadId": "string (required)"
 }
 ```
 
-**Response (Success):**
-```typescript
+**Success Response (200):**
+```json
 {
-  success: true;
-  data: {
-    deleted: true;
-  }
+  "success": true,
+  "data": { "deleted": true }
 }
 ```
+
+**Error Responses:**
+- `VALIDATION_ERROR` (400): Missing orgId, caseId, or threadId
+- `NOT_AUTHORIZED` (403): User not org member, no case access, or not thread creator/ADMIN
+- `NOT_FOUND` (404): Case or thread not found
+- `INTERNAL_ERROR` (500): Firestore delete failure
+
+**Implementation Flow:**
+1. Validate auth, orgId, caseId, threadId (required)
+2. Check entitlement: case.read; canUserAccessCase(orgId, caseId, uid)
+3. Load thread; verify createdBy === uid or user role is ADMIN
+4. Delete thread document (and messages subcollection or cascade delete as implemented)
+5. Create audit event ai.chat.thread_deleted
+6. Return successResponse({ deleted: true })
 
 ---
 

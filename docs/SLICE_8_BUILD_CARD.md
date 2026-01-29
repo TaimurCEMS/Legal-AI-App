@@ -30,14 +30,285 @@ Enable lawyers to capture and organize notes for every case - meeting notes, res
 
 ---
 
-## 2. Data Model
+## 2) Scope In ✅
 
-### 2.1 Firestore Collection
+### Backend (Cloud Functions)
+- `noteCreate` – Create new note linked to a case
+- `noteGet` – Get note by ID (with case/private visibility checks)
+- `noteList` – List notes with filters (caseId, category, pinnedOnly, search) and pagination
+- `noteUpdate` – Update note (title, content, category, isPinned, isPrivate, caseId)
+- `noteDelete` – Soft delete note (idempotent)
+- Entitlement checks (`NOTES` feature, `note.create` / `note.read` / `note.update` / `note.delete`)
+- Case access enforcement (notes inherit case visibility; private notes creator-only)
+- Audit logging (`note.created`, `note.updated`, `note.deleted`)
+
+### Frontend (Flutter)
+- Note list screen with search, category filter, pinned filter
+- Note create screen (case, title, content, category, pin, private)
+- Note details screen (view/edit, delete)
+- Case details integration: Notes section with recent notes + "Add Note"
+
+### Data Model
+- Collection: `organizations/{orgId}/notes/{noteId}`
+- Fields: noteId, orgId, caseId, title, content, category, isPinned, isPrivate, timestamps, createdBy, updatedBy, deletedAt
+
+---
+
+## 3) Scope Out ❌
+
+- Rich text editor (markdown/WYSIWYG) – future
+- Note templates, note sharing with specific users, note attachments
+- Note history/versions, note tagging, export notes to PDF
+
+---
+
+## 4) Dependencies
+
+**External Services:** Firebase Auth, Firestore, Cloud Functions (from Slice 0).
+
+**Dependencies on Other Slices:** Slice 0 (org, membership, entitlements), Slice 1 (Flutter UI shell), Slice 2 (cases – notes are case-linked).
+
+**No Dependencies on:** Slice 3 (Clients), Slice 4 (Documents), Slice 5+ (Tasks, Calendar, etc.)
+
+---
+
+## 5) Backend Endpoints (Slice 4 style)
+
+### 5.1 `noteCreate` (Callable Function)
+
+**Function Name (Export):** `noteCreate`  
+**Auth Requirement:** Valid Firebase Auth token  
+**Required Feature:** `NOTES`  
+**Required Permission:** `note.create`
+
+**Request Payload:**
+```json
+{
+  "orgId": "string (required)",
+  "caseId": "string (required)",
+  "title": "string (required, 1-200 chars)",
+  "content": "string (required, 1-10000 chars)",
+  "category": "string (optional, CLIENT_MEETING | RESEARCH | STRATEGY | INTERNAL | OTHER, default OTHER)",
+  "isPinned": "boolean (optional, default false)",
+  "isPrivate": "boolean (optional, default false)"
+}
+```
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "noteId": "string",
+    "orgId": "string",
+    "caseId": "string",
+    "title": "string",
+    "content": "string",
+    "category": "string",
+    "isPinned": "boolean",
+    "isPrivate": "boolean",
+    "createdAt": "ISO 8601",
+    "updatedAt": "ISO 8601",
+    "createdBy": "string (uid)",
+    "updatedBy": "string (uid)"
+  }
+}
+```
+
+**Error Responses:**
+- `VALIDATION_ERROR` (400): Missing orgId/caseId, invalid title (1-200), invalid content (1-10000), invalid category
+- `NOT_AUTHORIZED` (403): Not org member or lacks NOTES/note.create
+- `PLAN_LIMIT` (403): Notes feature not available on plan
+- `NOT_FOUND` (404): Case not found or no case access
+
+**Implementation Flow:**
+1. Validate auth; validate orgId, caseId, title, content (required); parse category, isPinned, isPrivate
+2. Check case access: canUserAccessCase(orgId, caseId, uid)
+3. Check entitlement: NOTES + note.create
+4. Create note document at organizations/{orgId}/notes/{noteId}; set deletedAt: null
+5. Create audit event note.created
+6. Return successResponse with note fields (timestamps as ISO)
+
+---
+
+### 5.2 `noteGet` (Callable Function)
+
+**Function Name (Export):** `noteGet`  
+**Auth Requirement:** Valid Firebase Auth token  
+**Required Feature:** `NOTES`  
+**Required Permission:** `note.read`
+
+**Request Payload:**
+```json
+{
+  "orgId": "string (required)",
+  "noteId": "string (required)"
+}
+```
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "noteId": "string",
+    "orgId": "string",
+    "caseId": "string",
+    "title": "string",
+    "content": "string",
+    "category": "string",
+    "isPinned": "boolean",
+    "isPrivate": "boolean",
+    "createdAt": "ISO 8601",
+    "updatedAt": "ISO 8601",
+    "createdBy": "string",
+    "updatedBy": "string"
+  }
+}
+```
+
+**Error Responses:**
+- `VALIDATION_ERROR` (400): Missing orgId or noteId
+- `NOT_FOUND` (404): Note not found, deleted, or no case access; or private note and not creator
+- `NOT_AUTHORIZED` (403): Lacks note.read
+
+**Implementation Flow:**
+1. Validate auth, orgId, noteId
+2. Load note; if !exists or deletedAt → NOT_FOUND
+3. Check case access for note.caseId; if !allowed → NOT_FOUND
+4. If note.isPrivate && note.createdBy !== uid → NOT_FOUND
+5. Check entitlement: NOTES + note.read
+6. Return successResponse with full note (timestamps as ISO)
+
+---
+
+### 5.3 `noteList` (Callable Function)
+
+**Function Name (Export):** `noteList`  
+**Auth Requirement:** Valid Firebase Auth token  
+**Required Permission:** `note.read`
+
+**Request Payload:**
+```json
+{
+  "orgId": "string (required)",
+  "caseId": "string (optional)",
+  "category": "string (optional)",
+  "pinnedOnly": "boolean (optional)",
+  "search": "string (optional, in-memory on title+content)",
+  "limit": "number (optional, default 50, max 100)",
+  "offset": "number (optional, default 0)"
+}
+```
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "notes": [ { "noteId", "orgId", "caseId", "title", "content": "first 200 chars...", "category", "isPinned", "isPrivate", "createdAt", "updatedAt", "createdBy" } ],
+    "total": "number",
+    "hasMore": "boolean"
+  }
+}
+```
+
+**Error Responses:**
+- `VALIDATION_ERROR` (400): Missing orgId
+- `NOT_AUTHORIZED` (403): Not allowed to read notes
+- `NOT_FOUND` (404): caseId provided but case not found / no access
+
+**Implementation Flow:**
+1. Validate auth, orgId; parse limit (1-100), offset
+2. Check entitlement: NOTES + note.read
+3. If caseId: verify case access; query notes where caseId, deletedAt==null; optional category/pinnedOnly; orderBy updatedAt desc; filter private (creator-only); in-memory search; sort pinned first then updatedAt; slice(offset, offset+limit)
+4. If !caseId: query all org notes deletedAt==null; filter by case access per note; filter private; search; sort; paginate
+5. Return notes (content truncated to 200 chars in list), total, hasMore
+
+---
+
+### 5.4 `noteUpdate` (Callable Function)
+
+**Function Name (Export):** `noteUpdate`  
+**Auth Requirement:** Valid Firebase Auth token  
+**Required Permission:** `note.update`
+
+**Request Payload:**
+```json
+{
+  "orgId": "string (required)",
+  "noteId": "string (required)",
+  "caseId": "string (optional, move to another case; requires access to target)",
+  "title": "string (optional)",
+  "content": "string (optional)",
+  "category": "string (optional)",
+  "isPinned": "boolean (optional)",
+  "isPrivate": "boolean (optional)"
+}
+```
+
+**Success Response (200):** Full note object (same shape as noteGet).
+
+**Error Responses:**
+- `VALIDATION_ERROR` (400): Missing orgId/noteId, or no fields to update; invalid title/content/category
+- `NOT_FOUND` (404): Note not found or no case access; or private note and not creator; or target case not found when moving
+- `NOT_AUTHORIZED` (403): Lacks note.update
+
+**Implementation Flow:**
+1. Validate auth, orgId, noteId; at least one update field required
+2. Load note; if !exists or deletedAt → NOT_FOUND
+3. Check case access for note.caseId; if private and createdBy !== uid → NOT_FOUND
+4. Check entitlement: note.update
+5. Apply updates (if caseId changed, verify target case access)
+6. Update document; audit note.updated; return updated note
+
+---
+
+### 5.5 `noteDelete` (Callable Function)
+
+**Function Name (Export):** `noteDelete`  
+**Auth Requirement:** Valid Firebase Auth token  
+**Required Permission:** `note.delete` (or note.update per implementation)
+
+**Request Payload:**
+```json
+{
+  "orgId": "string (required)",
+  "noteId": "string (required)"
+}
+```
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "data": { "deleted": true }
+}
+```
+
+**Error Responses:**
+- `VALIDATION_ERROR` (400): Missing orgId or noteId
+- `NOT_FOUND` (404): Note not found / no access (existence-hiding)
+- `NOT_AUTHORIZED` (403): Not allowed to delete
+
+**Implementation Flow:**
+1. Validate auth, orgId, noteId
+2. If note !exists → return successResponse({ deleted: true }) (idempotent)
+3. Load note; if deletedAt already set → return successResponse({ deleted: true })
+4. Check case access and private (creator); if !allowed → NOT_FOUND
+5. Check entitlement; set deletedAt = now; audit note.deleted
+6. Return successResponse({ deleted: true })
+
+---
+
+## 6. Data Model
+
+### 6.1 Firestore Collection
 ```
 organizations/{orgId}/notes/{noteId}
 ```
 
-### 2.2 NoteDocument Schema
+### 6.2 NoteDocument Schema
 ```typescript
 interface NoteDocument {
   noteId: string;           // Auto-generated ID
@@ -66,198 +337,32 @@ type NoteCategory = 'CLIENT_MEETING' | 'RESEARCH' | 'STRATEGY' | 'INTERNAL' | 'O
 
 ---
 
-## 3. Backend Functions
+## 7. Frontend Components
 
-### 3.1 noteCreate
-**Callable Name:** `noteCreate`
-
-**Input:**
-```typescript
-{
-  orgId: string;            // Required
-  caseId: string;           // Required
-  title: string;            // Required, 1-200 chars
-  content: string;          // Required, 1-10000 chars
-  category?: NoteCategory;  // Default: OTHER
-  isPinned?: boolean;       // Default: false
-  isPrivate?: boolean;      // Default: false
-}
-```
-
-**Output:**
-```typescript
-{
-  success: true;
-  data: {
-    noteId: string;
-    caseId: string;
-    title: string;
-    content: string;
-    category: NoteCategory;
-    isPinned: boolean;
-    createdAt: string;      // ISO string
-    updatedAt: string;
-    createdBy: string;
-  }
-}
-```
-
-**Validation:**
-- User must have org membership
-- User must have case access (ORG_WIDE or participant for PRIVATE)
-- Title: 1-200 characters
-- Content: 1-10000 characters
-- Category: valid enum value
-
-**Entitlements:**
-- Feature: `NOTES`
-- Permission: `note.create`
-
----
-
-### 3.2 noteGet
-**Callable Name:** `noteGet`
-
-**Input:**
-```typescript
-{
-  orgId: string;            // Required
-  noteId: string;
-}
-```
-
-**Output:**
-```typescript
-{
-  success: true;
-  data: NoteDocument;  // Full note with all fields
-}
-```
-
-**Access Control:**
-- Note visibility follows case visibility
-- If case is PRIVATE, user must be creator or participant
-
----
-
-### 3.3 noteList
-**Callable Name:** `noteList`
-
-**Input:**
-```typescript
-{
-  orgId: string;            // Required
-  caseId?: string;          // Filter by case (optional)
-  category?: NoteCategory;  // Filter by category (optional)
-  pinnedOnly?: boolean;     // Only pinned notes (optional)
-  search?: string;          // Search in title/content (optional)
-  limit?: number;           // Default: 50, max: 100
-  offset?: number;          // Pagination offset
-}
-```
-
-**Output:**
-```typescript
-{
-  success: true;
-  data: {
-    notes: NoteDocument[];
-    total: number;
-    hasMore: boolean;
-  }
-}
-```
-
-**Behavior:**
-- Returns notes user has access to (based on case visibility)
-- Sorted by: pinned first, then updatedAt desc
-- Search: in-memory contains on title and content
-
----
-
-### 3.4 noteUpdate
-**Callable Name:** `noteUpdate`
-
-**Input:**
-```typescript
-{
-  orgId: string;            // Required
-  noteId: string;
-  caseId?: string;          // Optional: move note to another case (requires access)
-  title?: string;
-  content?: string;
-  category?: NoteCategory;
-  isPinned?: boolean;
-  isPrivate?: boolean;
-}
-```
-
-**Output:**
-```typescript
-{
-  success: true;
-  data: NoteDocument;  // Updated note
-}
-```
-
-**Validation:**
-- User must have case access
-- At least one field must be provided
-- Same validation rules as create
-
----
-
-### 3.5 noteDelete
-**Callable Name:** `noteDelete`
-
-**Input:**
-```typescript
-{
-  orgId: string;            // Required
-  noteId: string;
-}
-```
-
-**Output:**
-```typescript
-{
-  success: true;
-  data: { deleted: true }
-}
-```
-
-**Behavior:**
-- Soft delete (sets deletedAt)
-- Idempotent (returns success if already deleted)
-
----
-
-## 4. Frontend Components
-
-### 4.1 Models
+### 7.1 Models
 - `NoteModel` - Data class with fromJson/toJson
 - `NoteCategory` enum with display labels
 
-### 4.2 Services
+### 7.2 Services
 - `NoteService` - CRUD operations via Cloud Functions
 
-### 4.3 Providers
+### 7.3 Providers
 - `NoteProvider` - State management with ChangeNotifier
 
-### 4.4 Screens
+### 7.4 Screens
 - `NoteListScreen` - List notes (can filter by case, category, pinned)
 - `NoteCreateScreen` - Create new note with case pre-selected
 - `NoteDetailsScreen` - View/edit note
 
-### 4.5 Integration Points
+### 7.5 Integration Points
 - `CaseDetailsScreen` - Add "Notes" section with recent notes + "Add Note" button
 - `AppShell` - Optional: Notes tab in bottom navigation (or access via Cases only)
 
 ---
 
-## 5. UI Design
+## 8. UI Design
 
-### 5.1 Note List Screen
+### 8.1 Note List Screen
 ```
 ┌─────────────────────────────────────┐
 │ Notes                    [+ New]    │
@@ -279,7 +384,7 @@ type NoteCategory = 'CLIENT_MEETING' | 'RESEARCH' | 'STRATEGY' | 'INTERNAL' | 'O
 └─────────────────────────────────────┘
 ```
 
-### 5.2 Note Create/Edit Screen
+### 8.2 Note Create/Edit Screen
 ```
 ┌─────────────────────────────────────┐
 │ ← New Note              [Save]      │
@@ -302,7 +407,7 @@ type NoteCategory = 'CLIENT_MEETING' | 'RESEARCH' | 'STRATEGY' | 'INTERNAL' | 'O
 └─────────────────────────────────────┘
 ```
 
-### 5.3 Note in Case Details
+### 8.3 Note in Case Details
 ```
 ┌─────────────────────────────────────┐
 │ Notes (3)              [+ Add Note] │
@@ -319,7 +424,7 @@ type NoteCategory = 'CLIENT_MEETING' | 'RESEARCH' | 'STRATEGY' | 'INTERNAL' | 'O
 
 ---
 
-## 6. Implementation Plan
+## 9. Implementation Plan
 
 ### Phase 1: Backend (30 min)
 1. Create `functions/src/functions/note.ts`
@@ -352,14 +457,14 @@ type NoteCategory = 'CLIENT_MEETING' | 'RESEARCH' | 'STRATEGY' | 'INTERNAL' | 'O
 
 ---
 
-## 7. Security Considerations
+## 10. Security Considerations
 
-### 7.1 Access Control
+### 10.1 Access Control
 - Notes inherit visibility from their case
 - PRIVATE case notes only visible to creator + participants
 - ORG_WIDE case notes visible to all org members
 
-### 7.2 Firestore Rules
+### 10.2 Firestore Rules
 ```javascript
 match /organizations/{orgId}/notes/{noteId} {
   // Read: org member can read non-deleted notes (case/private enforcement is in Cloud Functions)
@@ -373,7 +478,7 @@ match /organizations/{orgId}/notes/{noteId} {
 
 ---
 
-## 8. Future Enhancements (Not in MVP)
+## 11. Future Enhancements (Not in MVP)
 
 - Rich text editor (markdown or WYSIWYG)
 - Note templates
@@ -385,7 +490,7 @@ match /organizations/{orgId}/notes/{noteId} {
 
 ---
 
-## 9. Testing Checklist
+## 12. Testing Checklist
 
 ### Backend
 - [ ] noteCreate with valid data

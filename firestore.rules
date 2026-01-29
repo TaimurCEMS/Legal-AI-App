@@ -265,6 +265,13 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // Slice 14: Document summaries under organizations collection
+    match /organizations/{orgId}/document_summaries/{summaryId} {
+      allow read: if isOrgMember(orgId) &&
+        (!('caseId' in resource.data) || resource.data.caseId == null || canAccessCase(orgId, resource.data.caseId));
+      allow create, update, delete: if false;
+    }
+
     // Slice 11: Invoices under organizations collection
     // Invoices are case-linked; enforce case access defense-in-depth.
     match /organizations/{orgId}/invoices/{invoiceId} {

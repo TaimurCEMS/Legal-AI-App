@@ -74,6 +74,8 @@ Text extraction is the **prerequisite** for all AI features:
 - ✅ **Slice 1**: Required (Flutter UI shell)
 - ✅ **Slice 4**: Required (document upload, storage)
 
+**No Dependencies on:** Slice 3 (Clients), Slice 5+ (Tasks, AI chat, etc.)
+
 ---
 
 ## 5) Backend Endpoints (Cloud Functions)
@@ -86,42 +88,45 @@ Text extraction is the **prerequisite** for all AI features:
 **Required Feature:** `OCR_EXTRACTION` (BASIC+ plans)  
 **Required Permission:** `document.read`
 
-**Request:**
-```typescript
+**Request Payload:**
+```json
 {
-  orgId: string;        // Organization ID
-  documentId: string;   // Document to extract
-  forceReExtract?: boolean;  // Re-extract even if already done
+  "orgId": "string (required)",
+  "documentId": "string (required)",
+  "forceReExtract": "boolean (optional, default false)"
 }
 ```
 
-**Response (Success):**
-```typescript
+**Success Response (200):**
+```json
 {
-  success: true;
-  data: {
-    jobId: string;           // Job ID for status tracking
-    documentId: string;
-    status: 'PENDING';
+  "success": true,
+  "data": {
+    "jobId": "string",
+    "documentId": "string",
+    "status": "PENDING"
   }
 }
 ```
 
-**Response (Errors):**
-- `ORG_REQUIRED` - Missing orgId
-- `NOT_AUTHORIZED` - User not org member or lacks permission
-- `PLAN_LIMIT` - OCR_EXTRACTION not available on plan
-- `NOT_FOUND` - Document not found
-- `VALIDATION_ERROR` - Document already has extraction (use forceReExtract)
+**Error Responses:**
+- `VALIDATION_ERROR` (400): Missing orgId or documentId
+- `NOT_AUTHORIZED` (403): User not org member or lacks document.read; or no case access for document's case
+- `PLAN_LIMIT` (403): OCR_EXTRACTION not available on plan
+- `NOT_FOUND` (404): Document not found or soft-deleted
+- `VALIDATION_ERROR` (400): Document already has extraction and forceReExtract not true
+- `INTERNAL_ERROR` (500): Firestore write failure
 
-**Behavior:**
-1. Validate auth and org membership
-2. Check `OCR_EXTRACTION` entitlement
-3. Load document, verify it exists and is not deleted
-4. Check if extraction already exists (unless forceReExtract)
-5. Create job document in `organizations/{orgId}/jobs/{jobId}`
-6. Update document status to 'pending'
-7. Return job ID for status tracking
+**Implementation Flow:**
+1. Validate auth token (Firebase handles)
+2. Validate orgId (required), documentId (required), forceReExtract (optional boolean)
+3. Check entitlement: OCR_EXTRACTION feature + document.read permission
+4. Fetch document from organizations/{orgId}/documents/{documentId}; verify exists, not deleted
+5. If document.caseId: canUserAccessCase(orgId, caseId, uid) must allow
+6. If extractionStatus === 'completed' and !forceReExtract: return VALIDATION_ERROR
+7. Create job in organizations/{orgId}/jobs/{jobId} (type EXTRACTION, status PENDING, targetId documentId)
+8. Update document: extractionStatus = 'pending'
+9. Create audit event; return successResponse({ jobId, documentId, status: 'PENDING' })
 
 ---
 
@@ -132,29 +137,43 @@ Text extraction is the **prerequisite** for all AI features:
 **Auth Requirement:** Valid Firebase Auth token  
 **Required Permission:** `document.read`
 
-**Request:**
-```typescript
+**Request Payload:**
+```json
 {
-  orgId: string;
-  documentId: string;
+  "orgId": "string (required)",
+  "documentId": "string (required)"
 }
 ```
 
-**Response (Success):**
-```typescript
+**Success Response (200):**
+```json
 {
-  success: true;
-  data: {
-    documentId: string;
-    extractionStatus: 'none' | 'pending' | 'processing' | 'completed' | 'failed';
-    extractedAt?: string;      // ISO timestamp
-    extractionError?: string;
-    pageCount?: number;
-    wordCount?: number;
-    hasExtractedText: boolean;
+  "success": true,
+  "data": {
+    "documentId": "string",
+    "extractionStatus": "none | pending | processing | completed | failed",
+    "extractedAt": "ISO 8601 | null",
+    "extractionError": "string | null",
+    "pageCount": "number | null",
+    "wordCount": "number | null",
+    "hasExtractedText": "boolean"
   }
 }
 ```
+
+**Error Responses:**
+- `VALIDATION_ERROR` (400): Missing orgId or documentId
+- `NOT_AUTHORIZED` (403): User not org member or no case access for document
+- `NOT_FOUND` (404): Document not found or soft-deleted
+- `INTERNAL_ERROR` (500): Firestore read failure
+
+**Implementation Flow:**
+1. Validate auth token; validate orgId, documentId (required)
+2. Check entitlement: document.read
+3. Fetch document; verify exists, not deleted
+4. If document.caseId: canUserAccessCase(orgId, caseId, uid) must allow
+5. Build status: extractionStatus, extractedAt, extractionError, pageCount, wordCount, hasExtractedText
+6. Return successResponse with status data
 
 ---
 
@@ -165,18 +184,16 @@ Text extraction is the **prerequisite** for all AI features:
 **Path:** `organizations/{orgId}/jobs/{jobId}`  
 **Condition:** `job.type === 'EXTRACTION' && job.status === 'PENDING'`
 
-**Behavior:**
-1. Update job status to 'PROCESSING'
-2. Load document metadata from Firestore
-3. Download file from Cloud Storage
-4. Extract text based on file type:
-   - PDF: Use `pdf-parse`
-   - DOCX: Use `mammoth`
-   - TXT/RTF: Read as text
-5. Calculate page count and word count
-6. Update document with extracted text and metadata
-7. Update job status to 'COMPLETED'
-8. On error: Update job and document to 'FAILED' with error message
+**Implementation Flow (Firestore onCreate):**
+1. Trigger: onCreate organizations/{orgId}/jobs/{jobId} where job.type === 'EXTRACTION' && job.status === 'PENDING'
+2. Update job status to 'PROCESSING'
+3. Load document from organizations/{orgId}/documents/{job.targetId}
+4. Download file from Cloud Storage at document.storagePath
+5. Extract text by file type: PDF (pdf-parse), DOCX (mammoth), TXT/RTF (read as text); max text length 500,000 chars
+6. Calculate pageCount, wordCount; set extractedAt = now
+7. Update document: extractedText, extractionStatus = 'completed', extractionError = null, pageCount, wordCount, extractedAt
+8. Update job: status = 'COMPLETED', output = { pageCount, wordCount, textLength }, completedAt
+9. On error: Update document extractionStatus = 'failed', extractionError = message; job status = 'FAILED', error = message
 
 ---
 

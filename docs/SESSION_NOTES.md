@@ -27,11 +27,13 @@ This document captures the current development state, recent decisions, and next
 | 10 | ✅ Complete | Time Tracking (timer + manual entries + filters + permissions) |
 | 11 | ✅ Complete | Billing & Invoicing (MVP) |
 | 12 | ✅ Complete | Audit Trail UI (ADMIN-only compliance visibility) |
+| 13 | ✅ Complete | AI Contract Analysis (clause identification, risk flagging) |
+| 14 | ✅ Complete | AI Document Summarization (one-click document summaries) |
 
 ### Git Status
 - **Branch:** main
-- **Status:** Local changes present (Slices 9–12 code + docs updates)
-- **Deployments:** Functions deployed (latest: 2026-01-29, incl. Slice 12 audit functions)
+- **Last commit:** feat: Implement Slice 14 - AI Document Summarization
+- **Deployments:** ✅ **67 Cloud Functions deployed** to `legal-ai-app-1203e` (us-central1). Slice 14 functions (summarizeDocument, documentSummaryGet, documentSummaryList) and all prior slices confirmed live. Firestore indexes for document_summaries and contract_analyses deployed and built.
 
 ---
 
@@ -141,6 +143,55 @@ This document captures the current development state, recent decisions, and next
 
 ---
 
+## Recent Session (2026-01-29 – Slice 13 Complete)
+
+### Work Completed
+
+**Slice 13 - AI Contract Analysis (COMPLETE)**
+- Backend (Cloud Functions):
+  - `contractAnalyze` – Triggers OpenAI analysis on extracted document text; returns full analysis shape (analysisId, documentId, caseId, createdBy, model, summary, clauses, risks).
+  - `contractAnalysisGet` – Get analysis by analysisId.
+  - `contractAnalysisList` – List analyses by documentId or caseId, pagination, orderBy createdAt desc.
+  - AI service: contract analysis prompts (handles contract vs non-contract docs), structured JSON output.
+  - Entitlements: CONTRACT_ANALYSIS feature, `contract.analyze` permission (ADMIN, LAWYER, PARALEGAL).
+- Frontend (Flutter):
+  - Document Details: Contract Analysis section with Analyze button, summary, expandable clauses by type, risks by severity (color-coded).
+  - ContractAnalysisModel, Clause, Risk (null-safe fromJson); ContractAnalysisService; ContractAnalysisProvider.
+  - UI messages for non-contract documents (“No contract clauses identified”) and when no risks found.
+- Fixes applied:
+  - Backend contractAnalyze response shape aligned with get (documentId, caseId, createdBy, model at top level).
+  - Frontend fromJson and list parsing made null-safe (no TypeError on null fields).
+  - Firestore composite indexes added for contract_analyses (documentId+createdAt, caseId+createdAt); deployed via `firebase deploy --only firestore:indexes`.
+- Tests: `npm run test:slice13` (backend), contract_analysis_model_test.dart (8 tests); slice13-full-integration-test requires service account.
+
+### Deployments
+- ✅ Cloud Functions deployed (contractAnalyze, contractAnalysisGet, contractAnalysisList).
+- ✅ Firestore indexes deployed and built for contract_analyses.
+
+---
+
+## Recent Session (2026-01-29 – Slice 14 Complete)
+
+### Work Completed
+
+**Slice 14 - AI Document Summarization (COMPLETE)**
+- Backend (Cloud Functions):
+  - `summarizeDocument` – Generate summary from extracted text; store in document_summaries; return full summary object.
+  - `documentSummaryGet` – Get summary by summaryId.
+  - `documentSummaryList` – List by documentId or caseId, pagination, orderBy createdAt desc.
+  - AI service: `summarizeDocument()` in ai-service.ts (plain-language summary ~300 words).
+  - Entitlements: DOCUMENT_SUMMARY feature, `document.summarize` permission (ADMIN, LAWYER, PARALEGAL).
+- Frontend (Flutter):
+  - Document Details: Document Summary section with Summarize button, loading state, summary text, re-summarize.
+  - DocumentSummaryModel, DocumentSummaryService, DocumentSummaryProvider.
+- Firestore: document_summaries collection; composite indexes (documentId+createdAt, caseId+createdAt); rules for org member + case access.
+- Tests: `npm run test:slice14` (documentSummaryList empty, documentSummaryGet NOT_FOUND).
+
+### Deployments
+- ✅ **Deployment confirmed:** All 67 Cloud Functions deployed (verified via `firebase functions:list`). Slice 14 (summarizeDocument, documentSummaryGet, documentSummaryList) and Slice 13 (contractAnalyze, contractAnalysisGet, contractAnalysisList) are live. Firestore indexes for document_summaries and contract_analyses deployed and built.
+
+---
+
 ## Next Steps
 
 ### Post-Slice 11 follow-ups (deferred)
@@ -151,9 +202,8 @@ This document captures the current development state, recent decisions, and next
 ### Future Priorities
 | Slice | Priority | Description |
 |-------|----------|-------------|
-| 13 | 🟡 HIGH | AI Contract Analysis (clause identification, risk flagging) |
-| 14 | 🟡 MEDIUM | AI Summarization (one-click document summaries) |
-| 15 | 🟢 LOW | Advanced Admin Features (invitations, bulk ops) |
+| 14 | ✅ Done | AI Document Summarization (one-click document summaries) |
+| 15 | 🟡 RECOMMENDED | AI Document Q&A or Advanced Admin (invitations, bulk ops) |
 
 ### UI Polish Items (Deferred)
 - Calendar UI refinements

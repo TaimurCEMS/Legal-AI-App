@@ -597,3 +597,98 @@ If this document is NOT a contract or agreement:
 
 Return your analysis as a JSON object matching the specified format.`;
 }
+
+// ============================================================================
+// Document Summarization (Slice 14)
+// ============================================================================
+
+export interface DocumentSummaryResponse {
+  summary: string;
+  tokensUsed: number;
+  model: string;
+  processingTimeMs: number;
+}
+
+/**
+ * Summarize document text (Slice 14 - AI Summarization)
+ */
+export async function summarizeDocument(
+  documentText: string,
+  documentName: string,
+  options?: {
+    model?: 'gpt-4o-mini' | 'gpt-4o';
+    maxLength?: number; // approximate max summary length in words
+  }
+): Promise<DocumentSummaryResponse> {
+  const startTime = Date.now();
+  const model = options?.model || 'gpt-4o-mini';
+  const maxWords = options?.maxLength ?? 300;
+
+  const client = getOpenAIClient();
+
+  const systemPrompt = `You are an expert legal AI assistant. Your task is to produce a clear, concise summary of legal and business documents.
+
+RULES:
+- Write in plain language; avoid unnecessary jargon.
+- Capture the main purpose, key parties, important terms, and any material obligations or deadlines.
+- For contracts: note type of agreement, main obligations, term, and notable clauses.
+- Keep the summary to about ${maxWords} words or less unless the document is very long or complex.
+- Output only the summary text, no headings or labels.`;
+
+  const MAX_DOC_CHARS = 50000;
+  const truncatedText = documentText.length > MAX_DOC_CHARS
+    ? documentText.substring(0, MAX_DOC_CHARS) + '\n...[document truncated]'
+    : documentText;
+
+  const userPrompt = `Summarize the following document: "${documentName}"
+
+DOCUMENT TEXT:
+${truncatedText}
+
+Provide a concise summary (about ${maxWords} words). Output only the summary.`;
+
+  const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
+    { role: 'system', content: systemPrompt },
+    { role: 'user', content: userPrompt },
+  ];
+
+  try {
+    const response = await client.chat.completions.create({
+      model,
+      messages,
+      max_tokens: 1024,
+      temperature: 0.3,
+    });
+
+    const summary = (response.choices[0]?.message?.content || '').trim();
+    const tokensUsed = response.usage?.total_tokens || 0;
+    const processingTimeMs = Date.now() - startTime;
+
+    functions.logger.info(`Document summary: ${tokensUsed} tokens, ${processingTimeMs}ms`, {
+      model,
+      tokensUsed,
+      processingTimeMs,
+    });
+
+    return {
+      summary: summary || 'No summary generated.',
+      tokensUsed,
+      model,
+      processingTimeMs,
+    };
+  } catch (error) {
+    functions.logger.error('Document summarization error:', error);
+
+    if (error instanceof OpenAI.APIError) {
+      if (error.status === 429) {
+        throw new Error('AI service is temporarily overloaded. Please try again in a moment.');
+      }
+      if (error.status === 401) {
+        throw new Error('AI service configuration error. Please contact support.');
+      }
+    }
+
+    const errorMessage = error instanceof Error ? error.message : 'Failed to summarize document';
+    throw new Error(errorMessage);
+  }
+}

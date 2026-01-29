@@ -17,6 +17,7 @@ import 'features/time_tracking/providers/time_entry_provider.dart';
 import 'features/billing/providers/invoice_provider.dart';
 import 'features/audit/providers/audit_provider.dart';
 import 'features/contract_analysis/providers/contract_analysis_provider.dart';
+import 'features/document_summary/providers/document_summary_provider.dart';
 
 /// Main app widget
 class MyApp extends StatelessWidget {
@@ -41,6 +42,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => InvoiceProvider()),
         ChangeNotifierProvider(create: (_) => AuditProvider()),
         ChangeNotifierProvider(create: (_) => ContractAnalysisProvider()),
+        ChangeNotifierProvider(create: (_) => DocumentSummaryProvider()),
       ],
       child: MaterialApp.router(
         title: 'Legal AI App',

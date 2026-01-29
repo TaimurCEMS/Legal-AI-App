@@ -101,3 +101,10 @@ export {
   contractAnalysisGet,
   contractAnalysisList,
 } from './functions/contract-analysis';
+
+// Export Slice 14 - AI Document Summarization functions
+export {
+  summarizeDocumentCallable as summarizeDocument,
+  documentSummaryGet,
+  documentSummaryList,
+} from './functions/document-summary';
