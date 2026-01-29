@@ -14,6 +14,7 @@
     "test:slice0": "npm run build && node lib/__tests__/slice0-terminal-test.js",
     "test:slice10": "npm run build && node lib/__tests__/slice10-terminal-test.js",
     "test:slice11": "npm run build && node lib/__tests__/slice11-terminal-test.js",
+    "test:slice12": "npm run build && node lib/__tests__/slice12-terminal-test.js",
     "test:task": "npm run build && node lib/__tests__/task-terminal-test.js",
     "verify:task": "npm run build && node lib/verify-task-functions.js",
     "verify": "node verify-functions.js"

@@ -31,4 +31,5 @@ class RouteNames {
   static const String draftEditor = '/drafts/editor';
   static const String settings = '/settings';
   static const String memberManagement = '/settings/team-members';
+  static const String auditTrail = '/settings/audit-trail';
 }

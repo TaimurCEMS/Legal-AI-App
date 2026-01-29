@@ -29,6 +29,7 @@ import '../../features/home/screens/settings_screen.dart';
 import '../../features/home/screens/member_management_screen.dart';
 import '../../features/drafting/screens/case_drafting_screen.dart';
 import '../../features/drafting/screens/draft_editor_screen.dart';
+import '../../features/audit/screens/audit_trail_screen.dart';
 
 /// App router configuration
 class AppRouter {
@@ -88,6 +89,10 @@ class AppRouter {
       GoRoute(
         path: RouteNames.memberManagement,
         builder: (context, state) => const MemberManagementScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.auditTrail,
+        builder: (context, state) => const AuditTrailScreen(),
       ),
       GoRoute(
         path: RouteNames.clientList,

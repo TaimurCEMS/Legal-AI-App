@@ -14,6 +14,11 @@ export interface AuditEventData {
   action: string;
   entityType: string;
   entityId: string;
+  /**
+   * Optional caseId for event scoping (used by Slice 12 Audit Trail UI).
+   * If omitted, we will also try to infer it from metadata.caseId.
+   */
+  caseId?: string | null;
   metadata?: Record<string, any>;
 }
 
@@ -27,6 +32,13 @@ export async function createAuditEvent(data: AuditEventData): Promise<void> {
     .collection('audit_events')
     .doc();
 
+  const inferredCaseId =
+    typeof data.caseId === 'string'
+      ? data.caseId.trim()
+      : typeof data.metadata?.caseId === 'string'
+        ? data.metadata.caseId.trim()
+        : '';
+
   await auditRef.set({
     id: auditRef.id,
     orgId: data.orgId,
@@ -34,6 +46,7 @@ export async function createAuditEvent(data: AuditEventData): Promise<void> {
     action: data.action,
     entityType: data.entityType,
     entityId: data.entityId,
+    ...(inferredCaseId ? { caseId: inferredCaseId } : {}),
     timestamp: admin.firestore.Timestamp.now(),
     ...(data.metadata && { metadata: data.metadata }),
   });

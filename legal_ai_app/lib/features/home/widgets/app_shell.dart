@@ -25,6 +25,7 @@ import '../../time_tracking/providers/time_entry_provider.dart';
 import '../../time_tracking/screens/time_tracking_screen.dart';
 import '../../billing/providers/invoice_provider.dart';
 import '../../billing/screens/billing_screen.dart';
+import '../../audit/providers/audit_provider.dart';
 
 /// Main app shell with navigation
 class AppShell extends StatefulWidget {
@@ -98,6 +99,7 @@ class _AppShellState extends State<AppShell> {
       final draftProvider = context.read<DraftProvider>();
       final timeEntryProvider = context.read<TimeEntryProvider>();
       final invoiceProvider = context.read<InvoiceProvider>();
+      final auditProvider = context.read<AuditProvider>();
       
       orgProvider.clearOrg();
       caseProvider.clearCases();
@@ -109,6 +111,7 @@ class _AppShellState extends State<AppShell> {
       draftProvider.clear();
       timeEntryProvider.clear();
       invoiceProvider.clear();
+      auditProvider.clear();
       
       // Re-initialize org provider for new user
       WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -129,6 +132,7 @@ class _AppShellState extends State<AppShell> {
       final draftProvider = context.read<DraftProvider>();
       final timeEntryProvider = context.read<TimeEntryProvider>();
       final invoiceProvider = context.read<InvoiceProvider>();
+      final auditProvider = context.read<AuditProvider>();
       
       orgProvider.clearOrg();
       caseProvider.clearCases();
@@ -140,6 +144,7 @@ class _AppShellState extends State<AppShell> {
       draftProvider.clear();
       timeEntryProvider.clear();
       invoiceProvider.clear();
+      auditProvider.clear();
     }
     
     _lastUserId = currentUserId;
@@ -317,6 +322,7 @@ class _AppShellState extends State<AppShell> {
     final draftProvider = context.read<DraftProvider>();
     final timeEntryProvider = context.read<TimeEntryProvider>();
     final invoiceProvider = context.read<InvoiceProvider>();
+    final auditProvider = context.read<AuditProvider>();
     
     // Clear all state
     orgProvider.clearOrg();
@@ -328,6 +334,7 @@ class _AppShellState extends State<AppShell> {
     draftProvider.clear();
     timeEntryProvider.clear();
     invoiceProvider.clear();
+    auditProvider.clear();
     
     // Then sign out
     await authProvider.signOut();

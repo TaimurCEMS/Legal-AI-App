@@ -14,6 +14,7 @@ import '../providers/member_provider.dart';
 import '../../notes/providers/note_provider.dart';
 import '../../drafting/providers/draft_provider.dart';
 import '../../time_tracking/providers/time_entry_provider.dart';
+import '../../audit/providers/audit_provider.dart';
 
 /// Settings/Profile screen
 class SettingsScreen extends StatefulWidget {
@@ -174,6 +175,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         context.push(RouteNames.memberManagement);
                       },
                     ),
+                  // Audit Trail (ADMIN only)
+                  if (orgProvider.selectedOrg != null &&
+                      orgProvider.currentMembership?.role == 'ADMIN')
+                    ListTile(
+                      leading: const Icon(Icons.history),
+                      title: const Text('Audit Trail'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () {
+                        context.push(RouteNames.auditTrail);
+                      },
+                    ),
                 ],
               ),
             ),
@@ -217,6 +229,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         final noteProvider = context.read<NoteProvider>();
                         final draftProvider = context.read<DraftProvider>();
                         final timeEntryProvider = context.read<TimeEntryProvider>();
+                        final auditProvider = context.read<AuditProvider>();
                         
                         orgProvider.clearOrg();
                         caseProvider.clearCases();
@@ -226,6 +239,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         noteProvider.clearNotes();
                         draftProvider.clear();
                         timeEntryProvider.clear();
+                        auditProvider.clear();
                         
                         await authProvider.signOut();
                         if (context.mounted) {

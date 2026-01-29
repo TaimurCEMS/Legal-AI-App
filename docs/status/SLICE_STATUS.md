@@ -1127,6 +1127,38 @@ The AI service is designed for future extensibility:
 
 ---
 
+## Slice 12: Audit Trail UI ✅ COMPLETE
+
+**Status:** ✅ **COMPLETE**  
+**Last Updated:** 2026-01-29  
+**Dependencies:** Slice 0 ✅ (audit logging), Slice 2 ✅ (case access), plus existing slices that emit audit events
+
+### Backend Status: ✅ DEPLOYED
+
+**Functions (2):**
+1. ✅ `auditList` – List audit events with filtering/search (search, entityType, actorUid, fromAt/toAt)
+2. ✅ `auditExport` – Export audit events as CSV (same filters + access control)
+
+**Key Security / Access Control:**
+- Requires `audit.view` (**ADMIN-only** in permissions matrix)
+- **PRIVATE case protection**: events tied to a case are filtered via `canUserAccessCase` (no existence leakage)
+- Audit event records now persist optional `caseId` at top-level when available (improves filtering/scoping)
+
+### Frontend Status: ✅ COMPLETE
+- New **Audit Trail** screen (Settings → Audit Trail) (**ADMIN-only UI**)
+- Filters: search + entity type + date range (From/To) + pagination (“Load more”)
+- Export CSV button (copies to clipboard; paste into spreadsheet to save)
+- Human-readable labels for action and entity type in list and details
+- **Collapsible metadata** in detail dialog (hidden by default, expandable "Technical Details")
+
+### Tests
+- Terminal test: `npm run test:slice12` (requires deployed functions + `FIREBASE_API_KEY`)
+
+### Documentation
+- **Build Card:** `docs/SLICE_12_BUILD_CARD.md`
+
+---
+
 ## 🔧 Immediate Enhancements (Slice 6b+)
 
 These can be added incrementally to improve AI chat experience:
@@ -1154,7 +1186,7 @@ See **`docs/FEATURE_ROADMAP.md`** for comprehensive roadmap and competitive anal
 ### Priority 2: Important for Revenue (Business Operations)
 - **Slice 10:** Time Tracking ✅ (how firms track billable hours)
 - **Slice 11:** Billing/Invoicing ✅ (MVP shipped)
-- **Slice 12:** Audit Trail UI (compliance visibility)
+- **Slice 12:** Audit Trail UI ✅ (compliance visibility)
 
 ### Priority 3: Competitive Differentiators (Beat Harvey.ai)
 - **Slice 13:** AI Contract Analysis (clause identification, risk flagging)

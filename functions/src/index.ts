@@ -91,3 +91,6 @@ export {
   invoiceRecordPayment,
   invoiceExport,
 } from './functions/invoice';
+
+// Export Slice 12 - Audit Trail UI functions
+export { auditList, auditExport } from './functions/audit';

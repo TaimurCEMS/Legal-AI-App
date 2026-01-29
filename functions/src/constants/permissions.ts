@@ -81,7 +81,7 @@ export const ROLE_PERMISSIONS = {
     'note.read': true,
     'note.update': true,
     'note.delete': true,
-    'audit.view': true,
+    'audit.view': false,
     'admin.manage_users': false,
     'admin.manage_plan': false,
     'billing.manage': false,
@@ -122,7 +122,7 @@ export const ROLE_PERMISSIONS = {
     'note.read': true,
     'note.update': true,
     'note.delete': false, // Paralegals can create/update but not delete notes
-    'audit.view': true,
+    'audit.view': false,
     'admin.manage_users': false,
     'admin.manage_plan': false,
     'billing.manage': false,
@@ -163,7 +163,7 @@ export const ROLE_PERMISSIONS = {
     'note.read': true, // Can view notes
     'note.update': false,
     'note.delete': false,
-    'audit.view': true,
+    'audit.view': false,
     'admin.manage_users': false,
     'admin.manage_plan': false,
     'billing.manage': false,
