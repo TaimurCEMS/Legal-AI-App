@@ -7,6 +7,7 @@ import * as admin from 'firebase-admin';
 import { successResponse, errorResponse } from '../utils/response';
 import { ErrorCode } from '../constants/errors';
 import { createAuditEvent } from '../utils/audit';
+import { checkEntitlement } from '../utils/entitlements';
 
 const db = admin.firestore();
 
@@ -212,5 +213,269 @@ export const orgJoin = functions.https.onCall(async (data, context) => {
       ErrorCode.INTERNAL_ERROR,
       'Failed to join organization'
     );
+  }
+});
+
+/**
+ * Update organization settings (Slice 15)
+ * Callable Name: orgUpdate
+ */
+export const orgUpdate = functions.https.onCall(async (data, context) => {
+  // Validate auth
+  if (!context.auth) {
+    throw new functions.https.HttpsError(
+      'unauthenticated',
+      'User must be authenticated'
+    );
+  }
+
+  const uid = context.auth.uid;
+  const {
+    orgId,
+    name,
+    description,
+    timezone,
+    businessHours,
+    defaultCaseVisibility,
+    defaultTaskVisibility,
+    website,
+    address,
+  } = data;
+
+  // Validate orgId
+  if (!orgId || typeof orgId !== 'string' || orgId.trim().length === 0) {
+    return errorResponse(ErrorCode.ORG_REQUIRED, 'Organization ID is required');
+  }
+
+  try {
+    // Check entitlement: ADMIN only
+    const entitlement = await checkEntitlement({
+      uid,
+      orgId,
+      requiredPermission: 'admin.manage_org',
+    });
+
+    if (!entitlement.allowed) {
+      return errorResponse(
+        ErrorCode.NOT_AUTHORIZED,
+        'Only administrators can update organization settings'
+      );
+    }
+
+    // Check if organization exists
+    const orgRef = db.collection('organizations').doc(orgId);
+    const orgDoc = await orgRef.get();
+
+    if (!orgDoc.exists) {
+      return errorResponse(ErrorCode.NOT_FOUND, 'Organization does not exist');
+    }
+
+    // Build update object
+    const updates: any = {
+      updatedAt: admin.firestore.Timestamp.now(),
+      updatedBy: uid,
+    };
+
+    // Validate and add name
+    if (name !== undefined) {
+      const sanitizedName = name?.trim();
+      if (!sanitizedName || sanitizedName.length < 1 || sanitizedName.length > 100) {
+        return errorResponse(
+          ErrorCode.VALIDATION_ERROR,
+          'Organization name must be 1-100 characters'
+        );
+      }
+      if (!/^[a-zA-Z0-9\s\-_&.,()]+$/.test(sanitizedName)) {
+        return errorResponse(
+          ErrorCode.VALIDATION_ERROR,
+          'Organization name contains invalid characters'
+        );
+      }
+      updates.name = sanitizedName;
+    }
+
+    // Validate and add description
+    if (description !== undefined) {
+      if (description === null || description === '') {
+        updates.description = admin.firestore.FieldValue.delete();
+      } else if (description.length > 500) {
+        return errorResponse(
+          ErrorCode.VALIDATION_ERROR,
+          'Organization description must be 500 characters or less'
+        );
+      } else {
+        updates.description = description.trim();
+      }
+    }
+
+    // Add timezone
+    if (timezone !== undefined) {
+      if (timezone === null || timezone === '') {
+        updates.timezone = admin.firestore.FieldValue.delete();
+      } else {
+        updates.timezone = timezone;
+      }
+    }
+
+    // Add business hours
+    if (businessHours !== undefined) {
+      if (businessHours === null) {
+        updates.businessHours = admin.firestore.FieldValue.delete();
+      } else if (typeof businessHours === 'object' && businessHours.start && businessHours.end) {
+        updates.businessHours = businessHours;
+      } else {
+        return errorResponse(
+          ErrorCode.VALIDATION_ERROR,
+          'Business hours must include start and end times'
+        );
+      }
+    }
+
+    // Add default case visibility
+    if (defaultCaseVisibility !== undefined) {
+      if (defaultCaseVisibility === null) {
+        updates.defaultCaseVisibility = admin.firestore.FieldValue.delete();
+      } else if (['ORG_WIDE', 'PRIVATE'].includes(defaultCaseVisibility)) {
+        updates.defaultCaseVisibility = defaultCaseVisibility;
+      } else {
+        return errorResponse(
+          ErrorCode.VALIDATION_ERROR,
+          'Default case visibility must be ORG_WIDE or PRIVATE'
+        );
+      }
+    }
+
+    // Add default task visibility
+    if (defaultTaskVisibility !== undefined) {
+      if (defaultTaskVisibility === null) {
+        updates.defaultTaskVisibility = admin.firestore.FieldValue.delete();
+      } else {
+        updates.defaultTaskVisibility = !!defaultTaskVisibility;
+      }
+    }
+
+    // Add website
+    if (website !== undefined) {
+      if (website === null || website === '') {
+        updates.website = admin.firestore.FieldValue.delete();
+      } else {
+        updates.website = website.trim();
+      }
+    }
+
+    // Add address
+    if (address !== undefined) {
+      if (address === null) {
+        updates.address = admin.firestore.FieldValue.delete();
+      } else if (typeof address === 'object') {
+        updates.address = address;
+      }
+    }
+
+    // Update organization document
+    await orgRef.update(updates);
+
+    // Create audit event
+    await createAuditEvent({
+      orgId,
+      actorUid: uid,
+      action: 'org.updated',
+      entityType: 'organization',
+      entityId: orgId,
+      metadata: {
+        updatedFields: Object.keys(updates).filter((key) => key !== 'updatedAt' && key !== 'updatedBy'),
+      },
+    });
+
+    // Get updated organization data
+    const updatedOrgDoc = await orgRef.get();
+    const updatedOrgData = updatedOrgDoc.data()!;
+
+    functions.logger.info(`Organization updated: ${orgId} by ${uid}`);
+
+    return successResponse({
+      orgId,
+      name: updatedOrgData.name,
+      description: updatedOrgData.description || null,
+      timezone: updatedOrgData.timezone || null,
+      businessHours: updatedOrgData.businessHours || null,
+      defaultCaseVisibility: updatedOrgData.defaultCaseVisibility || null,
+      defaultTaskVisibility: updatedOrgData.defaultTaskVisibility || null,
+      website: updatedOrgData.website || null,
+      address: updatedOrgData.address || null,
+      updatedAt: updatedOrgData.updatedAt?.toDate()?.toISOString() || null,
+    });
+  } catch (error: any) {
+    functions.logger.error('Error updating organization:', error);
+    return errorResponse(ErrorCode.INTERNAL_ERROR, 'Failed to update organization');
+  }
+});
+
+/**
+ * Get organization settings with defaults (Slice 15)
+ * Callable Name: orgGetSettings
+ */
+export const orgGetSettings = functions.https.onCall(async (data, context) => {
+  // Validate auth
+  if (!context.auth) {
+    throw new functions.https.HttpsError(
+      'unauthenticated',
+      'User must be authenticated'
+    );
+  }
+
+  const uid = context.auth.uid;
+  const { orgId } = data;
+
+  // Validate orgId
+  if (!orgId || typeof orgId !== 'string' || orgId.trim().length === 0) {
+    return errorResponse(ErrorCode.ORG_REQUIRED, 'Organization ID is required');
+  }
+
+  try {
+    // Check if user is a member of the organization
+    const memberRef = db
+      .collection('organizations')
+      .doc(orgId)
+      .collection('members')
+      .doc(uid);
+
+    const memberDoc = await memberRef.get();
+
+    if (!memberDoc.exists) {
+      return errorResponse(
+        ErrorCode.NOT_AUTHORIZED,
+        'You are not a member of this organization'
+      );
+    }
+
+    // Get organization document
+    const orgRef = db.collection('organizations').doc(orgId);
+    const orgDoc = await orgRef.get();
+
+    if (!orgDoc.exists) {
+      return errorResponse(ErrorCode.NOT_FOUND, 'Organization does not exist');
+    }
+
+    const orgData = orgDoc.data()!;
+
+    // Return settings with defaults
+    return successResponse({
+      orgId,
+      name: orgData.name,
+      description: orgData.description || null,
+      plan: orgData.plan || 'FREE',
+      timezone: orgData.timezone || 'UTC',
+      businessHours: orgData.businessHours || { start: '09:00', end: '17:00' },
+      defaultCaseVisibility: orgData.defaultCaseVisibility || 'ORG_WIDE',
+      defaultTaskVisibility: orgData.defaultTaskVisibility || false,
+      website: orgData.website || null,
+      address: orgData.address || null,
+      createdAt: orgData.createdAt?.toDate()?.toISOString() || null,
+      updatedAt: orgData.updatedAt?.toDate()?.toISOString() || null,
+    });
+  } catch (error: any) {
+    functions.logger.error('Error getting organization settings:', error);
+    return errorResponse(ErrorCode.INTERNAL_ERROR, 'Failed to get organization settings');
   }
 });

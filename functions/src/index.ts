@@ -9,8 +9,15 @@ import * as admin from 'firebase-admin';
 admin.initializeApp();
 
 // Export Slice 0 callable functions
-export { orgCreate, orgJoin } from './functions/org';
-export { memberGetMyMembership, memberListMyOrgs, memberListMembers, memberUpdateRole } from './functions/member';
+export { orgCreate, orgJoin, orgUpdate, orgGetSettings } from './functions/org';
+export {
+  memberGetMyMembership,
+  memberListMyOrgs,
+  memberListMembers,
+  memberUpdateRole,
+  memberUpdateProfile,
+  memberGetProfile,
+} from './functions/member';
 
 // Export Slice 2 - Case Hub callable functions
 export { caseCreate, caseGet, caseList, caseUpdate, caseDelete } from './functions/case';
@@ -108,3 +115,12 @@ export {
   documentSummaryGet,
   documentSummaryList,
 } from './functions/document-summary';
+
+// Export Slice 15 - Advanced Admin Features
+export {
+  invitationCreate,
+  invitationAccept,
+  invitationRevoke,
+  invitationList,
+} from './functions/invitation';
+export { orgExport, orgGetStats } from './functions/admin';

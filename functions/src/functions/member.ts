@@ -631,3 +631,362 @@ export const memberUpdateRole = functions.https.onCall(async (data, context) => 
     );
   }
 });
+
+/**
+ * Update member profile (Slice 15)
+ * Can update own profile, or ADMIN can update others
+ * Callable Name: memberUpdateProfile
+ */
+export const memberUpdateProfile = functions.https.onCall(async (data, context) => {
+  // Validate auth
+  if (!context.auth) {
+    throw new functions.https.HttpsError(
+      'unauthenticated',
+      'User must be authenticated'
+    );
+  }
+
+  const uid = context.auth.uid;
+  const {
+    orgId,
+    memberUid,
+    bio,
+    title,
+    specialties,
+    barAdmissions,
+    education,
+    phoneNumber,
+    photoUrl,
+    isPublic,
+  } = data;
+
+  // Validate orgId
+  if (!orgId || typeof orgId !== 'string' || orgId.trim().length === 0) {
+    return errorResponse(ErrorCode.ORG_REQUIRED, 'Organization ID is required');
+  }
+
+  // Validate memberUid
+  if (!memberUid || typeof memberUid !== 'string' || memberUid.trim().length === 0) {
+    return errorResponse(ErrorCode.VALIDATION_ERROR, 'Member UID is required');
+  }
+
+  try {
+    // Check if user is a member of the organization
+    const requesterMemberRef = db
+      .collection('organizations')
+      .doc(orgId)
+      .collection('members')
+      .doc(uid);
+
+    const requesterMemberDoc = await requesterMemberRef.get();
+
+    if (!requesterMemberDoc.exists) {
+      return errorResponse(
+        ErrorCode.NOT_AUTHORIZED,
+        'You are not a member of this organization'
+      );
+    }
+
+    const requesterRole = requesterMemberDoc.data()?.role || 'VIEWER';
+
+    // Check permission: self or ADMIN
+    const isSelf = uid === memberUid;
+    const isAdmin = requesterRole === 'ADMIN';
+
+    if (!isSelf && !isAdmin) {
+      return errorResponse(
+        ErrorCode.NOT_AUTHORIZED,
+        'You can only update your own profile (or any profile if you are an administrator)'
+      );
+    }
+
+    // Check if target member exists
+    const targetMemberRef = db
+      .collection('organizations')
+      .doc(orgId)
+      .collection('members')
+      .doc(memberUid);
+
+    const targetMemberDoc = await targetMemberRef.get();
+
+    if (!targetMemberDoc.exists) {
+      return errorResponse(ErrorCode.NOT_FOUND, 'Member not found in this organization');
+    }
+
+    // Build profile updates
+    const profileUpdates: any = {
+      updatedAt: admin.firestore.Timestamp.now(),
+      updatedBy: uid,
+    };
+
+    // Add bio
+    if (bio !== undefined) {
+      if (bio === null || bio === '') {
+        profileUpdates.bio = admin.firestore.FieldValue.delete();
+      } else if (bio.length > 1000) {
+        return errorResponse(
+          ErrorCode.VALIDATION_ERROR,
+          'Bio must be 1000 characters or less'
+        );
+      } else {
+        profileUpdates.bio = bio.trim();
+      }
+    }
+
+    // Add title
+    if (title !== undefined) {
+      if (title === null || title === '') {
+        profileUpdates.title = admin.firestore.FieldValue.delete();
+      } else if (title.length > 100) {
+        return errorResponse(
+          ErrorCode.VALIDATION_ERROR,
+          'Title must be 100 characters or less'
+        );
+      } else {
+        profileUpdates.title = title.trim();
+      }
+    }
+
+    // Add specialties
+    if (specialties !== undefined) {
+      if (specialties === null || (Array.isArray(specialties) && specialties.length === 0)) {
+        profileUpdates.specialties = admin.firestore.FieldValue.delete();
+      } else if (Array.isArray(specialties)) {
+        profileUpdates.specialties = specialties.map((s: string) => s.trim()).filter((s: string) => s.length > 0);
+      }
+    }
+
+    // Add bar admissions
+    if (barAdmissions !== undefined) {
+      if (barAdmissions === null || (Array.isArray(barAdmissions) && barAdmissions.length === 0)) {
+        profileUpdates.barAdmissions = admin.firestore.FieldValue.delete();
+      } else if (Array.isArray(barAdmissions)) {
+        profileUpdates.barAdmissions = barAdmissions;
+      }
+    }
+
+    // Add education
+    if (education !== undefined) {
+      if (education === null || (Array.isArray(education) && education.length === 0)) {
+        profileUpdates.education = admin.firestore.FieldValue.delete();
+      } else if (Array.isArray(education)) {
+        profileUpdates.education = education;
+      }
+    }
+
+    // Add phone number
+    if (phoneNumber !== undefined) {
+      if (phoneNumber === null || phoneNumber === '') {
+        profileUpdates.phoneNumber = admin.firestore.FieldValue.delete();
+      } else {
+        profileUpdates.phoneNumber = phoneNumber.trim();
+      }
+    }
+
+    // Add photo URL
+    if (photoUrl !== undefined) {
+      if (photoUrl === null || photoUrl === '') {
+        profileUpdates.photoUrl = admin.firestore.FieldValue.delete();
+      } else {
+        profileUpdates.photoUrl = photoUrl;
+      }
+    }
+
+    // Add isPublic flag
+    if (isPublic !== undefined) {
+      profileUpdates.isPublic = !!isPublic;
+    }
+
+    // Update or create profile subcollection document
+    const profileRef = targetMemberRef.collection('profile').doc('details');
+    const profileDoc = await profileRef.get();
+
+    if (profileDoc.exists) {
+      await profileRef.update(profileUpdates);
+    } else {
+      await profileRef.set({
+        ...profileUpdates,
+        createdAt: admin.firestore.Timestamp.now(),
+      });
+    }
+
+    // Create audit event
+    await createAuditEvent({
+      orgId,
+      actorUid: uid,
+      action: 'member.profile.updated',
+      entityType: 'member_profile',
+      entityId: memberUid,
+      metadata: {
+        memberUid,
+        updatedFields: Object.keys(profileUpdates).filter(
+          (key) => key !== 'updatedAt' && key !== 'updatedBy'
+        ),
+      },
+    });
+
+    // Get updated profile
+    const updatedProfileDoc = await profileRef.get();
+    const updatedProfileData = updatedProfileDoc.data() || {};
+
+    functions.logger.info(`Member profile updated: ${memberUid} by ${uid}`);
+
+    return successResponse({
+      memberUid,
+      orgId,
+      bio: updatedProfileData.bio || null,
+      title: updatedProfileData.title || null,
+      specialties: updatedProfileData.specialties || [],
+      barAdmissions: updatedProfileData.barAdmissions || [],
+      education: updatedProfileData.education || [],
+      phoneNumber: updatedProfileData.phoneNumber || null,
+      photoUrl: updatedProfileData.photoUrl || null,
+      isPublic: updatedProfileData.isPublic ?? true,
+      updatedAt: updatedProfileData.updatedAt?.toDate()?.toISOString() || null,
+    });
+  } catch (error: any) {
+    functions.logger.error('Error updating member profile:', error);
+    return errorResponse(ErrorCode.INTERNAL_ERROR, 'Failed to update member profile');
+  }
+});
+
+/**
+ * Get member profile (Slice 15)
+ * Callable Name: memberGetProfile
+ */
+export const memberGetProfile = functions.https.onCall(async (data, context) => {
+  // Validate auth
+  if (!context.auth) {
+    throw new functions.https.HttpsError(
+      'unauthenticated',
+      'User must be authenticated'
+    );
+  }
+
+  const uid = context.auth.uid;
+  const { orgId, memberUid } = data;
+
+  // Validate orgId
+  if (!orgId || typeof orgId !== 'string' || orgId.trim().length === 0) {
+    return errorResponse(ErrorCode.ORG_REQUIRED, 'Organization ID is required');
+  }
+
+  // Validate memberUid
+  if (!memberUid || typeof memberUid !== 'string' || memberUid.trim().length === 0) {
+    return errorResponse(ErrorCode.VALIDATION_ERROR, 'Member UID is required');
+  }
+
+  try {
+    // Check if requester is a member of the organization
+    const requesterMemberRef = db
+      .collection('organizations')
+      .doc(orgId)
+      .collection('members')
+      .doc(uid);
+
+    const requesterMemberDoc = await requesterMemberRef.get();
+
+    if (!requesterMemberDoc.exists) {
+      return errorResponse(
+        ErrorCode.NOT_AUTHORIZED,
+        'You are not a member of this organization'
+      );
+    }
+
+    // Check if target member exists
+    const targetMemberRef = db
+      .collection('organizations')
+      .doc(orgId)
+      .collection('members')
+      .doc(memberUid);
+
+    const targetMemberDoc = await targetMemberRef.get();
+
+    if (!targetMemberDoc.exists) {
+      return errorResponse(ErrorCode.NOT_FOUND, 'Member not found in this organization');
+    }
+
+    const targetMemberData = targetMemberDoc.data()!;
+
+    // Get profile document
+    const profileRef = targetMemberRef.collection('profile').doc('details');
+    const profileDoc = await profileRef.get();
+
+    if (!profileDoc.exists) {
+      // Return basic member info with empty profile
+      // Get user info from Firebase Auth
+      let email: string | null = null;
+      let displayName: string | null = null;
+      try {
+        const userRecord = await admin.auth().getUser(memberUid);
+        email = userRecord.email || null;
+        displayName = userRecord.displayName || null;
+      } catch (authError) {
+        functions.logger.warn('Could not fetch user info from Auth:', authError);
+      }
+
+      return successResponse({
+        memberUid,
+        orgId,
+        email,
+        displayName,
+        role: targetMemberData.role || 'VIEWER',
+        joinedAt: targetMemberData.joinedAt?.toDate()?.toISOString() || null,
+        bio: null,
+        title: null,
+        specialties: [],
+        barAdmissions: [],
+        education: [],
+        phoneNumber: null,
+        photoUrl: null,
+        isPublic: true,
+      });
+    }
+
+    const profileData = profileDoc.data()!;
+
+    // Check privacy: if profile is not public and requester is not self or ADMIN
+    const isSelf = uid === memberUid;
+    const requesterRole = requesterMemberDoc.data()?.role || 'VIEWER';
+    const isAdmin = requesterRole === 'ADMIN';
+    const isPublic = profileData.isPublic ?? true;
+
+    if (!isPublic && !isSelf && !isAdmin) {
+      return errorResponse(
+        ErrorCode.NOT_AUTHORIZED,
+        'This profile is private'
+      );
+    }
+
+    // Get user info from Firebase Auth
+    let email: string | null = null;
+    let displayName: string | null = null;
+    try {
+      const userRecord = await admin.auth().getUser(memberUid);
+      email = userRecord.email || null;
+      displayName = userRecord.displayName || null;
+    } catch (authError) {
+      functions.logger.warn('Could not fetch user info from Auth:', authError);
+    }
+
+    return successResponse({
+      memberUid,
+      orgId,
+      email,
+      displayName,
+      role: targetMemberData.role || 'VIEWER',
+      joinedAt: targetMemberData.joinedAt?.toDate()?.toISOString() || null,
+      bio: profileData.bio || null,
+      title: profileData.title || null,
+      specialties: profileData.specialties || [],
+      barAdmissions: profileData.barAdmissions || [],
+      education: profileData.education || [],
+      phoneNumber: profileData.phoneNumber || null,
+      photoUrl: profileData.photoUrl || null,
+      isPublic: profileData.isPublic ?? true,
+    });
+  } catch (error: any) {
+    functions.logger.error('Error getting member profile:', error);
+    return errorResponse(ErrorCode.INTERNAL_ERROR, 'Failed to get member profile');
+  }
+});

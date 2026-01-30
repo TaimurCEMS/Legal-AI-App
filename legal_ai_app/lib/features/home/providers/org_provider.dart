@@ -318,6 +318,33 @@ class OrgProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  /// Test-only: set org and membership for widget tests (no async/API).
+  @visibleForTesting
+  void setStateForTest({OrgModel? org, MembershipModel? membership}) {
+    _selectedOrg = org;
+    _currentMembership = membership;
+    notifyListeners();
+  }
+
+  /// Update selected org display name (e.g. after org settings update)
+  void refreshSelectedOrgName(String name) {
+    if (_selectedOrg == null) return;
+    _selectedOrg = OrgModel(
+      orgId: _selectedOrg!.orgId,
+      name: name,
+      description: _selectedOrg!.description,
+      plan: _selectedOrg!.plan,
+      createdAt: _selectedOrg!.createdAt,
+      createdBy: _selectedOrg!.createdBy,
+    );
+    // Update in _userOrgs if present
+    final idx = _userOrgs.indexWhere((o) => o.orgId == _selectedOrg!.orgId);
+    if (idx >= 0) {
+      _userOrgs[idx] = _selectedOrg!;
+    }
+    notifyListeners();
+  }
+
   bool _isLoadingUserOrgs = false; // Guard against multiple simultaneous calls
   
   /// Load list of user's organizations from Firebase

@@ -32,4 +32,11 @@ class RouteNames {
   static const String settings = '/settings';
   static const String memberManagement = '/settings/team-members';
   static const String auditTrail = '/settings/audit-trail';
+  // Slice 15 Admin
+  static const String adminSettings = '/settings/admin';
+  static const String invitationManagement = '/settings/admin/invitations';
+  static const String organizationSettings = '/settings/admin/org-settings';
+  static const String organizationExport = '/settings/admin/export';
+  static const String organizationDashboard = '/settings/admin/dashboard';
+  static const String memberProfile = '/settings/admin/member-profile';
 }

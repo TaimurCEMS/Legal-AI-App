@@ -30,6 +30,12 @@ import '../../features/home/screens/member_management_screen.dart';
 import '../../features/drafting/screens/case_drafting_screen.dart';
 import '../../features/drafting/screens/draft_editor_screen.dart';
 import '../../features/audit/screens/audit_trail_screen.dart';
+import '../../features/admin/screens/admin_settings_screen.dart';
+import '../../features/admin/screens/invitation_management_screen.dart';
+import '../../features/admin/screens/organization_settings_screen.dart';
+import '../../features/admin/screens/organization_export_screen.dart';
+import '../../features/admin/screens/organization_dashboard_screen.dart';
+import '../../features/admin/screens/member_profile_screen.dart';
 
 /// App router configuration
 class AppRouter {
@@ -93,6 +99,34 @@ class AppRouter {
       GoRoute(
         path: RouteNames.auditTrail,
         builder: (context, state) => const AuditTrailScreen(),
+      ),
+      // Slice 15 Admin
+      GoRoute(
+        path: RouteNames.adminSettings,
+        builder: (context, state) => const AdminSettingsScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.invitationManagement,
+        builder: (context, state) => const InvitationManagementScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.organizationSettings,
+        builder: (context, state) => const OrganizationSettingsScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.organizationExport,
+        builder: (context, state) => const OrganizationExportScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.organizationDashboard,
+        builder: (context, state) => const OrganizationDashboardScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.memberProfile,
+        builder: (context, state) {
+          final memberUid = state.uri.queryParameters['memberUid'];
+          return MemberProfileScreen(memberUid: memberUid);
+        },
       ),
       GoRoute(
         path: RouteNames.clientList,

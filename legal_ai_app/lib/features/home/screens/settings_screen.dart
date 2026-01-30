@@ -186,6 +186,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         context.push(RouteNames.auditTrail);
                       },
                     ),
+                  // Admin Settings (ADMIN only) - Slice 15
+                  if (orgProvider.selectedOrg != null &&
+                      orgProvider.currentMembership?.role == 'ADMIN')
+                    ListTile(
+                      leading: const Icon(Icons.admin_panel_settings),
+                      title: const Text('Admin Settings'),
+                      subtitle: const Text(
+                        'Invitations, org settings, export, dashboard',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () {
+                        context.push(RouteNames.adminSettings);
+                      },
+                    ),
                 ],
               ),
             ),

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'package:go_router/go_router.dart';
+
 import '../../../core/models/member_model.dart';
 import '../../../core/models/org_model.dart';
+import '../../../core/routing/route_names.dart';
 import '../../../core/theme/spacing.dart';
 import '../../../core/theme/typography.dart';
 import '../../../core/theme/colors.dart';
@@ -179,6 +182,9 @@ class _MemberManagementScreenState extends State<MemberManagementScreen> {
         return Card(
           margin: const EdgeInsets.only(bottom: AppSpacing.sm),
           child: ListTile(
+            onTap: () => context.push(
+              '${RouteNames.memberProfile}?memberUid=${member.uid}',
+            ),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.md,
               vertical: AppSpacing.sm,
