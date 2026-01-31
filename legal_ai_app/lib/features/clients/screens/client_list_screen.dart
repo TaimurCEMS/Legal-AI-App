@@ -17,7 +17,15 @@ import '../providers/client_provider.dart';
 import '../../../core/routing/route_names.dart';
 
 class ClientListScreen extends StatefulWidget {
-  const ClientListScreen({super.key});
+  /// When used in app shell, [selectedTabIndex] and [tabIndex] trigger load when this tab becomes visible.
+  const ClientListScreen({
+    super.key,
+    this.selectedTabIndex,
+    this.tabIndex,
+  });
+
+  final int? selectedTabIndex;
+  final int? tabIndex;
 
   @override
   State<ClientListScreen> createState() => _ClientListScreenState();
@@ -28,7 +36,6 @@ class _ClientListScreenState extends State<ClientListScreen> {
   bool _isLoading = false;
   String? _lastLoadedOrgId;
   String? _lastLoadedSearch;
-  OrgProvider? _orgProvider; // Store reference for safe disposal
 
   @override
   void initState() {
@@ -37,25 +44,42 @@ class _ClientListScreenState extends State<ClientListScreen> {
     // Listen to search text changes (with debouncing)
     _searchController.addListener(_onSearchChanged);
 
-    // Listen to OrgProvider changes
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      _orgProvider = context.read<OrgProvider>();
       final clientProvider = context.read<ClientProvider>();
-
-      // Clear any previous errors
       clientProvider.clearError();
 
-      // Set up listener for org changes
-      _orgProvider!.addListener(_onOrgChanged);
-
-      // Initial load if org is already available
-      _checkAndLoadClients();
+      // Load if: standalone mode (both null) OR visible in shell (both non-null and equal)
+      final isStandalone = widget.selectedTabIndex == null && widget.tabIndex == null;
+      final isVisibleInShell = widget.selectedTabIndex != null &&
+          widget.tabIndex != null &&
+          widget.selectedTabIndex == widget.tabIndex;
+      if (isStandalone || isVisibleInShell) {
+        _checkAndLoadClients();
+      }
     });
   }
 
   // Debounce timer for search
   Timer? _searchDebounce;
+
+  @override
+  void didUpdateWidget(covariant ClientListScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final nowVisible = widget.selectedTabIndex != null &&
+        widget.tabIndex != null &&
+        widget.selectedTabIndex == widget.tabIndex;
+    final wasVisible = oldWidget.selectedTabIndex != null &&
+        oldWidget.tabIndex != null &&
+        oldWidget.selectedTabIndex == oldWidget.tabIndex;
+    
+    // Load when we become visible
+    if (nowVisible && !wasVisible) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !_isLoading) _checkAndLoadClients();
+      });
+    }
+  }
 
   void _onSearchChanged() {
     // Cancel previous timer
@@ -74,67 +98,9 @@ class _ClientListScreenState extends State<ClientListScreen> {
 
   @override
   void dispose() {
-    // Remove listener to prevent memory leaks
-    _orgProvider?.removeListener(_onOrgChanged);
     _searchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
-  }
-
-  /// React to org changes
-  void _onOrgChanged() {
-    if (!mounted) return;
-
-    final orgProvider = context.read<OrgProvider>();
-    final currentOrg = orgProvider.selectedOrg;
-    final currentOrgId = currentOrg?.orgId;
-
-    // Only react if org actually changed
-    if (currentOrgId != null && currentOrgId != _lastLoadedOrgId) {
-      _handleOrgChange(currentOrgId);
-    } else if (currentOrgId == null && _lastLoadedOrgId != null) {
-      // Org was cleared
-      _lastLoadedOrgId = null;
-      final clientProvider = context.read<ClientProvider>();
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) clientProvider.clearClients();
-      });
-    }
-  }
-
-  /// Handle org change
-  void _handleOrgChange(String newOrgId) {
-    if (!mounted || _isLoading) return;
-
-    final orgProvider = context.read<OrgProvider>();
-    final clientProvider = context.read<ClientProvider>();
-
-    // Wait for org to be initialized
-    if (!orgProvider.isInitialized || orgProvider.isLoading) {
-      Future.delayed(const Duration(milliseconds: 200), () {
-        if (mounted && orgProvider.selectedOrg?.orgId == newOrgId) {
-          _handleOrgChange(newOrgId);
-        }
-      });
-      return;
-    }
-
-    // Reset all tracking when org changes
-    _lastLoadedOrgId = null;
-    _lastLoadedSearch = null;
-
-    // Clear search when switching orgs
-    setState(() {
-      _searchController.clear();
-    });
-
-    // Clear clients for new org
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && orgProvider.selectedOrg?.orgId == newOrgId) {
-        clientProvider.clearClients();
-        _tryLoadClients();
-      }
-    });
   }
 
   /// Check if we need to load clients
@@ -245,7 +211,21 @@ class _ClientListScreenState extends State<ClientListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final org = context.watch<OrgProvider>().selectedOrg;
     final clientProvider = context.watch<ClientProvider>();
+
+    // Load if: standalone mode (both null) OR visible in shell (both non-null and equal)
+    final isStandalone = widget.selectedTabIndex == null && widget.tabIndex == null;
+    final isVisibleInShell = widget.selectedTabIndex != null &&
+        widget.tabIndex != null &&
+        widget.selectedTabIndex == widget.tabIndex;
+    final shouldLoad = isStandalone || isVisibleInShell;
+    
+    if (shouldLoad && org != null && _lastLoadedOrgId != org.orgId && !_isLoading) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _checkAndLoadClients();
+      });
+    }
 
     return Scaffold(
       floatingActionButton: FloatingActionButton.extended(

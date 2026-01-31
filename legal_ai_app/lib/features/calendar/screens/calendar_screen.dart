@@ -48,7 +48,15 @@ enum CalendarViewMode {
 
 /// Calendar Screen - Main list view for events (Slice 7)
 class CalendarScreen extends StatefulWidget {
-  const CalendarScreen({super.key});
+  /// When used in app shell, [selectedTabIndex] and [tabIndex] trigger load when this tab becomes visible.
+  const CalendarScreen({
+    super.key,
+    this.selectedTabIndex,
+    this.tabIndex,
+  });
+
+  final int? selectedTabIndex;
+  final int? tabIndex;
 
   @override
   State<CalendarScreen> createState() => _CalendarScreenState();
@@ -61,12 +69,39 @@ class _CalendarScreenState extends State<CalendarScreen> {
   DateTime _selectedDate = DateTime.now();
   CalendarViewMode _viewMode = CalendarViewMode.month;
   
+  String? _lastLoadedOrgId;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadEvents();
+      // Load if: standalone mode (both null) OR visible in shell (both non-null and equal)
+      final isStandalone = widget.selectedTabIndex == null && widget.tabIndex == null;
+      final isVisibleInShell = widget.selectedTabIndex != null &&
+          widget.tabIndex != null &&
+          widget.selectedTabIndex == widget.tabIndex;
+      if (isStandalone || isVisibleInShell) {
+        _loadEvents();
+      }
     });
+  }
+
+  @override
+  void didUpdateWidget(covariant CalendarScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final nowVisible = widget.selectedTabIndex != null &&
+        widget.tabIndex != null &&
+        widget.selectedTabIndex == widget.tabIndex;
+    final wasVisible = oldWidget.selectedTabIndex != null &&
+        oldWidget.tabIndex != null &&
+        oldWidget.selectedTabIndex == oldWidget.tabIndex;
+    
+    // Load when we become visible
+    if (nowVisible && !wasVisible) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _loadEvents(refresh: true);
+      });
+    }
   }
 
   @override
@@ -199,6 +234,24 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final org = context.watch<OrgProvider>().selectedOrg;
+    
+    // Load if: standalone mode (both null) OR visible in shell (both non-null and equal)
+    final isStandalone = widget.selectedTabIndex == null && widget.tabIndex == null;
+    final isVisibleInShell = widget.selectedTabIndex != null &&
+        widget.tabIndex != null &&
+        widget.selectedTabIndex == widget.tabIndex;
+    final shouldLoad = isStandalone || isVisibleInShell;
+    
+    if (shouldLoad && org != null && _lastLoadedOrgId != org.orgId) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _lastLoadedOrgId = org.orgId;
+          _loadEvents(refresh: true);
+        }
+      });
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Calendar'),

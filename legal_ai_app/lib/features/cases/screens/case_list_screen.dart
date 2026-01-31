@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/constants/app_labels.dart';
 import '../../../core/models/case_model.dart';
 import '../../../core/theme/spacing.dart';
 import '../../../core/theme/typography.dart';
@@ -18,7 +19,15 @@ import '../../auth/providers/auth_provider.dart';
 import '../../../core/routing/route_names.dart';
 
 class CaseListScreen extends StatefulWidget {
-  const CaseListScreen({super.key});
+  /// When used in app shell, [selectedTabIndex] and [tabIndex] trigger load when this tab becomes visible.
+  const CaseListScreen({
+    super.key,
+    this.selectedTabIndex,
+    this.tabIndex,
+  });
+
+  final int? selectedTabIndex;
+  final int? tabIndex;
 
   @override
   State<CaseListScreen> createState() => _CaseListScreenState();
@@ -31,7 +40,6 @@ class _CaseListScreenState extends State<CaseListScreen> {
   String? _lastLoadedOrgId; // Track which org we loaded cases for (prevents reload loops)
   CaseStatus? _lastLoadedStatusFilter; // Track last loaded filter to detect changes
   String? _lastLoadedSearch; // Track last loaded search to detect changes
-  OrgProvider? _orgProvider; // Store reference for safe disposal
 
   @override
   void initState() {
@@ -40,16 +48,16 @@ class _CaseListScreenState extends State<CaseListScreen> {
     // Listen to search text changes (with debouncing)
     _searchController.addListener(_onSearchChanged);
     
-    // Listen to OrgProvider changes - simple reactive approach
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      _orgProvider = context.read<OrgProvider>();
-      
-      // Set up listener for org changes
-      _orgProvider!.addListener(_onOrgChanged);
-      
-      // Initial load if org is already available
-      _checkAndLoadCases();
+      // Load if: standalone mode (both null) OR visible in shell (both non-null and equal)
+      final isStandalone = widget.selectedTabIndex == null && widget.tabIndex == null;
+      final isVisibleInShell = widget.selectedTabIndex != null &&
+          widget.tabIndex != null &&
+          widget.selectedTabIndex == widget.tabIndex;
+      if (isStandalone || isVisibleInShell) {
+        _checkAndLoadCases();
+      }
     });
   }
   
@@ -73,70 +81,9 @@ class _CaseListScreenState extends State<CaseListScreen> {
 
   @override
   void dispose() {
-    // Remove listener to prevent memory leaks
-    _orgProvider?.removeListener(_onOrgChanged);
     _searchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
-  }
-
-  /// React to org changes - called when OrgProvider notifies listeners
-  void _onOrgChanged() {
-    if (!mounted) return;
-    
-    final orgProvider = context.read<OrgProvider>();
-    final currentOrg = orgProvider.selectedOrg;
-    final currentOrgId = currentOrg?.orgId;
-    
-    // Only react if org actually changed
-    if (currentOrgId != null && currentOrgId != _lastLoadedOrgId) {
-      _handleOrgChange(currentOrgId);
-    } else if (currentOrgId == null && _lastLoadedOrgId != null) {
-      // Org was cleared
-      _lastLoadedOrgId = null;
-      final caseProvider = context.read<CaseProvider>();
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) caseProvider.clearCases();
-      });
-    }
-  }
-
-  /// Handle org change - clear cases and load new ones
-  void _handleOrgChange(String newOrgId) {
-    if (!mounted || _isLoading) return;
-    
-    final orgProvider = context.read<OrgProvider>();
-    final caseProvider = context.read<CaseProvider>();
-    
-    // Wait for org to be initialized
-    if (!orgProvider.isInitialized || orgProvider.isLoading) {
-      // Wait a bit and try again
-      Future.delayed(const Duration(milliseconds: 200), () {
-        if (mounted && orgProvider.selectedOrg?.orgId == newOrgId) {
-          _handleOrgChange(newOrgId);
-        }
-      });
-      return;
-    }
-    
-    // Reset all tracking when org changes
-    _lastLoadedOrgId = null;
-    _lastLoadedStatusFilter = null;
-    _lastLoadedSearch = null;
-    
-    // Reset filter and search to defaults when switching orgs
-    setState(() {
-      _statusFilter = null; // Reset to "All statuses"
-      _searchController.clear(); // Clear search
-    });
-    
-    // Clear cases for new org (defer to avoid setState during build)
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && orgProvider.selectedOrg?.orgId == newOrgId) {
-        caseProvider.clearCases();
-        _tryLoadCases();
-      }
-    });
   }
 
   /// Check if we need to load cases (for initial load after refresh)
@@ -160,9 +107,21 @@ class _CaseListScreenState extends State<CaseListScreen> {
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // No complex logic here - let the listener handle it
+  void didUpdateWidget(covariant CaseListScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final nowVisible = widget.selectedTabIndex != null &&
+        widget.tabIndex != null &&
+        widget.selectedTabIndex == widget.tabIndex;
+    final wasVisible = oldWidget.selectedTabIndex != null &&
+        oldWidget.tabIndex != null &&
+        oldWidget.selectedTabIndex == oldWidget.tabIndex;
+    
+    // Load when we become visible
+    if (nowVisible && !wasVisible) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !_isLoading) _checkAndLoadCases();
+      });
+    }
   }
 
   Future<void> _tryLoadCases() async {
@@ -301,7 +260,27 @@ class _CaseListScreenState extends State<CaseListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final orgProvider = context.watch<OrgProvider>();
     final caseProvider = context.watch<CaseProvider>();
+    final currentOrg = orgProvider.selectedOrg;
+
+    // Load if: standalone mode (both null) OR visible in shell (both non-null and equal)
+    final isStandalone = widget.selectedTabIndex == null && widget.tabIndex == null;
+    final isVisibleInShell = widget.selectedTabIndex != null &&
+        widget.tabIndex != null &&
+        widget.selectedTabIndex == widget.tabIndex;
+    final shouldLoad = isStandalone || isVisibleInShell;
+
+    if (shouldLoad &&
+        currentOrg != null &&
+        _lastLoadedOrgId != currentOrg.orgId &&
+        !_isLoading &&
+        orgProvider.isInitialized &&
+        !orgProvider.isLoading) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _checkAndLoadCases();
+      });
+    }
 
     return Scaffold(
       floatingActionButton: FloatingActionButton.extended(
@@ -310,7 +289,7 @@ class _CaseListScreenState extends State<CaseListScreen> {
           context.push(RouteNames.caseCreate);
         },
         icon: const Icon(Icons.add),
-        label: const Text('New Case'),
+        label: const Text(AppLabels.createMatter),
       ),
       body: SafeArea(
         child: Padding(
@@ -319,7 +298,7 @@ class _CaseListScreenState extends State<CaseListScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Cases',
+                AppLabels.matters,
                 style: AppTypography.headlineSmall,
               ),
               const SizedBox(height: AppSpacing.sm),
@@ -345,7 +324,7 @@ class _CaseListScreenState extends State<CaseListScreen> {
           child: TextField(
             controller: _searchController,
             decoration: const InputDecoration(
-              hintText: 'Search case titles…',
+              hintText: 'Search matter titles…',
               prefixIcon: Icon(Icons.search),
             ),
             // Search is handled by _onSearchChanged listener with debouncing
@@ -412,13 +391,13 @@ class _CaseListScreenState extends State<CaseListScreen> {
       // Only show loading if org provider is still initializing or loading
       if (orgProvider.isLoading || !orgProvider.isInitialized) {
         return const Center(
-          child: LoadingSpinner(message: 'Loading organization...'),
+          child: LoadingSpinner(message: 'Loading firm...'),
         );
       }
       // If initialized but no org selected, show empty state (router should redirect)
       // This prevents infinite loading loop
       return const Center(
-        child: LoadingSpinner(message: 'No organization selected'),
+        child: LoadingSpinner(message: 'No firm selected'),
       );
     }
 
@@ -455,9 +434,9 @@ class _CaseListScreenState extends State<CaseListScreen> {
     if (provider.cases.isEmpty) {
       return EmptyStateWidget(
         icon: Icons.folder_open,
-        title: 'No cases yet',
-        message: 'Create your first case to start managing matters.',
-        actionLabel: 'New Case',
+        title: AppLabels.noMattersYet,
+        message: 'Create your first matter to get started.',
+        actionLabel: AppLabels.createMatter,
         onAction: () {
           context.push(RouteNames.caseCreate);
         },

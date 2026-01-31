@@ -13,11 +13,16 @@ import '../providers/note_provider.dart';
 class NoteListScreen extends StatefulWidget {
   final String? caseId; // Optional - filter by case
   final String? caseName; // Optional - for display
+  /// When used in app shell, [selectedTabIndex] and [tabIndex] trigger load when this tab becomes visible.
+  final int? selectedTabIndex;
+  final int? tabIndex;
 
   const NoteListScreen({
     super.key,
     this.caseId,
     this.caseName,
+    this.selectedTabIndex,
+    this.tabIndex,
   });
 
   @override
@@ -35,6 +40,34 @@ class _NoteListScreenState extends State<NoteListScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Load if: standalone mode (both null) OR visible in shell (both non-null and equal) OR case-specific view
+      final isStandalone = widget.selectedTabIndex == null && widget.tabIndex == null;
+      final isVisibleInShell = widget.selectedTabIndex != null &&
+          widget.tabIndex != null &&
+          widget.selectedTabIndex == widget.tabIndex;
+      if (isStandalone || isVisibleInShell || widget.caseId != null) {
+        _loadNotes();
+      }
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant NoteListScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final nowVisible = widget.selectedTabIndex != null &&
+        widget.tabIndex != null &&
+        widget.selectedTabIndex == widget.tabIndex;
+    final wasVisible = oldWidget.selectedTabIndex != null &&
+        oldWidget.tabIndex != null &&
+        oldWidget.selectedTabIndex == oldWidget.tabIndex;
+    
+    // Load when we become visible
+    if (nowVisible && !wasVisible) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _loadNotes(refresh: true);
+      });
+    }
   }
 
   @override
@@ -105,8 +138,16 @@ class _NoteListScreenState extends State<NoteListScreen> {
     final orgProvider = context.watch<OrgProvider>();
     final currentOrgId = orgProvider.selectedOrg?.orgId;
     
-    // Load notes when org becomes available or changes
-    if (currentOrgId != null && currentOrgId != _lastLoadedOrgId) {
+    // Load if: standalone mode (both null) OR visible in shell (both non-null and equal) OR case-specific view
+    final isStandalone = widget.selectedTabIndex == null && widget.tabIndex == null;
+    final isVisibleInShell = widget.selectedTabIndex != null &&
+        widget.tabIndex != null &&
+        widget.selectedTabIndex == widget.tabIndex;
+    final shouldLoad = isStandalone || isVisibleInShell || widget.caseId != null;
+    
+    if (currentOrgId != null && 
+        currentOrgId != _lastLoadedOrgId && 
+        shouldLoad) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           _loadNotes(refresh: true);

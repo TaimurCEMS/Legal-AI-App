@@ -17,7 +17,15 @@ import '../providers/task_provider.dart';
 import '../../../core/routing/route_names.dart';
 
 class TaskListScreen extends StatefulWidget {
-  const TaskListScreen({super.key});
+  /// When used in app shell, [selectedTabIndex] and [tabIndex] trigger load when this tab becomes visible.
+  const TaskListScreen({
+    super.key,
+    this.selectedTabIndex,
+    this.tabIndex,
+  });
+
+  final int? selectedTabIndex;
+  final int? tabIndex;
 
   @override
   State<TaskListScreen> createState() => _TaskListScreenState();
@@ -30,7 +38,6 @@ class _TaskListScreenState extends State<TaskListScreen> {
   String? _assigneeFilter;
   bool _isLoading = false;
   String? _lastLoadedOrgId;
-  OrgProvider? _orgProvider;
 
   @override
   void initState() {
@@ -39,28 +46,33 @@ class _TaskListScreenState extends State<TaskListScreen> {
     
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      _orgProvider = context.read<OrgProvider>();
-      _orgProvider!.addListener(_onOrgChanged);
-      _checkAndLoadTasks();
+      // Load if: standalone mode (both null) OR visible in shell (both non-null and equal)
+      final isStandalone = widget.selectedTabIndex == null && widget.tabIndex == null;
+      final isVisibleInShell = widget.selectedTabIndex != null &&
+          widget.tabIndex != null &&
+          widget.selectedTabIndex == widget.tabIndex;
+      if (isStandalone || isVisibleInShell) {
+        _checkAndLoadTasks();
+      }
     });
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // Refresh tasks when returning to this screen (e.g., after creating a task)
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && !_isLoading) {
-        final taskProvider = context.read<TaskProvider>();
-        final orgProvider = context.read<OrgProvider>();
-        final org = orgProvider.selectedOrg;
-        
-        // Only refresh if org is available and we haven't loaded for this org
-        if (org != null && _lastLoadedOrgId != org.orgId) {
-          _checkAndLoadTasks();
-        }
-      }
-    });
+  void didUpdateWidget(covariant TaskListScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final nowVisible = widget.selectedTabIndex != null &&
+        widget.tabIndex != null &&
+        widget.selectedTabIndex == widget.tabIndex;
+    final wasVisible = oldWidget.selectedTabIndex != null &&
+        oldWidget.tabIndex != null &&
+        oldWidget.selectedTabIndex == oldWidget.tabIndex;
+    
+    // Load when we become visible
+    if (nowVisible && !wasVisible) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !_isLoading) _checkAndLoadTasks();
+      });
+    }
   }
   
   Timer? _searchDebounce;
@@ -77,38 +89,9 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
   @override
   void dispose() {
-    _orgProvider?.removeListener(_onOrgChanged);
     _searchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
-  }
-
-  void _onOrgChanged() {
-    if (!mounted) return;
-    final orgProvider = context.read<OrgProvider>();
-    final currentOrg = orgProvider.selectedOrg;
-    final currentOrgId = currentOrg?.orgId;
-    
-    if (currentOrgId != null && currentOrgId != _lastLoadedOrgId) {
-      _handleOrgChange(currentOrgId);
-    } else if (currentOrgId == null && _lastLoadedOrgId != null) {
-      _lastLoadedOrgId = null;
-      final taskProvider = context.read<TaskProvider>();
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) taskProvider.clearTasks();
-      });
-    }
-  }
-
-  void _handleOrgChange(String newOrgId) {
-    _lastLoadedOrgId = null;
-    final taskProvider = context.read<TaskProvider>();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        taskProvider.clearTasks();
-        _checkAndLoadTasks();
-      }
-    });
   }
 
   void _checkAndLoadTasks() {
@@ -233,9 +216,34 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final org = context.watch<OrgProvider>().selectedOrg;
     final taskProvider = context.watch<TaskProvider>();
+    final isStandalone = GoRouterState.of(context).uri.path == RouteNames.taskList;
+
+    // Load if: standalone mode (both null) OR visible in shell (both non-null and equal)
+    final isStandaloneMode = widget.selectedTabIndex == null && widget.tabIndex == null;
+    final isVisibleInShell = widget.selectedTabIndex != null &&
+        widget.tabIndex != null &&
+        widget.selectedTabIndex == widget.tabIndex;
+    final shouldLoad = isStandaloneMode || isVisibleInShell;
+    
+    if (shouldLoad && org != null && _lastLoadedOrgId != org.orgId && !_isLoading) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _checkAndLoadTasks();
+      });
+    }
 
     return Scaffold(
+      appBar: isStandalone
+          ? AppBar(
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back),
+                tooltip: 'Back to home',
+                onPressed: () => context.go(RouteNames.home),
+              ),
+              title: const Text('Tasks'),
+            )
+          : null,
       floatingActionButton: FloatingActionButton.extended(
         heroTag: 'task_fab',
         onPressed: () {

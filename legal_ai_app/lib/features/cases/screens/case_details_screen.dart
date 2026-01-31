@@ -6,6 +6,7 @@ import '../../../core/models/case_model.dart';
 import '../../../core/models/case_participant_model.dart';
 import '../../../core/models/client_model.dart';
 import '../../../core/models/document_model.dart';
+import '../../../core/models/org_model.dart';
 import '../../../core/models/member_model.dart';
 import '../../../core/models/task_model.dart';
 import '../../../core/routing/route_names.dart';
@@ -69,14 +70,32 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
       _loadProgressively();
     });
   }
-  
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Only retry when org becomes available after "No firm selected" (do not retry docs/tasks/notes when empty - that causes an infinite loop)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final org = context.read<OrgProvider>().selectedOrg;
+      if (org == null) return;
+      if (_error == 'No firm selected.') {
+        setState(() {
+          _error = null;
+          _loading = true;
+        });
+        _loadProgressively();
+      }
+    });
+  }
+
   /// Load data progressively - critical data first, then secondary
   Future<void> _loadProgressively() async {
     final org = context.read<OrgProvider>().selectedOrg;
     if (org == null) {
       setState(() {
         _loading = false;
-        _error = 'No organization selected.';
+        _error = 'No firm selected.';
       });
       return;
     }
@@ -88,16 +107,16 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
     if (_error != null || !mounted) return;
     
     // Priority 2: Load secondary data with small delays to not overwhelm
-    // These run in parallel but staggered
-    _loadDocuments();
+    // These run in parallel but staggered - pass org to avoid race conditions
+    _loadDocuments(org);
     await Future.delayed(const Duration(milliseconds: 50));
     if (!mounted) return;
     
-    _loadTasks();
+    _loadTasks(org);
     await Future.delayed(const Duration(milliseconds: 50));
     if (!mounted) return;
     
-    _loadNotes();
+    _loadNotes(org);
     await Future.delayed(const Duration(milliseconds: 50));
     if (!mounted) return;
     
@@ -132,21 +151,8 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
     }
   }
 
-  Future<void> _loadDocuments() async {
-    if (_loadingDocuments) return; // Prevent concurrent loads
-
-    var org = context.read<OrgProvider>().selectedOrg;
-    
-    // Brief wait if org not ready yet (max 1 second)
-    if (org == null) {
-      for (int i = 0; i < 5 && mounted; i++) {
-        await Future.delayed(const Duration(milliseconds: 200));
-        org = context.read<OrgProvider>().selectedOrg;
-        if (org != null) break;
-      }
-    }
-    
-    if (org == null || !mounted) return;
+  Future<void> _loadDocuments(OrgModel org) async {
+    if (_loadingDocuments || !mounted) return; // Prevent concurrent loads
 
     setState(() {
       _loadingDocuments = true;
@@ -183,21 +189,8 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
     }
   }
 
-  Future<void> _loadTasks() async {
-    if (_loadingTasks) return;
-
-    var org = context.read<OrgProvider>().selectedOrg;
-    
-    // Brief wait if org not ready yet (max 1 second)
-    if (org == null) {
-      for (int i = 0; i < 5 && mounted; i++) {
-        await Future.delayed(const Duration(milliseconds: 200));
-        org = context.read<OrgProvider>().selectedOrg;
-        if (org != null) break;
-      }
-    }
-    
-    if (org == null || !mounted) return;
+  Future<void> _loadTasks(OrgModel org) async {
+    if (_loadingTasks || !mounted) return;
 
     setState(() {
       _loadingTasks = true;
@@ -234,11 +227,8 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
     }
   }
 
-  Future<void> _loadNotes() async {
-    if (_loadingNotes) return;
-
-    final org = context.read<OrgProvider>().selectedOrg;
-    if (org == null) return;
+  Future<void> _loadNotes(OrgModel org) async {
+    if (_loadingNotes || !mounted) return;
 
     setState(() {
       _loadingNotes = true;
@@ -387,7 +377,7 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
     if (org == null) {
       setState(() {
         _loading = false;
-        _error = 'No organization selected.';
+        _error = 'No firm selected.';
       });
       return;
     }
@@ -518,7 +508,7 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Case Details'),
+        title: const Text('Matter Details'),
         actions: [
           IconButton(
             tooltip: _editing ? 'Cancel edit' : 'Edit',
@@ -601,7 +591,7 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
                           children: [
                             Expanded(
                               child: RadioListTile<CaseVisibility>(
-                                title: const Text('Organization-wide'),
+                                title: const Text('Firm-wide'),
                                 value: CaseVisibility.orgWide,
                                 groupValue: _visibility,
                                 onChanged: _editing && !_saving
@@ -804,7 +794,7 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            'All members of this organization can see this case.',
+            'All members of this firm can see this matter.',
             style: AppTypography.bodyMedium.copyWith(
               color: AppColors.textSecondary,
             ),
@@ -848,7 +838,7 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
           child: ListTile(
             leading: const Icon(Icons.person),
             title: Text(ownerDisplayName),
-            subtitle: const Text('Case owner'),
+            subtitle: const Text('Matter owner'),
           ),
         ),
         if (_loadingParticipants)
@@ -1101,7 +1091,7 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
   Widget _buildNotesSection() {
     final caseProvider = context.watch<CaseProvider>();
     final caseModel = caseProvider.selectedCase;
-    final caseName = caseModel?.title ?? 'Case';
+    final caseName = caseModel?.title ?? 'Matter';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1266,7 +1256,7 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
                   MaterialPageRoute(
                     builder: (context) => CaseAIChatScreen(
                       caseId: widget.caseId,
-                      caseTitle: caseModel?.title ?? 'Case',
+                      caseTitle: caseModel?.title ?? 'Matter',
                     ),
                   ),
                 );
@@ -1284,7 +1274,7 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
                 MaterialPageRoute(
                   builder: (context) => CaseAIChatScreen(
                     caseId: widget.caseId,
-                    caseTitle: caseModel?.title ?? 'Case',
+                    caseTitle: caseModel?.title ?? 'Matter',
                   ),
                 ),
               );
@@ -1350,7 +1340,7 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
             ),
             TextButton.icon(
               onPressed: () {
-                final title = caseModel?.title ?? 'Case';
+                final title = caseModel?.title ?? 'Matter';
                 context.push('${RouteNames.drafts}?caseId=${Uri.encodeComponent(widget.caseId)}&caseTitle=${Uri.encodeComponent(title)}');
               },
               icon: const Icon(Icons.edit_note, size: 18),
@@ -1362,7 +1352,7 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
         Card(
           child: InkWell(
             onTap: () {
-              final title = caseModel?.title ?? 'Case';
+              final title = caseModel?.title ?? 'Matter';
               context.push('${RouteNames.drafts}?caseId=${Uri.encodeComponent(widget.caseId)}&caseTitle=${Uri.encodeComponent(title)}');
             },
             borderRadius: BorderRadius.circular(12),

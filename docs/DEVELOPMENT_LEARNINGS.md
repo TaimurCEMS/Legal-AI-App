@@ -2,7 +2,7 @@
 
 **Purpose:** Capture key learnings, insights, and solutions discovered during development to prevent repeating mistakes and share knowledge.
 
-**Last Updated:** 2026-01-28
+**Last Updated:** 2026-01-30
 
 ---
 
@@ -2502,5 +2502,42 @@ When you discover a new learning:
 **Files:**
 - `legal_ai_app/lib/features/time_tracking/screens/time_tracking_screen.dart`
 
-**Last Updated:** 2026-01-28  
+---
+
+### Learning 66: Visibility-Aware Loading Prevents Empty Tabs and Overfetch
+**Date:** 2026-01-30  
+**Context:** Global UI stability - tabs not loading until refresh, background overfetch
+
+**Issue:**
+- Tabs inside `IndexedStack` remain mounted, so lifecycle callbacks don’t fire on tab change.
+- Some screens attempted to load on org change and backgrounded all tabs, causing:
+  - Empty tabs that needed manual refresh
+  - Excessive background requests and perceived slowness
+- Standalone routes (`/tasks`, `/documents`) didn’t load when visibility checks assumed only tab context.
+
+**Solution:**
+- Make list screens load **only when visible**:
+  - In app shell: `selectedTabIndex == tabIndex`
+  - Standalone routes: both are `null`, treat as visible
+- Use visibility-aware load triggers:
+  - `initState`: load only if visible (or standalone)
+  - `didUpdateWidget`: load when tab becomes visible
+  - `build`: load when org changes **and** visible
+- Remove redundant org listeners that caused background overfetch.
+
+**Lesson:**
+- **IndexedStack requires explicit visibility signals** for loading.
+- **Avoid loading hidden tabs**; it wastes reads and causes “constant loading” symptoms.
+- **Handle standalone routes explicitly** — don’t assume tab context exists.
+
+**Files:**
+- `legal_ai_app/lib/features/home/widgets/app_shell.dart`
+- `legal_ai_app/lib/features/tasks/screens/task_list_screen.dart`
+- `legal_ai_app/lib/features/documents/screens/document_list_screen.dart`
+- `legal_ai_app/lib/features/clients/screens/client_list_screen.dart`
+- `legal_ai_app/lib/features/cases/screens/case_list_screen.dart`
+- `legal_ai_app/lib/features/notes/screens/note_list_screen.dart`
+- `legal_ai_app/lib/features/calendar/screens/calendar_screen.dart`
+
+**Last Updated:** 2026-01-30  
 **Next Review:** After Slice 11 completion

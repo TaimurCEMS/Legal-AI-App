@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/constants/app_labels.dart';
 import '../../../core/routing/route_names.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/typography.dart';
@@ -26,6 +27,7 @@ import '../../time_tracking/screens/time_tracking_screen.dart';
 import '../../billing/providers/invoice_provider.dart';
 import '../../billing/screens/billing_screen.dart';
 import '../../audit/providers/audit_provider.dart';
+import '../../notifications/providers/notification_provider.dart';
 
 /// Main app shell with navigation
 class AppShell extends StatefulWidget {
@@ -38,18 +40,21 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   int _selectedIndex = 0;
 
-  // Use IndexedStack to preserve widget state when switching tabs
-  final List<Widget> _screens = [
-    const HomeScreen(),
-    const CaseListScreen(),
-    const ClientListScreen(),
-    const DocumentListScreen(),
-    const TaskListScreen(),
-    const TimeTrackingScreen(),
-    const BillingScreen(),
-    const NoteListScreen(),
-    const CalendarScreen(),
-  ];
+  // Build screens with current tab index so list screens load when their tab becomes visible
+  List<Widget> _buildScreens() {
+    final idx = _selectedIndex;
+    return [
+      const HomeScreen(),
+      CaseListScreen(selectedTabIndex: idx, tabIndex: 1),
+      ClientListScreen(selectedTabIndex: idx, tabIndex: 2),
+      DocumentListScreen(selectedTabIndex: idx, tabIndex: 3),
+      TaskListScreen(selectedTabIndex: idx, tabIndex: 4),
+      const TimeTrackingScreen(),
+      const BillingScreen(),
+      NoteListScreen(selectedTabIndex: idx, tabIndex: 7),
+      CalendarScreen(selectedTabIndex: idx, tabIndex: 8),
+    ];
+  }
 
   void _onItemTapped(int index) {
     setState(() {
@@ -58,7 +63,9 @@ class _AppShellState extends State<AppShell> {
   }
 
   String? _lastUserId; // Track last user ID to detect changes
+  String? _lastOrgId; // Track last org ID to detect org switches
   AuthProvider? _authProvider; // Store reference for dispose
+  OrgProvider? _orgProvider; // Store reference for dispose
   
   @override
   void initState() {
@@ -70,6 +77,11 @@ class _AppShellState extends State<AppShell> {
     // Listen to auth state changes to detect user switches
     _authProvider?.addListener(_onAuthStateChanged);
     
+    // Track org changes for notifications
+    _orgProvider = context.read<OrgProvider>();
+    _lastOrgId = _orgProvider?.selectedOrg?.orgId;
+    _orgProvider?.addListener(_onOrgChanged);
+    
     // Initialize org provider early to load saved org (only once)
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
@@ -78,7 +90,35 @@ class _AppShellState extends State<AppShell> {
       if (!orgProvider.isInitialized) {
         await orgProvider.initialize(currentUserId: authProvider.currentUser?.uid);
       }
+      // Load initial notification count if org is available
+      _refreshNotificationsIfNeeded();
     });
+  }
+  
+  void _onOrgChanged() {
+    if (!mounted) return;
+    final currentOrgId = _orgProvider?.selectedOrg?.orgId;
+    if (currentOrgId != _lastOrgId && currentOrgId != null) {
+      _lastOrgId = currentOrgId;
+      // Defer notification refresh to avoid rebuild conflicts during navigation
+      Future.microtask(() {
+        if (mounted) {
+          _refreshNotificationsIfNeeded();
+        }
+      });
+    }
+  }
+  
+  void _refreshNotificationsIfNeeded() {
+    final org = _orgProvider?.selectedOrg;
+    if (org != null && mounted) {
+      try {
+        context.read<NotificationProvider>().refreshUnreadCount(org.orgId);
+      } catch (e) {
+        // Ignore errors during navigation
+        debugPrint('AppShell: Error refreshing notifications: $e');
+      }
+    }
   }
   
   void _onAuthStateChanged() {
@@ -100,8 +140,10 @@ class _AppShellState extends State<AppShell> {
       final timeEntryProvider = context.read<TimeEntryProvider>();
       final invoiceProvider = context.read<InvoiceProvider>();
       final auditProvider = context.read<AuditProvider>();
+      final notificationProvider = context.read<NotificationProvider>();
       
       orgProvider.clearOrg();
+      notificationProvider.clear();
       caseProvider.clearCases();
       clientProvider.clearClients();
       documentProvider.clearDocuments();
@@ -133,8 +175,10 @@ class _AppShellState extends State<AppShell> {
       final timeEntryProvider = context.read<TimeEntryProvider>();
       final invoiceProvider = context.read<InvoiceProvider>();
       final auditProvider = context.read<AuditProvider>();
+      final notificationProvider = context.read<NotificationProvider>();
       
       orgProvider.clearOrg();
+      notificationProvider.clear();
       caseProvider.clearCases();
       clientProvider.clearClients();
       documentProvider.clearDocuments();
@@ -152,7 +196,9 @@ class _AppShellState extends State<AppShell> {
   
   @override
   void dispose() {
+    // Remove listeners to prevent memory leaks
     _authProvider?.removeListener(_onAuthStateChanged);
+    _orgProvider?.removeListener(_onOrgChanged);
     super.dispose();
   }
 
@@ -185,17 +231,69 @@ class _AppShellState extends State<AppShell> {
       );
     }
 
+    // Only rebuild when unreadCount changes, not on every NotificationProvider change
+    final unreadCount = context.select<NotificationProvider, int>((p) => p.unreadCount);
+
     return Scaffold(
       appBar: AppBar(
         title: Text(orgProvider.selectedOrg?.name ?? 'Legal AI App'),
         leading: IconButton(
           icon: const Icon(Icons.business),
-          tooltip: 'Switch Organization',
+          tooltip: AppLabels.switchFirm,
           onPressed: () {
             context.push(RouteNames.orgSelection);
           },
         ),
         actions: [
+          Tooltip(
+            message: 'Notifications',
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => context.pushNamed('notifications'),
+                borderRadius: BorderRadius.circular(24),
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Icon(
+                      Icons.notifications_outlined,
+                      color: Theme.of(context).iconTheme.color,
+                    ),
+                  ),
+                  if (unreadCount > 0)
+                    Positioned(
+                      right: 4,
+                      top: 4,
+                      child: IgnorePointer(
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                          ),
+                          constraints: const BoxConstraints(
+                            minWidth: 18,
+                            minHeight: 18,
+                          ),
+                          child: Text(
+                            unreadCount > 99 ? '99+' : '$unreadCount',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.account_circle),
             onSelected: (value) {
@@ -228,7 +326,7 @@ class _AppShellState extends State<AppShell> {
                   children: [
                     Icon(Icons.business, size: 20),
                     SizedBox(width: AppSpacing.sm),
-                    Text('Switch Organization'),
+                    Text(AppLabels.switchFirm),
                   ],
                 ),
               ),
@@ -249,7 +347,7 @@ class _AppShellState extends State<AppShell> {
       ),
       body: IndexedStack(
         index: _selectedIndex,
-        children: _screens,
+        children: _buildScreens(),
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
@@ -266,7 +364,7 @@ class _AppShellState extends State<AppShell> {
           BottomNavigationBarItem(
             icon: Icon(Icons.folder_outlined),
             activeIcon: Icon(Icons.folder),
-            label: 'Cases',
+            label: AppLabels.matters,
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.people_outlined),
@@ -314,6 +412,7 @@ class _AppShellState extends State<AppShell> {
   ) async {
     // Clear all provider state before logout
     final orgProvider = context.read<OrgProvider>();
+    final notificationProvider = context.read<NotificationProvider>();
     final caseProvider = context.read<CaseProvider>();
     final clientProvider = context.read<ClientProvider>();
     final documentProvider = context.read<DocumentProvider>();
@@ -326,6 +425,7 @@ class _AppShellState extends State<AppShell> {
     
     // Clear all state
     orgProvider.clearOrg();
+    notificationProvider.clear();
     caseProvider.clearCases();
     clientProvider.clearClients();
     documentProvider.clearDocuments();

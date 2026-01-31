@@ -1,6 +1,6 @@
 # Legal AI App - Session Notes
 
-**Last Updated:** 2026-01-29
+**Last Updated:** 2026-01-30
 
 This document captures the current development state, recent decisions, and next steps. Reference this file at the start of new chat sessions to provide context.
 
@@ -189,6 +189,22 @@ This document captures the current development state, recent decisions, and next
 
 ### Deployments
 - ✅ **Deployment confirmed:** All 67 Cloud Functions deployed (verified via `firebase functions:list`). Slice 14 (summarizeDocument, documentSummaryGet, documentSummaryList) and Slice 13 (contractAnalyze, contractAnalysisGet, contractAnalysisList) are live. Firestore indexes for document_summaries and contract_analyses deployed and built.
+
+---
+
+## Recent Session (2026-01-30)
+
+### Work Completed
+
+**UI Stability & Loading Reliability (Tabbed Lists + Matter Details)**
+- Made tabbed list screens load **only when visible** (no background overfetch).
+- Added visibility-aware loading for standalone routes (`/tasks`, `/documents`, `/clients`, `/calendar`).
+- Removed redundant org change listeners that caused constant reloads and perceived slowness.
+- Fixed matter detail sections (Docs/Tasks/Notes/AI) to load reliably by passing `org` from `_loadProgressively` instead of waiting with arbitrary timeouts.
+- Cleaned up unused provider references to avoid compile warnings.
+
+### Deployments
+- No Cloud Functions or Firestore deployments required (Flutter/UI-only changes).
 
 ---
 

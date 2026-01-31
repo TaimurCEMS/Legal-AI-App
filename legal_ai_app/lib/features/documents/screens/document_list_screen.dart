@@ -15,7 +15,15 @@ import '../providers/document_provider.dart';
 import '../../../core/routing/route_names.dart';
 
 class DocumentListScreen extends StatefulWidget {
-  const DocumentListScreen({super.key});
+  /// When used in app shell, [selectedTabIndex] and [tabIndex] trigger load when this tab becomes visible.
+  const DocumentListScreen({
+    super.key,
+    this.selectedTabIndex,
+    this.tabIndex,
+  });
+
+  final int? selectedTabIndex;
+  final int? tabIndex;
 
   @override
   State<DocumentListScreen> createState() => _DocumentListScreenState();
@@ -26,7 +34,6 @@ class _DocumentListScreenState extends State<DocumentListScreen> {
   bool _isLoading = false;
   String? _lastLoadedOrgId;
   String? _lastLoadedSearch;
-  OrgProvider? _orgProvider;
 
   @override
   void initState() {
@@ -35,13 +42,18 @@ class _DocumentListScreenState extends State<DocumentListScreen> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      _orgProvider = context.read<OrgProvider>();
       _documentProvider = context.read<DocumentProvider>();
-
       _documentProvider!.clearError();
-      _orgProvider!.addListener(_onOrgChanged);
       _documentProvider!.addListener(_onDocumentsChanged);
-      _checkAndLoadDocuments();
+
+      // Load if: standalone mode (both null) OR visible in shell (both non-null and equal)
+      final isStandalone = widget.selectedTabIndex == null && widget.tabIndex == null;
+      final isVisibleInShell = widget.selectedTabIndex != null &&
+          widget.tabIndex != null &&
+          widget.selectedTabIndex == widget.tabIndex;
+      if (isStandalone || isVisibleInShell) {
+        _checkAndLoadDocuments();
+      }
     });
   }
 
@@ -61,8 +73,25 @@ class _DocumentListScreenState extends State<DocumentListScreen> {
   DocumentProvider? _documentProvider;
 
   @override
+  void didUpdateWidget(covariant DocumentListScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final nowVisible = widget.selectedTabIndex != null &&
+        widget.tabIndex != null &&
+        widget.selectedTabIndex == widget.tabIndex;
+    final wasVisible = oldWidget.selectedTabIndex != null &&
+        oldWidget.tabIndex != null &&
+        oldWidget.selectedTabIndex == oldWidget.tabIndex;
+    
+    // Load when we become visible
+    if (nowVisible && !wasVisible) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !_isLoading) _checkAndLoadDocuments();
+      });
+    }
+  }
+
+  @override
   void dispose() {
-    _orgProvider?.removeListener(_onOrgChanged);
     _documentProvider?.removeListener(_onDocumentsChanged);
     _searchDebounce?.cancel();
     _searchController.dispose();
@@ -72,57 +101,18 @@ class _DocumentListScreenState extends State<DocumentListScreen> {
   void _onDocumentsChanged() {
     if (!mounted) return;
     // Auto-refresh when documents are created/updated/deleted
+    // Only if standalone or visible in shell
+    final isStandalone = widget.selectedTabIndex == null && widget.tabIndex == null;
+    final isVisibleInShell = widget.selectedTabIndex != null &&
+        widget.tabIndex != null &&
+        widget.selectedTabIndex == widget.tabIndex;
+    
     final org = context.read<OrgProvider>().selectedOrg;
-    if (org != null && !_isLoading) {
+    if (org != null && !_isLoading && (isStandalone || isVisibleInShell)) {
       _lastLoadedOrgId = null;
       _lastLoadedSearch = null;
       _tryLoadDocuments();
     }
-  }
-
-  void _onOrgChanged() {
-    if (!mounted) return;
-    final orgProvider = context.read<OrgProvider>();
-    final currentOrgId = orgProvider.selectedOrg?.orgId;
-
-    if (currentOrgId != null && currentOrgId != _lastLoadedOrgId) {
-      _handleOrgChange(currentOrgId);
-    } else if (currentOrgId == null && _lastLoadedOrgId != null) {
-      _lastLoadedOrgId = null;
-      final documentProvider = context.read<DocumentProvider>();
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) documentProvider.clearDocuments();
-      });
-    }
-  }
-
-  void _handleOrgChange(String newOrgId) {
-    if (!mounted || _isLoading) return;
-    final orgProvider = context.read<OrgProvider>();
-    final documentProvider = context.read<DocumentProvider>();
-
-    if (!orgProvider.isInitialized || orgProvider.isLoading) {
-      Future.delayed(const Duration(milliseconds: 200), () {
-        if (mounted && orgProvider.selectedOrg?.orgId == newOrgId) {
-          _handleOrgChange(newOrgId);
-        }
-      });
-      return;
-    }
-
-    _lastLoadedOrgId = null;
-    _lastLoadedSearch = null;
-
-    setState(() {
-      _searchController.clear();
-    });
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && orgProvider.selectedOrg?.orgId == newOrgId) {
-        documentProvider.clearDocuments();
-        _tryLoadDocuments();
-      }
-    });
   }
 
   void _checkAndLoadDocuments() {
@@ -213,7 +203,21 @@ class _DocumentListScreenState extends State<DocumentListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final org = context.watch<OrgProvider>().selectedOrg;
     final documentProvider = context.watch<DocumentProvider>();
+
+    // Load if: standalone mode (both null) OR visible in shell (both non-null and equal)
+    final isStandalone = widget.selectedTabIndex == null && widget.tabIndex == null;
+    final isVisibleInShell = widget.selectedTabIndex != null &&
+        widget.tabIndex != null &&
+        widget.selectedTabIndex == widget.tabIndex;
+    final shouldLoad = isStandalone || isVisibleInShell;
+    
+    if (shouldLoad && org != null && _lastLoadedOrgId != org.orgId && !_isLoading) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _checkAndLoadDocuments();
+      });
+    }
 
     return Scaffold(
       floatingActionButton: FloatingActionButton.extended(
