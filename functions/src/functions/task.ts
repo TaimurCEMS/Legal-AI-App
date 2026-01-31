@@ -9,6 +9,7 @@ import { ErrorCode } from '../constants/errors';
 import { checkEntitlement } from '../utils/entitlements';
 import { createAuditEvent } from '../utils/audit';
 import { canUserAccessCase } from '../utils/case-access';
+import { emitDomainEventWithOutbox } from '../utils/domain-events';
 
 const db = admin.firestore();
 
@@ -477,6 +478,16 @@ export const taskCreate = functions.https.onCall(async (data, context) => {
         assigneeId: taskData.assigneeId,
         dueDate: dueDate || null,
       },
+    });
+
+    await emitDomainEventWithOutbox({
+      orgId,
+      eventType: 'task.created',
+      entityType: 'task',
+      entityId: taskId,
+      actor: { actorType: 'user', actorId: uid },
+      payload: { title: sanitizedTitle, status: parsedStatus, assigneeId: taskData.assigneeId ?? null },
+      matterId: taskData.caseId ?? undefined,
     });
 
     return successResponse({
@@ -1010,7 +1021,7 @@ export const taskUpdate = functions.https.onCall(async (data, context) => {
       }
       if (sanitizedTitle !== existingTask.title) {
         updateData.title = sanitizedTitle;
-        changes.title = sanitizedTitle;
+        changes.title = { from: existingTask.title, to: sanitizedTitle };
       }
     }
 
@@ -1079,7 +1090,7 @@ export const taskUpdate = functions.https.onCall(async (data, context) => {
       }
       if (parsedPriority !== existingTask.priority) {
         updateData.priority = parsedPriority;
-        changes.priority = parsedPriority;
+        changes.priority = { from: existingTask.priority, to: parsedPriority };
       }
     }
 
@@ -1248,6 +1259,43 @@ export const taskUpdate = functions.https.onCall(async (data, context) => {
       entityId: taskId,
       metadata: auditMetadata,
     });
+
+    if (changes.status?.to === 'COMPLETED') {
+      await emitDomainEventWithOutbox({
+        orgId,
+        eventType: 'task.completed',
+        entityType: 'task',
+        entityId: taskId,
+        actor: { actorType: 'user', actorId: uid },
+        payload: { title: updatedTask.title, previousStatus: changes.status.from },
+        matterId: updatedTask.caseId ?? undefined,
+      });
+    } else if (changes.assigneeId) {
+      await emitDomainEventWithOutbox({
+        orgId,
+        eventType: 'task.assigned',
+        entityType: 'task',
+        entityId: taskId,
+        actor: { actorType: 'user', actorId: uid },
+        payload: {
+          title: updatedTask.title,
+          assigneeId: changes.assigneeId.to ?? null,
+          previousAssigneeId: changes.assigneeId.from ?? null,
+        },
+        matterId: updatedTask.caseId ?? undefined,
+      });
+    } else {
+      // Generic task update (title, description, due date, priority, status to non-COMPLETED, etc.)
+      await emitDomainEventWithOutbox({
+        orgId,
+        eventType: 'task.updated',
+        entityType: 'task',
+        entityId: taskId,
+        actor: { actorType: 'user', actorId: uid },
+        payload: { title: updatedTask.title, changes },
+        matterId: updatedTask.caseId ?? undefined,
+      });
+    }
 
     return successResponse({
       taskId: updatedTask.id,

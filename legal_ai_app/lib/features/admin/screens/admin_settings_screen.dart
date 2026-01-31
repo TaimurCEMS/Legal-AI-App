@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/constants/app_labels.dart';
 import '../../../core/routing/route_names.dart';
 import '../../../core/theme/spacing.dart';
 import '../../../core/theme/typography.dart';
@@ -40,7 +41,7 @@ class AdminSettingsScreen extends StatelessWidget {
       return Scaffold(
         appBar: AppBar(title: const Text('Admin Settings')),
         body: const Center(
-          child: Text('No organization selected.'),
+          child: Text('No firm selected.'),
         ),
       );
     }
@@ -58,7 +59,7 @@ class AdminSettingsScreen extends StatelessWidget {
           padding: const EdgeInsets.all(AppSpacing.md),
           children: [
             Text(
-              'Advanced organization and team management',
+              'Advanced firm and team management',
               style: AppTypography.bodyMedium.copyWith(
                 color: AppColors.textSecondary,
               ),
@@ -73,7 +74,7 @@ class AdminSettingsScreen extends StatelessWidget {
             const SizedBox(height: AppSpacing.md),
             _AdminCard(
               icon: Icons.settings,
-              title: 'Organization Settings',
+              title: AppLabels.firmSettings,
               subtitle: 'Name, timezone, business hours, defaults',
               onTap: () => context.push(RouteNames.organizationSettings),
             ),
@@ -88,13 +89,13 @@ class AdminSettingsScreen extends StatelessWidget {
             _AdminCard(
               icon: Icons.download,
               title: 'Export Data',
-              subtitle: 'Download all organization data as JSON',
+              subtitle: 'Download all firm data as JSON',
               onTap: () => context.push(RouteNames.organizationExport),
             ),
             const SizedBox(height: AppSpacing.md),
             _AdminCard(
               icon: Icons.analytics_outlined,
-              title: 'Organization Dashboard',
+              title: AppLabels.firmDashboard,
               subtitle: 'Statistics and activity metrics',
               onTap: () => context.push(RouteNames.organizationDashboard),
             ),

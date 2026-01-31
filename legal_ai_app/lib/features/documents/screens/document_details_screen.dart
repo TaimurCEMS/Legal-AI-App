@@ -16,6 +16,8 @@ import '../providers/document_provider.dart';
 import '../../../core/services/document_service.dart';
 import '../../contract_analysis/providers/contract_analysis_provider.dart';
 import '../../document_summary/providers/document_summary_provider.dart';
+import '../../home/providers/org_provider.dart';
+import '../../comments/widgets/comment_list_section.dart';
 
 class DocumentDetailsScreen extends StatefulWidget {
   final String documentId;
@@ -525,6 +527,15 @@ class _DocumentDetailsScreenState extends State<DocumentDetailsScreen> {
                   // Document Summary Section (Slice 14)
                   _buildDocumentSummarySection(),
                   const SizedBox(height: AppSpacing.md),
+                  if (_documentModel!.caseId != null && _documentModel!.caseId!.isNotEmpty)
+                    CommentListSection(
+                      orgId: context.read<OrgProvider>().selectedOrg!.orgId,
+                      matterId: _documentModel!.caseId!,
+                      documentId: widget.documentId,
+                      maxVisible: 5,
+                    ),
+                  if (_documentModel!.caseId != null && _documentModel!.caseId!.isNotEmpty)
+                    const SizedBox(height: AppSpacing.md),
                   PrimaryButton(
                     label: 'Download Document',
                     onPressed: _downloading ? null : _download,

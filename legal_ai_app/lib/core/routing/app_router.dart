@@ -36,6 +36,9 @@ import '../../features/admin/screens/organization_settings_screen.dart';
 import '../../features/admin/screens/organization_export_screen.dart';
 import '../../features/admin/screens/organization_dashboard_screen.dart';
 import '../../features/admin/screens/member_profile_screen.dart';
+import '../../features/notifications/screens/notification_list_screen.dart';
+import '../../features/notifications/screens/notification_preferences_screen.dart';
+import '../../features/activity_feed/screens/activity_feed_screen.dart';
 
 /// App router configuration
 class AppRouter {
@@ -127,6 +130,16 @@ class AppRouter {
           final memberUid = state.uri.queryParameters['memberUid'];
           return MemberProfileScreen(memberUid: memberUid);
         },
+      ),
+      GoRoute(
+        name: 'notifications',
+        path: RouteNames.notifications,
+        builder: (context, state) => const NotificationListScreen(),
+      ),
+      GoRoute(
+        name: 'notificationPreferences',
+        path: RouteNames.notificationPreferences,
+        builder: (context, state) => const NotificationPreferencesScreen(),
       ),
       GoRoute(
         path: RouteNames.clientList,
@@ -264,6 +277,15 @@ class AppRouter {
           final caseId = state.uri.queryParameters['caseId'] ?? '';
           final caseTitle = state.uri.queryParameters['caseTitle'] ?? 'Case';
           return DraftEditorScreen(draftId: draftId, caseId: caseId, caseTitle: caseTitle);
+        },
+      ),
+
+      // Slice 16 Activity Feed
+      GoRoute(
+        path: RouteNames.activityFeed,
+        builder: (context, state) {
+          final matterId = state.uri.queryParameters['matterId'];
+          return ActivityFeedScreen(matterId: matterId);
         },
       ),
     ],

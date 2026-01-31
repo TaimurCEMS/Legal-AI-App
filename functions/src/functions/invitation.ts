@@ -9,6 +9,7 @@ import { ErrorCode } from '../constants/errors';
 import { checkEntitlement } from '../utils/entitlements';
 import { createAuditEvent } from '../utils/audit';
 import { Role } from '../constants/permissions';
+import { emitDomainEventWithOutbox } from '../utils/domain-events';
 
 const db = admin.firestore();
 
@@ -163,6 +164,15 @@ export const invitationCreate = functions.https.onCall(async (data, context) => 
         role,
         inviteCode,
       },
+    });
+
+    await emitDomainEventWithOutbox({
+      orgId,
+      eventType: 'user.invited',
+      entityType: 'invitation',
+      entityId: invitationRef.id,
+      actor: { actorType: 'user', actorId: uid },
+      payload: { email: email.toLowerCase(), role },
     });
 
     functions.logger.info(`Invitation created: ${invitationRef.id} for ${email}`);
@@ -323,6 +333,15 @@ export const invitationAccept = functions.https.onCall(async (data, context) => 
         role: invitationData.role,
         inviteCode,
       },
+    });
+
+    await emitDomainEventWithOutbox({
+      orgId,
+      eventType: 'user.joined',
+      entityType: 'invitation',
+      entityId: invitationDoc.id,
+      actor: { actorType: 'user', actorId: uid },
+      payload: { email: invitationData.email, role: invitationData.role },
     });
 
     // Get org details for response

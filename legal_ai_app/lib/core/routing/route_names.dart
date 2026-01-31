@@ -39,4 +39,9 @@ class RouteNames {
   static const String organizationExport = '/settings/admin/export';
   static const String organizationDashboard = '/settings/admin/dashboard';
   static const String memberProfile = '/settings/admin/member-profile';
+  // P2 Notifications
+  static const String notifications = '/notifications';
+  static const String notificationPreferences = '/settings/notification-preferences';
+  // Slice 16 Activity Feed
+  static const String activityFeed = '/activity';
 }

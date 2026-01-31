@@ -16,6 +16,7 @@ export default tseslint.config(
       '.eslintrc.js',
       'jest.config.js',
       'eslint.config.js',
+      'src/__tests__/**',
     ],
   },
   
@@ -38,23 +39,4 @@ export default tseslint.config(
     },
   },
   
-  // Test files - allow Jest globals
-  {
-    files: ['src/**/*.test.ts', 'src/**/__tests__/**/*.ts'],
-    languageOptions: {
-      globals: {
-        describe: 'readonly',
-        test: 'readonly',
-        it: 'readonly',
-        expect: 'readonly',
-        beforeEach: 'readonly',
-        afterEach: 'readonly',
-        jest: 'readonly',
-      },
-    },
-    rules: {
-      // Relax rules for tests
-      '@typescript-eslint/no-explicit-any': 'off',
-    },
-  }
 );

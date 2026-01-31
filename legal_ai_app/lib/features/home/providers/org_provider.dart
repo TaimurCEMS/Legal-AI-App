@@ -166,7 +166,7 @@ class OrgProvider with ChangeNotifier {
         notifyListeners();
         return true;
       } else {
-        _errorMessage = response['error']?['message'] ?? 'Failed to create organization';
+        _errorMessage = response['error']?['message'] ?? 'Failed to create firm';
         _isLoading = false;
         notifyListeners();
         return false;
@@ -205,7 +205,7 @@ class OrgProvider with ChangeNotifier {
         notifyListeners();
         return true;
       } else {
-        _errorMessage = response['error']?['message'] ?? 'Failed to join organization';
+        _errorMessage = response['error']?['message'] ?? 'Failed to join firm';
         _isLoading = false;
         notifyListeners();
         return false;
@@ -400,7 +400,7 @@ class OrgProvider with ChangeNotifier {
         // Save org IDs to local storage for quick access
         await _saveUserOrgsList();
         } else {
-          _errorMessage = response['error']?['message'] ?? 'Failed to load organizations';
+          _errorMessage = response['error']?['message'] ?? 'Failed to load firms';
           _userOrgs.clear();
         }
       } catch (e) {

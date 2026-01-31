@@ -166,7 +166,7 @@ class _MemberManagementScreenState extends State<MemberManagementScreen> {
         child: EmptyStateWidget(
           icon: Icons.people_outline,
           title: 'No Members',
-          message: 'No members found in this organization.',
+          message: 'No members found in this firm.',
         ),
       );
     }
@@ -349,12 +349,12 @@ class _MemberManagementScreenState extends State<MemberManagementScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
             const Text(
-              'To add a new member to your organization:',
+              'To add a new member to your firm:',
               style: AppTypography.bodyMedium,
             ),
             const SizedBox(height: AppSpacing.md),
             const Text(
-              '1. Share your Organization ID with the person you want to add:',
+              '1. Share your Firm ID with the person you want to add:',
               style: AppTypography.bodySmall,
             ),
             const SizedBox(height: AppSpacing.xs),
@@ -385,9 +385,9 @@ class _MemberManagementScreenState extends State<MemberManagementScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('• Sign up or log in to the app'),
-                  Text('• Go to Organization Selection'),
-                  Text('• Click "Join Organization"'),
-                  Text('• Enter the Organization ID above'),
+                  Text('• Go to Firm Selection'),
+                  Text('• Click "Join Firm"'),
+                  Text('• Enter the Firm ID above'),
                 ],
               ),
             ),

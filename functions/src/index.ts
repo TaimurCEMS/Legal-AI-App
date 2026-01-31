@@ -102,6 +102,16 @@ export {
 // Export Slice 12 - Audit Trail UI functions
 export { auditList, auditExport } from './functions/audit';
 
+// Export Slice 16 - Comments + Activity Feed
+export {
+  commentCreate,
+  commentGet,
+  commentList,
+  commentUpdate,
+  commentDelete,
+} from './functions/comment';
+export { activityFeedList } from './functions/activity-feed';
+
 // Export Slice 13 - AI Contract Analysis functions
 export {
   contractAnalyze,
@@ -124,3 +134,15 @@ export {
   invitationList,
 } from './functions/invitation';
 export { orgExport, orgGetStats } from './functions/admin';
+
+// P1 Domain Events + Outbox | P2 Notification Engine
+export { outboxProcessorSchedule } from './functions/outbox-processor';
+export { onDomainEventCreated } from './functions/domain-event-trigger';
+export {
+  notificationList,
+  notificationMarkRead,
+  notificationMarkAllRead,
+  notificationUnreadCount,
+  notificationPreferencesGet,
+  notificationPreferencesUpdate,
+} from './functions/notification';

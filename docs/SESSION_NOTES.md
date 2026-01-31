@@ -1,6 +1,6 @@
 # Legal AI App - Session Notes
 
-**Last Updated:** 2026-01-30
+**Last Updated:** 2026-01-31
 
 This document captures the current development state, recent decisions, and next steps. Reference this file at the start of new chat sessions to provide context.
 
@@ -29,11 +29,13 @@ This document captures the current development state, recent decisions, and next
 | 12 | ✅ Complete | Audit Trail UI (ADMIN-only compliance visibility) |
 | 13 | ✅ Complete | AI Contract Analysis (clause identification, risk flagging) |
 | 14 | ✅ Complete | AI Document Summarization (one-click document summaries) |
+| P1 | ✅ Complete | Domain Events + Outbox (event-driven infrastructure) |
+| 16 | ✅ Complete | Comments + Activity Feed (collaboration + audit visibility) |
 
 ### Git Status
 - **Branch:** main
-- **Last commit:** feat: Implement Slice 14 - AI Document Summarization
-- **Deployments:** ✅ **67 Cloud Functions deployed** to `legal-ai-app-1203e` (us-central1). Slice 14 functions (summarizeDocument, documentSummaryGet, documentSummaryList) and all prior slices confirmed live. Firestore indexes for document_summaries and contract_analyses deployed and built.
+- **Last commit:** feat: Implement Slice 14 - AI Document Summarization (to be updated)
+- **Deployments:** ✅ **70+ Cloud Functions deployed** to `legal-ai-app-1203e` (us-central1). All slices through Slice 16 confirmed live, including P1 infrastructure (outboxProcessor, domain events). Firestore indexes for comments, domain_events deployed and built.
 
 ---
 
@@ -250,6 +252,64 @@ This document captures the current development state, recent decisions, and next
 - **Naming:** `{entity}{Action}` (e.g., `caseCreate`, `eventList`)
 - **Timestamps:** Firestore Timestamps converted to ISO strings in responses
 - **Visibility Enforcement:** Always at backend, frontend is convenience only
+
+---
+
+## Recent Session (2026-01-30 to 2026-01-31)
+
+### Work Completed
+
+**Slice P1 - Domain Events + Outbox (COMPLETE)**
+- Backend infrastructure for event-driven architecture:
+  - `emitDomainEventWithOutbox` utility - atomic batch writes for domain_event + outbox record
+  - `outboxProcessor` scheduled function - processes pending outbox jobs with exponential backoff
+  - Idempotency keys prevent duplicate processing (`notif:<orgId>:<eventId>`)
+  - Events: `invoice.sent`, `invoice.created`, `payment.received`, `comment.added`, `comment.updated`, `comment.deleted`
+- Tests: `functions/src/__tests__/domain-events.test.ts`
+- Deployed: P1 infrastructure ready for P2 notification routing
+
+**Slice 16 - Comments + Activity Feed (COMPLETE)**
+- Backend (Cloud Functions):
+  - `commentCreate`, `commentGet`, `commentList`, `commentUpdate`, `commentDelete`
+  - `activityFeedList` - activity feed from domain_events
+  - Domain events emitted for all comment operations (create/update/delete)
+  - P2 notification routing configured for comment events
+  - Case access enforcement via `canUserAccessCase`
+- Frontend (Flutter):
+  - CommentProvider, CommentService, CommentModel
+  - CommentListSection widget (reusable across screens)
+  - ActivityFeedProvider, ActivityFeedService, ActivityFeedModel
+  - ActivityFeedScreen + Home dashboard integration
+  - Author name resolution via MemberProvider
+  - SnackBar feedback for operations
+  - Integrated in CaseDetailsScreen, TaskDetailsScreen, DocumentDetailsScreen
+- Infrastructure:
+  - Firestore indexes for comments (matterId, taskId, documentId + createdAt)
+  - Firestore indexes for domain_events (orgId+timestamp, orgId+matterId+timestamp)
+  - Firestore security rules for comments
+- Deployed: All functions and indexes
+
+**Real-Time Architecture Exploration (Attempted and Reverted)**
+- Attempted Firestore real-time listeners (`snapshots()`) for cases, tasks, and comments
+- Updated models to handle both Firestore `Timestamp` objects and ISO strings from Cloud Functions
+- Implemented automatic fallback to Cloud Functions on permission errors
+- **Decision:** Reverted to backend-loaded architecture because:
+  - Complex Firestore rules (case access checks) incompatible with list queries
+  - Backend-loaded approach more secure and consistent
+  - All data flows through audited Cloud Functions
+  - Better for legal app requirements (controlled, traceable)
+- Models retain `Timestamp` parsing for future flexibility
+
+**Bug Fixes**
+- Fixed `commentCreate` 500 error by sanitizing event payload (no `undefined` values)
+- Fixed client dropdown assertion error in CaseDetailsScreen (deduplicate items, handle null value)
+- Fixed Home screen Column overflow with `SingleChildScrollView`
+- Fixed comment author display showing "User" - now resolves actual names via MemberProvider
+
+### Deployments
+- ✅ Cloud Functions deployed (commentCreate, commentUpdate, commentDelete and P1 infrastructure)
+- ✅ Firestore indexes deployed and built
+- ✅ All 67+ functions confirmed live
 
 ---
 

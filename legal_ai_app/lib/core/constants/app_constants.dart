@@ -28,9 +28,9 @@ class AppConstants {
   static const String errorNotFound = 'Resource not found.';
   static const String errorValidation = 'Please check your input and try again.';
 
-  // Success Messages
-  static const String successOrgCreated = 'Organization created successfully!';
-  static const String successOrgJoined = 'Successfully joined organization!';
+  // Success Messages (use AppLabels for Firm/Matter terminology in UI)
+  static const String successOrgCreated = 'Firm created successfully!';
+  static const String successOrgJoined = 'Successfully joined firm!';
   static const String successPasswordReset = 'Password reset email sent!';
 
   // Feature Flags (for future use)

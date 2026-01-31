@@ -39,6 +39,38 @@ service cloud.firestore {
     match /doc_chunks/{chunkId} {
       allow read, write: if false;
     }
+
+    // P1: domain_events and outbox are server-only (Cloud Functions Admin SDK)
+    match /domain_events/{eventId} {
+      allow read, write: if false;
+    }
+    match /outbox/{outboxId} {
+      allow read, write: if false;
+    }
+
+    // P2: notifications – recipient can read their own only (org-scoped)
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() &&
+        resource.data.recipientUid == request.auth.uid;
+      allow write: if false;
+    }
+    // P2: notification_preferences – user can read/write their own only (doc id: orgId_uid_category)
+    match /notification_preferences/{prefId} {
+      allow read: if isAuthenticated() &&
+        (resource != null && resource.data.uid == request.auth.uid);
+      allow create: if isAuthenticated() &&
+        request.resource.data.uid == request.auth.uid;
+      allow update, delete: if isAuthenticated() &&
+        resource.data.uid == request.auth.uid;
+    }
+    // P2: notification_templates – admin can manage (server-only for v1)
+    match /notification_templates/{templateId} {
+      allow read, write: if false;
+    }
+    // P2: suppression_list – admin view/manage, system write (server-only for v1)
+    match /suppression_list/{suppressionId} {
+      allow read, write: if false;
+    }
     
     // orgs: read-only for active members
     match /orgs/{orgId} {
@@ -262,6 +294,16 @@ service cloud.firestore {
         (!('caseId' in resource.data) || resource.data.caseId == null || canAccessCase(orgId, resource.data.caseId));
 
       // All writes are via Admin SDK (Cloud Functions); deny direct client writes
+      allow create, update, delete: if false;
+    }
+
+    // Slice 16: Comments under organizations collection (case access)
+    match /organizations/{orgId}/comments/{commentId} {
+      allow read: if isOrgMember(orgId) &&
+        ('matterId' in resource.data) &&
+        resource.data.matterId != null &&
+        canAccessCase(orgId, resource.data.matterId) &&
+        (!('deletedAt' in resource.data) || resource.data.deletedAt == null);
       allow create, update, delete: if false;
     }
 

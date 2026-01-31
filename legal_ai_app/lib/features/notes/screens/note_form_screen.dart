@@ -122,7 +122,7 @@ class _NoteFormScreenState extends State<NoteFormScreen> {
     try {
       if (_isEdit && _existingNote != null) {
         if (_selectedCaseId == null || _selectedCaseId!.isEmpty) {
-          throw Exception('Please select a case for this note');
+          throw Exception('Please select a matter for this note');
         }
 
         // Update existing note
@@ -146,7 +146,7 @@ class _NoteFormScreenState extends State<NoteFormScreen> {
       } else {
         // Create new note
         if (_selectedCaseId == null) {
-          throw Exception('Please select a case for this note');
+          throw Exception('Please select a matter for this note');
         }
         
         final newNote = await noteProvider.createNote(
@@ -221,8 +221,8 @@ class _NoteFormScreenState extends State<NoteFormScreen> {
                           return DropdownButtonFormField<String>(
                             value: _selectedCaseId,
                             decoration: const InputDecoration(
-                              labelText: 'Case *',
-                              hintText: 'Select a case',
+                              labelText: 'Matter *',
+                              hintText: 'Select a matter',
                               border: OutlineInputBorder(),
                               prefixIcon: Icon(Icons.folder_outlined),
                             ),
@@ -240,7 +240,7 @@ class _NoteFormScreenState extends State<NoteFormScreen> {
                             },
                             validator: (value) {
                               if (value == null || value.isEmpty) {
-                                return 'Please select a case';
+                                return 'Please select a matter';
                               }
                               return null;
                             },
@@ -358,7 +358,7 @@ class _NoteFormScreenState extends State<NoteFormScreen> {
                     // Private toggle
                     SwitchListTile(
                       title: const Text('Private note'),
-                      subtitle: const Text('Only visible to you, even on shared cases'),
+                      subtitle: const Text('Only visible to you, even on shared matters'),
                       value: _isPrivate,
                       onChanged: (value) {
                         setState(() => _isPrivate = value);

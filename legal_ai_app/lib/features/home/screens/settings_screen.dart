@@ -137,7 +137,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 children: [
                   ListTile(
                     leading: const Icon(Icons.business),
-                    title: const Text('Switch Organization'),
+                    title: const Text('Switch Firm'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () {
                       context.push(RouteNames.orgSelection);
@@ -146,7 +146,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   if (orgProvider.selectedOrg != null)
                     ListTile(
                       leading: const Icon(Icons.info_outline),
-                      title: const Text('Current Organization'),
+                      title: const Text('Current Firm'),
                       subtitle: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -163,6 +163,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ),
                         ],
                       ),
+                    ),
+                  // Notification preferences (any org member)
+                  if (orgProvider.selectedOrg != null)
+                    ListTile(
+                      leading: const Icon(Icons.notifications_outlined),
+                      title: const Text('Notification preferences'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () {
+                        context.pushNamed('notificationPreferences');
+                      },
                     ),
                   // Team Members (ADMIN only)
                   if (orgProvider.selectedOrg != null &&

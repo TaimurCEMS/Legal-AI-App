@@ -19,6 +19,7 @@
     "test:slice13:full": "npm run build && node lib/__tests__/slice13-full-integration-test.js",
     "test:slice14": "npm run build && node lib/__tests__/slice14-terminal-test.js",
     "test:slice15": "npm run build && node lib/__tests__/slice15-terminal-test.js",
+    "test:p2": "npm run build && node lib/__tests__/slice-p2-terminal-test.js",
     "test:task": "npm run build && node lib/__tests__/task-terminal-test.js",
     "verify:task": "npm run build && node lib/verify-task-functions.js",
     "verify": "node verify-functions.js"
@@ -28,6 +29,7 @@
   },
   "main": "lib/index.js",
   "dependencies": {
+    "@google-cloud/secret-manager": "^5.0.0",
     "docx": "^9.5.0",
     "firebase-admin": "^12.0.0",
     "firebase-functions": "^4.5.0",

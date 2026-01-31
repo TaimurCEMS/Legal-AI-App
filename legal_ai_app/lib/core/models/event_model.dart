@@ -152,9 +152,9 @@ enum EventVisibility {
   String get displayName {
     switch (this) {
       case EventVisibility.org:
-        return 'Organization-wide';
+        return 'Firm-wide';
       case EventVisibility.caseOnly:
-        return 'Case Team Only';
+        return 'Matter Team Only';
       case EventVisibility.private_:
         return 'Private';
     }

@@ -220,7 +220,7 @@ class _TimeTrackingScreenState extends State<TimeTrackingScreen> {
   }
 
   String _caseLabel(List<CaseModel> cases, String? caseId) {
-    if (caseId == null) return 'No case';
+    if (caseId == null) return 'No matter';
     final match = cases.where((c) => c.caseId == caseId).toList();
     if (match.isNotEmpty) return match.first.title;
     return caseId;
@@ -275,9 +275,9 @@ class _TimeTrackingScreenState extends State<TimeTrackingScreen> {
                     DropdownButtonFormField<String?>(
                       key: ValueKey(selectedCaseId),
                       initialValue: selectedCaseId,
-                      decoration: const InputDecoration(labelText: 'Case (optional)'),
+                      decoration: const InputDecoration(labelText: 'Matter (optional)'),
                       items: [
-                        const DropdownMenuItem(value: null, child: Text('No case')),
+                        const DropdownMenuItem(value: null, child: Text('No matter')),
                         ...cases.map(
                           (c) => DropdownMenuItem(value: c.caseId, child: Text(c.title)),
                         ),
@@ -373,9 +373,9 @@ class _TimeTrackingScreenState extends State<TimeTrackingScreen> {
                     DropdownButtonFormField<String?>(
                       key: ValueKey(selectedCaseId),
                       initialValue: selectedCaseId,
-                      decoration: const InputDecoration(labelText: 'Case (optional)'),
+                      decoration: const InputDecoration(labelText: 'Matter (optional)'),
                       items: [
-                        const DropdownMenuItem(value: null, child: Text('No case')),
+                        const DropdownMenuItem(value: null, child: Text('No matter')),
                         ...cases.map(
                           (c) => DropdownMenuItem(value: c.caseId, child: Text(c.title)),
                         ),
@@ -530,9 +530,9 @@ class _TimeTrackingScreenState extends State<TimeTrackingScreen> {
                   DropdownButtonFormField<String?>(
                     key: ValueKey(_timerCaseId),
                     initialValue: _timerCaseId,
-                    decoration: const InputDecoration(labelText: 'Case (optional)'),
+                    decoration: const InputDecoration(labelText: 'Matter (optional)'),
                     items: [
-                      const DropdownMenuItem(value: null, child: Text('No case')),
+                      const DropdownMenuItem(value: null, child: Text('No matter')),
                       ...caseProvider.cases.map(
                         (c) => DropdownMenuItem(value: c.caseId, child: Text(c.title)),
                       ),
@@ -582,7 +582,7 @@ class _TimeTrackingScreenState extends State<TimeTrackingScreen> {
                     style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: AppSpacing.sm),
-                  Text('Case: ${_caseLabel(caseProvider.cases, running.caseId)}'),
+                  Text('Matter: ${_caseLabel(caseProvider.cases, running.caseId)}'),
                   if (running.description.trim().isNotEmpty) ...[
                     const SizedBox(height: AppSpacing.xs),
                     Text('Note: ${running.description}'),
@@ -729,7 +729,7 @@ class _TimeTrackingScreenState extends State<TimeTrackingScreen> {
                     DropdownButton<String>(
                       value: _entriesCaseId,
                       items: [
-                        const DropdownMenuItem(value: _allCasesFilterValue, child: Text('All cases')),
+                        const DropdownMenuItem(value: _allCasesFilterValue, child: Text('All matters')),
                         ...caseProvider.cases.map((c) => DropdownMenuItem(value: c.caseId, child: Text(c.title))),
                       ],
                       onChanged: (v) {

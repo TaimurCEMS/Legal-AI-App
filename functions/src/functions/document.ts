@@ -9,6 +9,7 @@ import { ErrorCode } from '../constants/errors';
 import { checkEntitlement } from '../utils/entitlements';
 import { createAuditEvent } from '../utils/audit';
 import { canUserAccessCase } from '../utils/case-access';
+import { emitDomainEventWithOutbox } from '../utils/domain-events';
 
 const db = admin.firestore();
 const storage = admin.storage();
@@ -326,6 +327,16 @@ export const documentCreate = functions.https.onCall(async (data, context) => {
         fileSize: parsedFileSize,
         caseId: documentData.caseId || null,
       },
+    });
+
+    await emitDomainEventWithOutbox({
+      orgId,
+      eventType: 'document.uploaded',
+      entityType: 'document',
+      entityId: documentId,
+      actor: { actorType: 'user', actorId: uid },
+      payload: { name: sanitizedName, fileType: parsedFileType, fileSize: parsedFileSize },
+      matterId: documentData.caseId ?? undefined,
     });
 
     return successResponse({

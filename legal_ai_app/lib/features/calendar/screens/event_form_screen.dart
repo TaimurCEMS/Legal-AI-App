@@ -60,7 +60,8 @@ class _EventFormScreenState extends State<EventFormScreen> {
     super.initState();
     _isEditMode = widget.eventId != null;
     if (_isEditMode) {
-      _loadExistingEvent();
+      // Defer load to after first frame to avoid notifyListeners() during build
+      WidgetsBinding.instance.addPostFrameCallback((_) => _loadExistingEvent());
     } else if (widget.prefilledDate != null) {
       // Pre-fill date from calendar click
       _startDate = widget.prefilledDate!;

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/constants/app_labels.dart';
 import '../../../core/theme/spacing.dart';
 import '../../../core/theme/typography.dart';
 import '../../../core/theme/colors.dart';
@@ -41,21 +42,21 @@ class _OrganizationDashboardScreenState
 
     if (org == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Organization Dashboard')),
-        body: const Center(child: Text('No organization selected.')),
+        appBar: AppBar(title: const Text(AppLabels.firmDashboard)),
+        body: const Center(child: Text('No firm selected.')),
       );
     }
 
     if (adminProvider.orgStatsLoading && adminProvider.orgStats == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Organization Dashboard')),
+        appBar: AppBar(title: const Text(AppLabels.firmDashboard)),
         body: const Center(child: LoadingSpinner()),
       );
     }
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Organization Dashboard'),
+        title: const Text(AppLabels.firmDashboard),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
@@ -101,7 +102,7 @@ class _OrganizationDashboardScreenState
                         label: 'Members',
                         value: adminProvider.orgStats!.counts.members),
                     _StatChip(
-                        label: 'Cases',
+                        label: AppLabels.matters,
                         value: adminProvider.orgStats!.counts.cases),
                     _StatChip(
                         label: 'Clients',
@@ -132,7 +133,7 @@ class _OrganizationDashboardScreenState
                 const SizedBox(height: AppSpacing.sm),
                 if (adminProvider.orgStats!.recentActivity.last30Days != null) ...[
                   _StatCard(
-                    title: 'Cases created',
+                    title: AppLabels.mattersCreated,
                     value: adminProvider
                         .orgStats!.recentActivity.last30Days!.casesCreated
                         .toString(),

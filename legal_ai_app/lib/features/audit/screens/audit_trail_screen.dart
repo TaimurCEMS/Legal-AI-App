@@ -155,7 +155,7 @@ class _AuditTrailScreenState extends State<AuditTrailScreen> {
       ),
       body: SafeArea(
         child: org == null
-            ? const Center(child: Text('Select an organization to view audit events.'))
+            ? const Center(child: Text('Select a firm to view audit events.'))
             : Consumer<AuditProvider>(
                 builder: (context, provider, _) {
                   return RefreshIndicator(
@@ -393,7 +393,7 @@ class _AuditEventDetailDialogState extends State<_AuditEventDetailDialog> {
             Text('${e.entityTypeDisplayLabel} • ${e.entityId}'),
             if (e.caseId != null && e.caseId!.isNotEmpty) ...[
               const SizedBox(height: AppSpacing.sm),
-              Text('Case', style: AppTypography.labelLarge),
+              Text('Matter', style: AppTypography.labelLarge),
               Text(e.caseId!),
             ],
             const SizedBox(height: AppSpacing.sm),

@@ -1,7 +1,9 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'org_model.dart';
 
 DateTime _parseTimestamp(dynamic value) {
   if (value is DateTime) return value;
+  if (value is Timestamp) return value.toDate(); // Firestore Timestamp
   if (value is String) return DateTime.parse(value);
   if (value is Map && value['_seconds'] != null) {
     final seconds = value['_seconds'] as int;

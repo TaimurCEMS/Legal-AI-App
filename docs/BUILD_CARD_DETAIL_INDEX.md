@@ -38,6 +38,19 @@ This index tracks which slice build cards have been brought up to **Slice 1, 2, 
 | **12** | SLICE_12_BUILD_CARD.md | ✅ | ✅ 2.5 | ✅ 3.3.1–3.3.2 | Updated this pass |
 | **13** | SLICE_13_BUILD_CARD.md | ✅ | ✅ (header) | ✅ 3.4.1–3.4.3 | Updated this pass |
 | **14** | SLICE_14_BUILD_CARD.md | ✅ | ✅ | ✅ 3.4.1–3.4.3 | Updated earlier |
+| **15** | SLICE_15_BUILD_CARD.md | ✅ | ✅ | ✅ (Technical Architecture) | Advanced Admin; detailed |
+| **P1** | SLICE_P1_BUILD_CARD.md | ✅ | ✅ | ✅ (Data Model + Processing) | Domain Events + Outbox |
+| **P2** | SLICE_P2_BUILD_CARD.md | ✅ | ✅ | ✅ (Data Model + Routing) | Notification Engine |
+| **P3** | SLICE_P3_BUILD_CARD.md | ✅ | ✅ | ✅ (In Scope + Webhook) | Deliverability hardening |
+| **16** | SLICE_16_BUILD_CARD.md | ✅ | ✅ | ✅ (Backend Endpoints summary) | Comments + Activity Feed; v2.0 |
+| **17** | SLICE_17_BUILD_CARD.md | ✅ | ✅ | ✅ (Backend Endpoints summary) | 2FA; v2.0 |
+| **18** | SLICE_18_BUILD_CARD.md | ✅ | ✅ | ✅ (Backend Endpoints summary) | Online Payments (Stripe); v2.0 |
+| **19** | SLICE_19_BUILD_CARD.md | ✅ | ✅ | ✅ (Backend Endpoints summary) | Client Portal v1; v2.0 |
+| **20** | SLICE_20_BUILD_CARD.md | ✅ | ✅ | ✅ (Backend Endpoints summary) | Calendar Sync; v2.0 |
+| **21** | SLICE_21_BUILD_CARD.md | ✅ | ✅ | ✅ (Backend Endpoints summary) | Global Search; v2.0 |
+| **22** | SLICE_22_BUILD_CARD.md | ✅ | ✅ | ✅ (Backend Endpoints summary) | Matter Intake Workflow; v2.0 |
+| **—** | TERMINOLOGY_FIRM_MATTER_BUILD_CARD.md | ✅ | ✅ | N/A (UI only) | Firm/Matter UI labels |
+| **—** | SLICE_UI_REFINEMENT_BUILD_CARD.md | ✅ | ✅ | N/A (Flutter only) | UI refinement & polish |
 
 ---
 
@@ -86,4 +99,18 @@ For each slice that still needs Slice 1–4 level detail:
 
 ---
 
-**Last Updated:** 2026-01-29
+## New build cards added (2026-01-30)
+
+- **TERMINOLOGY_FIRM_MATTER_BUILD_CARD.md** – Firm/Matter UI labels (MASTER_SPEC_V2.0 §1); no backend changes.
+- **SLICE_16_BUILD_CARD.md** – Comments + Activity Feed (P1/P2 dependent); comment CRUD + activityFeedList; backend endpoints summary.
+- **SLICE_17_BUILD_CARD.md** – Two-Factor Authentication (2FA); TOTP, backup codes, login flow; backend endpoints summary.
+- **SLICE_18_BUILD_CARD.md** – Online Payments (Stripe); payment link, webhook, list payments; backend endpoints summary.
+- **SLICE_19_BUILD_CARD.md** – Client Portal v1; client auth, client-scoped APIs, visibility; backend endpoints summary.
+- **SLICE_20_BUILD_CARD.md** – Calendar Sync (Google/Outlook); OAuth, sync engine; backend endpoints summary.
+- **SLICE_21_BUILD_CARD.md** – Global Search; unified search API, permission-aware; backend endpoints summary.
+- **SLICE_22_BUILD_CARD.md** – Matter Intake Workflow; intake request CRUD, approve/reject, convert to matter; backend endpoints summary.
+- **SLICE_UI_REFINEMENT_BUILD_CARD.md** – UI refinement & polish; design system, loading/empty/error, responsive, accessibility basics.
+
+---
+
+**Last Updated:** 2026-01-30

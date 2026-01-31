@@ -15,6 +15,7 @@ import { ErrorCode } from '../constants/errors';
 import { checkEntitlement } from '../utils/entitlements';
 import { canUserAccessCase } from '../utils/case-access';
 import { createAuditEvent } from '../utils/audit';
+import { emitDomainEventWithOutbox } from '../utils/domain-events';
 
 const db = admin.firestore();
 const storage = admin.storage();
@@ -429,6 +430,16 @@ export const invoiceCreate = functions.https.onCall(async (data, context) => {
     },
   });
 
+  await emitDomainEventWithOutbox({
+    orgId,
+    eventType: 'invoice.created',
+    entityType: 'invoice',
+    entityId: invoiceId,
+    actor: { actorType: 'user', actorId: uid },
+    payload: { caseId: caseId.trim(), invoiceNumber, subtotalCents, currency: parsedCurrency },
+    matterId: caseId.trim(),
+  });
+
   return successResponse({
     invoice: {
       invoiceId,
@@ -723,6 +734,18 @@ export const invoiceUpdate = functions.https.onCall(async (data, context) => {
     metadata: { updatedFields: Object.keys(updates).filter((k) => k !== 'updatedAt' && k !== 'updatedBy') },
   });
 
+  if (updates.status === 'sent' && inv.status !== 'sent') {
+    await emitDomainEventWithOutbox({
+      orgId,
+      eventType: 'invoice.sent',
+      entityType: 'invoice',
+      entityId: parsedInvoiceId,
+      actor: { actorType: 'user', actorId: uid },
+      payload: { invoiceNumber: inv.invoiceNumber ?? null, caseId: inv.caseId },
+      matterId: inv.caseId ?? undefined,
+    });
+  }
+
   const updated = (await invRef.get()).data() as InvoiceDocument;
 
   return successResponse({
@@ -856,6 +879,16 @@ export const invoiceRecordPayment = functions.https.onCall(async (data, context)
     entityType: 'invoice',
     entityId: parsedInvoiceId,
     metadata: { amountCents: amt, paymentId },
+  });
+
+  await emitDomainEventWithOutbox({
+    orgId,
+    eventType: 'payment.received',
+    entityType: 'invoice',
+    entityId: parsedInvoiceId,
+    actor: { actorType: 'user', actorId: uid },
+    payload: { amountCents: amt, paymentId },
+    matterId: preInv.caseId ?? undefined,
   });
 
   return successResponse({

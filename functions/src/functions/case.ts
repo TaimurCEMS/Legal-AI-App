@@ -9,6 +9,7 @@ import { ErrorCode } from '../constants/errors';
 import { checkEntitlement } from '../utils/entitlements';
 import { createAuditEvent } from '../utils/audit';
 import { canUserAccessCase } from '../utils/case-access';
+import { emitDomainEventWithOutbox } from '../utils/domain-events';
 
 const db = admin.firestore();
 
@@ -201,6 +202,16 @@ export const caseCreate = functions.https.onCall(async (data, context) => {
         visibility: parsedVisibility,
         clientId: validatedClientId || null,
       },
+    });
+
+    await emitDomainEventWithOutbox({
+      orgId,
+      eventType: 'matter.created',
+      entityType: 'matter',
+      entityId: caseId,
+      actor: { actorType: 'user', actorId: uid },
+      payload: { title: sanitizedTitle, visibility: parsedVisibility },
+      matterId: caseId,
     });
 
     const clientName = await getClientName(orgId, validatedClientId);
@@ -781,6 +792,24 @@ export const caseUpdate = functions.https.onCall(async (data, context) => {
 
     const updatedSnap = await caseRef.get();
     const updated = updatedSnap.data() as CaseDocument;
+
+    // Build changes with from/to only when value actually changed (avoid "status changed from open to open")
+    const payloadChanges: Record<string, { from?: unknown; to?: unknown }> = {};
+    if (updates.title !== undefined && existing.title !== updated.title) payloadChanges.title = { from: existing.title, to: updated.title };
+    if (updates.status !== undefined && existing.status !== updated.status) payloadChanges.status = { from: existing.status, to: updated.status };
+    if (updates.visibility !== undefined && existing.visibility !== updated.visibility) payloadChanges.visibility = { from: existing.visibility, to: updated.visibility };
+    if (updates.clientId !== undefined && (existing.clientId ?? null) !== (updated.clientId ?? null)) payloadChanges.clientId = { from: existing.clientId ?? null, to: updated.clientId ?? null };
+
+    await emitDomainEventWithOutbox({
+      orgId,
+      eventType: 'matter.updated',
+      entityType: 'matter',
+      entityId: caseId,
+      actor: { actorType: 'user', actorId: uid },
+      payload: { title: updated.title, updatedFields: Object.keys(updates), changes: payloadChanges },
+      matterId: caseId,
+    });
+
     const clientName = await getClientName(orgId, updated.clientId);
 
     return successResponse({

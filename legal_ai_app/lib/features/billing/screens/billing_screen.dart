@@ -145,7 +145,7 @@ class _BillingScreenState extends State<BillingScreen> {
                     DropdownButtonFormField<String>(
                       key: ValueKey(selectedCaseId),
                       initialValue: selectedCaseId,
-                      decoration: const InputDecoration(labelText: 'Case'),
+                      decoration: const InputDecoration(labelText: 'Matter'),
                       items: cases
                           .map((c) => DropdownMenuItem(value: c.caseId, child: Text(c.title)))
                           .toList(),
@@ -629,7 +629,7 @@ class _BillingScreenState extends State<BillingScreen> {
                     DropdownButton<String>(
                       value: _caseFilter,
                       items: [
-                        const DropdownMenuItem(value: _allCasesFilterValue, child: Text('All cases')),
+                        const DropdownMenuItem(value: _allCasesFilterValue, child: Text('All matters')),
                         ...caseProvider.cases.map((c) => DropdownMenuItem(value: c.caseId, child: Text(c.title))),
                       ],
                       onChanged: (v) async {

@@ -1,6 +1,6 @@
 # Legal AI App – Documentation Index
 
-**Last Updated:** 2026-01-29  
+**Last Updated:** 2026-01-30  
 **Purpose:** Single entry point to all project documentation. Use this index to find specs, build cards, status, and handoff context.
 
 ---
@@ -19,7 +19,8 @@
 
 | Document | Purpose |
 |----------|---------|
-| **[MASTER_SPEC V1.4.0.md](MASTER_SPEC%20V1.4.0.md)** | Master specification (source of truth); repository structure guidelines |
+| **[MASTER_SPEC_V1.0_FROZEN.md](MASTER_SPEC_V1.0_FROZEN.md)** | Frozen v1.0 master spec; repository structure guidelines |
+| **[MASTER_SPEC_V2.0.md](MASTER_SPEC_V2.0.md)** | v2.0 delta: events, outbox, notifications, audit, terminology (Firm/Matter), slice roadmap 16–22 |
 | **[FEATURE_ROADMAP.md](FEATURE_ROADMAP.md)** | Feature roadmap, competitive analysis, implemented vs planned slices |
 | **[ARCHITECTURE_SCALABILITY_ASSESSMENT.md](ARCHITECTURE_SCALABILITY_ASSESSMENT.md)** | Architecture and scalability review |
 
@@ -33,7 +34,9 @@
 | **Build cards (SLICE_*_BUILD_CARD.md)** | Per-slice scope, data model, backend endpoints, frontend, security, testing, deployment |
 
 **Build cards by slice:**  
-[Slice 0](SLICE_0_BUILD_CARD.md) · [Slice 1](SLICE_1_BUILD_CARD.md) · [Slice 2](SLICE_2_BUILD_CARD.md) · [Slice 3](SLICE_3_BUILD_CARD.md) · [Slice 4](SLICE_4_BUILD_CARD.md) · [Slice 5](SLICE_5_BUILD_CARD.md) · [Slice 5.5](SLICE_5_5_CASE_PARTICIPANTS_BUILD_CARD.md) · [Slice 6a](SLICE_6A_BUILD_CARD.md) · [Slice 6b](SLICE_6B_BUILD_CARD.md) · [Slice 7](SLICE_7_BUILD_CARD.md) · [Slice 8](SLICE_8_BUILD_CARD.md) · [Slice 9](SLICE_9_BUILD_CARD.md) · [Slice 10](SLICE_10_BUILD_CARD.md) · [Slice 11](SLICE_11_BUILD_CARD.md) · [Slice 12](SLICE_12_BUILD_CARD.md) · [Slice 13](SLICE_13_BUILD_CARD.md) · [Slice 14](SLICE_14_BUILD_CARD.md)
+[Slice 0](SLICE_0_BUILD_CARD.md) · [Slice 1](SLICE_1_BUILD_CARD.md) · [Slice 2](SLICE_2_BUILD_CARD.md) · [Slice 3](SLICE_3_BUILD_CARD.md) · [Slice 4](SLICE_4_BUILD_CARD.md) · [Slice 5](SLICE_5_BUILD_CARD.md) · [Slice 5.5](SLICE_5_5_CASE_PARTICIPANTS_BUILD_CARD.md) · [Slice 6a](SLICE_6A_BUILD_CARD.md) · [Slice 6b](SLICE_6B_BUILD_CARD.md) · [Slice 7](SLICE_7_BUILD_CARD.md) · [Slice 8](SLICE_8_BUILD_CARD.md) · [Slice 9](SLICE_9_BUILD_CARD.md) · [Slice 10](SLICE_10_BUILD_CARD.md) · [Slice 11](SLICE_11_BUILD_CARD.md) · [Slice 12](SLICE_12_BUILD_CARD.md) · [Slice 13](SLICE_13_BUILD_CARD.md) · [Slice 14](SLICE_14_BUILD_CARD.md) · [Slice 15](SLICE_15_BUILD_CARD.md) · [P1](SLICE_P1_BUILD_CARD.md) · [P2](SLICE_P2_BUILD_CARD.md) · [P3](SLICE_P3_BUILD_CARD.md) · [Slice 16](SLICE_16_BUILD_CARD.md) · [Slice 17](SLICE_17_BUILD_CARD.md) · [Slice 18](SLICE_18_BUILD_CARD.md) · [Slice 19](SLICE_19_BUILD_CARD.md) · [Slice 20](SLICE_20_BUILD_CARD.md) · [Slice 21](SLICE_21_BUILD_CARD.md) · [Slice 22](SLICE_22_BUILD_CARD.md) · [Terminology](TERMINOLOGY_FIRM_MATTER_BUILD_CARD.md) · [UI Refinement](SLICE_UI_REFINEMENT_BUILD_CARD.md)
+
+**Build card index:** [BUILD_CARD_DETAIL_INDEX.md](BUILD_CARD_DETAIL_INDEX.md)
 
 ---
 

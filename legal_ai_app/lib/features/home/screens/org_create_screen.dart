@@ -8,10 +8,11 @@ import '../../../core/theme/spacing.dart';
 import '../../common/widgets/buttons/primary_button.dart';
 import '../../common/widgets/buttons/secondary_button.dart';
 import '../../common/widgets/text_fields/app_text_field.dart';
+import '../../../core/constants/app_labels.dart';
 import '../providers/org_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 
-/// Organization creation screen
+/// Firm creation screen
 class OrgCreateScreen extends StatefulWidget {
   const OrgCreateScreen({super.key});
 
@@ -56,7 +57,7 @@ class _OrgCreateScreenState extends State<OrgCreateScreen> {
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(orgProvider.errorMessage ?? 'Failed to create organization'),
+          content: Text(orgProvider.errorMessage ?? 'Failed to create firm'),
           backgroundColor: AppColors.error,
         ),
       );
@@ -70,7 +71,7 @@ class _OrgCreateScreenState extends State<OrgCreateScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Create Organization'),
+        title: const Text(AppLabels.createFirm),
       ),
       body: SafeArea(
         child: Center(
@@ -82,7 +83,7 @@ class _OrgCreateScreenState extends State<OrgCreateScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'Create Organization',
+                    AppLabels.createFirm,
                     style: AppTypography.headlineLarge.copyWith(
                       color: AppColors.textPrimary,
                     ),
@@ -90,7 +91,7 @@ class _OrgCreateScreenState extends State<OrgCreateScreen> {
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   Text(
-                    'Set up your organization to get started',
+                    'Set up your firm to get started',
                     style: AppTypography.bodyMedium.copyWith(
                       color: AppColors.textSecondary,
                     ),
@@ -98,12 +99,12 @@ class _OrgCreateScreenState extends State<OrgCreateScreen> {
                   ),
                   const SizedBox(height: AppSpacing.xxl),
                   AppTextField(
-                    label: 'Organization Name',
-                    hint: 'Enter organization name',
+                    label: '${AppLabels.firmName} *',
+                    hint: 'Enter firm name',
                     controller: _nameController,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Organization name is required';
+                        return '${AppLabels.firmName} is required';
                       }
                       if (value.length < 1 || value.length > 100) {
                         return 'Name must be between 1 and 100 characters';
@@ -115,7 +116,7 @@ class _OrgCreateScreenState extends State<OrgCreateScreen> {
                   const SizedBox(height: AppSpacing.md),
                   AppTextField(
                     label: 'Description (Optional)',
-                    hint: 'Enter organization description',
+                    hint: 'Enter firm description',
                     controller: _descriptionController,
                     maxLines: 3,
                     validator: (value) {
@@ -128,7 +129,7 @@ class _OrgCreateScreenState extends State<OrgCreateScreen> {
                   ),
                   const SizedBox(height: AppSpacing.xl),
                   PrimaryButton(
-                    label: 'Create Organization',
+                    label: AppLabels.createFirm,
                     onPressed: _handleCreateOrg,
                     isLoading: orgProvider.isLoading,
                   ),

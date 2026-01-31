@@ -2541,3 +2541,61 @@ When you discover a new learning:
 
 **Last Updated:** 2026-01-30  
 **Next Review:** After Slice 11 completion
+
+---
+
+### Learning 67: Real-Time vs Backend-Loaded Architecture Trade-offs
+**Date:** 2026-01-31  
+**Context:** Slice 16 - Comments implementation, real-time attempted and reverted
+
+**Issue:**
+- Attempted to use Firestore real-time listeners (`snapshots()`) for comments, cases, and tasks to provide live updates
+- Complex Firestore security rules using `canAccessCase` helper (checks case visibility + participants) failed with permission-denied errors on list queries
+- Models had to handle both Firestore `Timestamp` objects and ISO string timestamps from Cloud Functions
+
+**Attempt:**
+- Implemented real-time listeners with automatic fallback to Cloud Functions on errors
+- Updated all models to parse both formats (`if (value is Timestamp) return value.toDate()`)
+- Added `StreamSubscription` management and cleanup
+
+**Why Reverted:**
+- Firestore security rules can't evaluate complex helper functions like `canAccessCase` on list queries
+- Real-time creates architecture inconsistency (some data direct from Firestore, some via Cloud Functions)
+- Legal app requirements favor controlled, audited, secure data access through backend
+- Backend-loaded approach provides:
+  - Better security (complex access rules work properly in Cloud Functions)
+  - Consistent architecture (all data flows through audited backend)
+  - Lower Firebase costs (no active listeners)
+  - Complete audit trail through function calls
+
+**Solution:**
+- Kept backend-loaded approach using Cloud Functions
+- Retained `Timestamp` parsing in models for future flexibility
+- Implemented optimistic UI updates where appropriate (add/update/delete)
+- Added clear user feedback (SnackBars) for operations
+
+**Lesson:**
+- **Real-time is not always better** - consider app requirements and security model
+- **Complex Firestore rules** (with document lookups) don't work well with real-time list queries
+- **Backend-loaded architecture** can be more appropriate for:
+  - Legal/financial apps requiring strict audit trails
+  - Apps with complex multi-document access control
+  - Apps prioritizing security over instant updates
+- **Firestore real-time works best** when:
+  - Security rules are simple (org membership only)
+  - No complex cross-document access checks needed
+  - Instant collaboration is critical (chat apps, etc.)
+
+**Trade-off Summary:**
+- **Real-time:** Instant updates, better UX for collaboration, but limited by Firestore security model
+- **Backend-loaded:** Better security, consistent architecture, full audit trail, but requires manual refresh or polling for updates
+
+**Files:**
+- `legal_ai_app/lib/features/comments/providers/comment_provider.dart`
+- `legal_ai_app/lib/features/cases/providers/case_provider.dart`
+- `legal_ai_app/lib/features/tasks/providers/task_provider.dart`
+- `legal_ai_app/lib/core/models/comment_model.dart`
+- `legal_ai_app/lib/core/models/case_model.dart`
+- `legal_ai_app/lib/core/models/task_model.dart`
+
+**Last Updated:** 2026-01-31

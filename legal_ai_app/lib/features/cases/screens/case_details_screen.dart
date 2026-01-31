@@ -25,6 +25,7 @@ import '../../home/providers/org_provider.dart';
 import '../../tasks/providers/task_provider.dart';
 import '../../notes/providers/note_provider.dart';
 import '../../../core/models/note_model.dart';
+import '../../comments/widgets/comment_list_section.dart';
 import '../providers/case_provider.dart';
 import 'package:go_router/go_router.dart';
 
@@ -671,6 +672,8 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
                         const SizedBox(height: AppSpacing.xl),
                         _buildNotesSection(),
                         const SizedBox(height: AppSpacing.xl),
+                        _buildCommentsSection(),
+                        const SizedBox(height: AppSpacing.xl),
                         _buildAIResearchSection(),
                         const SizedBox(height: AppSpacing.xl),
                         _buildAIDraftingSection(),
@@ -1088,6 +1091,16 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
     }
   }
 
+  Widget _buildCommentsSection() {
+    final org = context.watch<OrgProvider>().selectedOrg;
+    if (org == null) return const SizedBox.shrink();
+    return CommentListSection(
+      orgId: org.orgId,
+      matterId: widget.caseId,
+      maxVisible: 5,
+    );
+  }
+
   Widget _buildNotesSection() {
     final caseProvider = context.watch<CaseProvider>();
     final caseModel = caseProvider.selectedCase;
@@ -1207,9 +1220,16 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
     }
 
     final clients = clientProvider.clients;
+    final byId = <String, ClientModel>{};
+    for (final c in clients) {
+      byId[c.clientId] ??= c;
+    }
+    final uniqueClients = byId.values.toList();
+    final valueInItems = _selectedClientId != null &&
+        uniqueClients.any((c) => c.clientId == _selectedClientId);
 
     return DropdownButtonFormField<String>(
-      value: _selectedClientId,
+      value: valueInItems ? _selectedClientId : null,
       decoration: const InputDecoration(
         hintText: 'Select a client (optional)',
         border: OutlineInputBorder(),
@@ -1219,7 +1239,7 @@ class _CaseDetailsScreenState extends State<CaseDetailsScreen> {
           value: null,
           child: Text('No client'),
         ),
-        ...clients.map((client) {
+        ...uniqueClients.map((client) {
           return DropdownMenuItem<String>(
             value: client.clientId,
             child: Text(client.name),

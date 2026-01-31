@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/constants/app_labels.dart';
 import '../../../core/routing/route_names.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/typography.dart';
@@ -143,7 +144,7 @@ class _OrgSelectionScreenState extends State<OrgSelectionScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Select Organization'),
+        title: const Text('Select Firm'),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
@@ -176,7 +177,7 @@ class _OrgSelectionScreenState extends State<OrgSelectionScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'Your Organizations',
+                'Your Firms',
                 style: AppTypography.headlineSmall.copyWith(
                   color: AppColors.textPrimary,
                 ),
@@ -194,7 +195,7 @@ class _OrgSelectionScreenState extends State<OrgSelectionScreen> {
                     child: OutlinedButton.icon(
                       onPressed: () => _showJoinOrgDialog(context, orgProvider),
                       icon: const Icon(Icons.group_add),
-                      label: const Text('Join Organization'),
+                      label: const Text(AppLabels.joinFirm),
                     ),
                   ),
                   const SizedBox(width: AppSpacing.sm),
@@ -226,7 +227,7 @@ class _OrgSelectionScreenState extends State<OrgSelectionScreen> {
             const Icon(Icons.error_outline, size: 48, color: Colors.red),
             const SizedBox(height: AppSpacing.md),
             Text(
-              'Error loading organizations',
+              'Error loading firms',
               style: AppTypography.titleMedium,
             ),
             const SizedBox(height: AppSpacing.sm),
@@ -251,8 +252,8 @@ class _OrgSelectionScreenState extends State<OrgSelectionScreen> {
     if (orgProvider.userOrgs.isEmpty) {
       return const EmptyStateWidget(
         icon: Icons.business_outlined,
-        title: 'No Organizations',
-        message: 'Create your first organization to get started.',
+        title: 'No Firms',
+        message: 'Create your first firm to get started.',
       );
     }
 
@@ -319,7 +320,7 @@ class _OrgSelectionScreenState extends State<OrgSelectionScreen> {
                 debugPrint('OrgSelectionScreen: Error selecting org: $e');
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error selecting organization: $e')),
+                    SnackBar(content: Text('Error selecting firm: $e')),
                   );
                 }
               } finally {
@@ -343,23 +344,23 @@ class _OrgSelectionScreenState extends State<OrgSelectionScreen> {
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Join Organization'),
+        title: const Text(AppLabels.joinFirm),
         content: Form(
           key: formKey,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text(
-                'Enter the Organization ID to join.',
+                'Enter the Firm ID to join.',
                 style: AppTypography.bodyMedium,
               ),
               const SizedBox(height: AppSpacing.md),
               AppTextField(
-                label: 'Organization ID',
+                label: AppLabels.firmId,
                 controller: orgIdController,
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
-                    return 'Organization ID is required';
+                    return '${AppLabels.firmId} is required';
                   }
                   return null;
                 },
@@ -383,7 +384,7 @@ class _OrgSelectionScreenState extends State<OrgSelectionScreen> {
               
               if (userId == null) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('You must be logged in to join an organization')),
+                  const SnackBar(content: Text('You must be logged in to join a firm')),
                 );
                 Navigator.of(dialogContext).pop();
                 return;
@@ -400,7 +401,7 @@ class _OrgSelectionScreenState extends State<OrgSelectionScreen> {
               
               if (success && context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Successfully joined organization')),
+                  const SnackBar(content: Text(AppLabels.successFirmJoined)),
                 );
                 // Reload orgs list to show the new one
                 await orgProvider.loadUserOrgs();
@@ -425,7 +426,7 @@ class _OrgSelectionScreenState extends State<OrgSelectionScreen> {
               } else if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text(orgProvider.errorMessage ?? 'Failed to join organization'),
+                    content: Text(orgProvider.errorMessage ?? 'Failed to join firm'),
                     backgroundColor: Colors.red,
                   ),
                 );

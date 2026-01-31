@@ -8,6 +8,7 @@ import { successResponse, errorResponse } from '../utils/response';
 import { ErrorCode } from '../constants/errors';
 import { checkEntitlement } from '../utils/entitlements';
 import { createAuditEvent } from '../utils/audit';
+import { emitDomainEventWithOutbox } from '../utils/domain-events';
 
 const db = admin.firestore();
 
@@ -175,6 +176,16 @@ export const clientCreate = functions.https.onCall(async (data, context) => {
         name: sanitizedName,
         email: sanitizedEmail || null,
       },
+    });
+
+    // Emit domain event for notifications
+    await emitDomainEventWithOutbox({
+      orgId,
+      eventType: 'client.created',
+      entityType: 'client',
+      entityId: clientId,
+      actor: { actorType: 'user', actorId: uid },
+      payload: { title: sanitizedName, email: sanitizedEmail },
     });
 
     return successResponse({

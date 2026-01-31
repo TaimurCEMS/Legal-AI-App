@@ -1,7 +1,9 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'org_model.dart';
 
 DateTime _parseTimestamp(dynamic value) {
   if (value is DateTime) return value;
+  if (value is Timestamp) return value.toDate(); // Firestore Timestamp
   if (value is String) return DateTime.parse(value);
   if (value is Map && value['_seconds'] != null) {
     final seconds = value['_seconds'] as int;
@@ -10,16 +12,26 @@ DateTime _parseTimestamp(dynamic value) {
   throw const FormatException('Invalid timestamp format for TaskModel');
 }
 
-// Helper method to parse date-only string (YYYY-MM-DD) as UTC
-DateTime _parseDateOnly(String dateString) {
-  final parts = dateString.split('-');
-  if (parts.length != 3) {
-    throw FormatException('Invalid date format: $dateString');
+// Helper method to parse date-only value (String YYYY-MM-DD or Firestore Timestamp) as UTC
+DateTime _parseDateOnly(dynamic value) {
+  if (value is Timestamp) {
+    final dt = value.toDate();
+    return DateTime.utc(dt.year, dt.month, dt.day);
   }
-  final year = int.parse(parts[0]);
-  final month = int.parse(parts[1]);
-  final day = int.parse(parts[2]);
-  return DateTime.utc(year, month, day); // Parse as UTC to avoid timezone issues
+  if (value is DateTime) {
+    return DateTime.utc(value.year, value.month, value.day);
+  }
+  if (value is String) {
+    final parts = value.split('-');
+    if (parts.length != 3) {
+      throw FormatException('Invalid date format: $value');
+    }
+    final year = int.parse(parts[0]);
+    final month = int.parse(parts[1]);
+    final day = int.parse(parts[2]);
+    return DateTime.utc(year, month, day);
+  }
+  throw FormatException('Invalid date format: $value');
 }
 
 enum TaskStatus {
@@ -150,7 +162,7 @@ class TaskModel {
       description: json['description'] as String?,
       status: TaskStatus.fromString(json['status'] as String? ?? 'PENDING'),
       dueDate: json['dueDate'] != null 
-          ? _parseDateOnly(json['dueDate'] as String) // Parse date-only string safely (UTC)
+          ? _parseDateOnly(json['dueDate']) // Parse date (String or Timestamp) safely (UTC)
           : null,
       assigneeId: json['assigneeId'] as String?,
       assigneeName: json['assigneeName'] as String?,

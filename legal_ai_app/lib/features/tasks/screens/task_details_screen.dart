@@ -19,6 +19,7 @@ import '../../../core/models/member_model.dart';
 import '../../../core/models/case_participant_model.dart';
 import '../../../core/services/case_participants_service.dart';
 import '../../../core/routing/route_names.dart';
+import '../../comments/widgets/comment_list_section.dart';
 
 class TaskDetailsScreen extends StatefulWidget {
   final String taskId;
@@ -204,10 +205,15 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
     final now = DateTime.now();
     final firstDate = DateTime(now.year, now.month, now.day);
     final lastDate = DateTime(now.year + 1, 12, 31);
-    
+    // Clamp initialDate so it is within [firstDate, lastDate] (avoids assertion when task has past due date)
+    final initial = _dueDate ?? firstDate;
+    final initialDate = initial.isBefore(firstDate)
+        ? firstDate
+        : (initial.isAfter(lastDate) ? lastDate : initial);
+
     final picked = await showDatePicker(
       context: context,
-      initialDate: _dueDate ?? firstDate,
+      initialDate: initialDate,
       firstDate: firstDate,
       lastDate: lastDate,
     );
@@ -284,10 +290,10 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
     });
 
     if (ok) {
-      setState(() {
-        _editing = false;
-      });
-      await _loadDetails(); // Reload to get updated data
+      if (mounted) {
+        context.go(RouteNames.home);
+      }
+      return;
     } else {
       final errorMsg = taskProvider.errorMessage ?? 'Failed to update task';
       if (mounted) {
@@ -370,6 +376,17 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Back',
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go(RouteNames.taskList);
+            }
+          },
+        ),
         title: const Text('Task Details'),
         actions: [
           IconButton(
@@ -510,14 +527,9 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
                                   child: InkWell(
                                     onTap: (_editing && !_saving) ? _selectDueDate : null,
                                     child: InputDecorator(
-                                      decoration: InputDecoration(
+                                      decoration: const InputDecoration(
                                         labelText: 'Due Date (optional)',
-                                        suffixIcon: _dueDate != null && _editing && !_saving
-                                            ? IconButton(
-                                                icon: const Icon(Icons.clear),
-                                                onPressed: _clearDueDate,
-                                              )
-                                            : const Icon(Icons.calendar_today),
+                                        suffixIcon: Icon(Icons.calendar_today),
                                       ),
                                       child: Text(
                                         _dueDate == null
@@ -528,6 +540,12 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
                                     ),
                                   ),
                                 ),
+                                if (_dueDate != null && _editing && !_saving)
+                                  IconButton(
+                                    icon: const Icon(Icons.clear),
+                                    onPressed: _clearDueDate,
+                                    tooltip: 'Clear due date',
+                                  ),
                               ],
                             ),
                             const SizedBox(height: AppSpacing.md),
@@ -660,6 +678,15 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
                                 onPressed: _saving ? null : _save,
                                 isLoading: _saving,
                               ),
+                            if (task.caseId != null) ...[
+                              const SizedBox(height: AppSpacing.xl),
+                              CommentListSection(
+                                orgId: context.read<OrgProvider>().selectedOrg!.orgId,
+                                matterId: task.caseId!,
+                                taskId: widget.taskId,
+                                maxVisible: 5,
+                              ),
+                            ],
                           ],
                         ),
                       ),

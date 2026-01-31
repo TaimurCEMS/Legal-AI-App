@@ -1227,6 +1227,106 @@ The AI service is designed for future extensibility:
 
 ---
 
+## Slice P1: Domain Events + Outbox ✅ COMPLETE
+
+**Status:** ✅ **COMPLETE & DEPLOYED**  
+**Last Updated:** 2026-01-31  
+**Dependencies:** Slice 0 ✅ (Firestore, audit logging)  
+**Type:** Platform infrastructure for event-driven architecture
+
+### Backend Status: ✅ DEPLOYED
+
+**Functions (1):**
+1. ✅ `outboxProcessor` – Scheduled function (every 2 minutes) processes pending outbox jobs with exponential backoff
+
+**Utilities:**
+- ✅ `functions/src/utils/domain-events.ts` – Core event emission logic
+  - `emitDomainEventWithOutbox()` – Atomic batch write for domain_event + outbox record
+  - `getBackoffMs()` – Exponential backoff calculation (attempts 1-5: 60s, 2m, 4m, 8m, 16m)
+  - `outboxIdempotencyKeyForEvent()` – Generate idempotency key (`notif:<orgId>:<eventId>`)
+
+**Features:**
+- ✅ Domain events collection (`domain_events`) for audit trail and notifications
+- ✅ Outbox pattern for reliable async job processing (at-most-once delivery)
+- ✅ Idempotency keys prevent duplicate processing
+- ✅ Status tracking: pending → processing → sent/failed
+- ✅ Retry logic with exponential backoff (max 5 attempts)
+- ✅ `sentAt` timestamp when job completes successfully
+
+**Event Types Emitted:**
+- `invoice.sent`, `invoice.created`, `payment.received` (Slice 11)
+- `comment.added`, `comment.updated`, `comment.deleted` (Slice 16)
+
+**Infrastructure:**
+- Firestore collections: `domain_events`, `outbox`
+- Firestore indexes: orgId+timestamp, orgId+matterId+timestamp
+- Firestore rules: server-only (no direct client access)
+
+### Testing
+- ✅ Unit tests: `functions/src/__tests__/domain-events.test.ts`
+
+### Documentation
+- **Build Card:** `docs/SLICE_P1_BUILD_CARD.md`
+
+**Overall:** ✅ **COMPLETE**
+
+---
+
+## Slice 16: Comments + Activity Feed ✅ COMPLETE
+
+**Status:** ✅ **COMPLETE & DEPLOYED**  
+**Last Updated:** 2026-01-31  
+**Dependencies:** Slice 0 ✅, Slice 1 ✅, Slice 2 ✅, Slice 5.5 ✅, P1 ✅  
+**Type:** Collaboration + activity tracking
+
+### Backend Status: ✅ DEPLOYED
+
+**Functions (6):**
+1. ✅ `commentCreate` – Create comment with domain event emission
+2. ✅ `commentGet` – Get single comment with case access check
+3. ✅ `commentList` – List comments by matterId/taskId/documentId
+4. ✅ `commentUpdate` – Update comment body + emit `comment.updated` event
+5. ✅ `commentDelete` – Soft delete + emit `comment.deleted` event
+6. ✅ `activityFeedList` – List activity feed from domain_events
+
+**Security & Access Control:**
+- All comment operations enforce case access via `canUserAccessCase`
+- Comments inherit matter visibility (ORG_WIDE/PRIVATE)
+- Activity feed filtered by matter permissions (no private matter leakage)
+
+**Features:**
+- Comments on matters, tasks, and documents
+- Full audit trail via domain events (create/update/delete)
+- P2 notification routing configured for all comment events
+- Activity feed shows org-wide activity (filtered by user permissions)
+
+**Infrastructure:**
+- Firestore collection: `organizations/{orgId}/comments/{commentId}`
+- Composite indexes: matterId+createdAt, taskId+createdAt, documentId+createdAt
+- Security rules: case access enforcement, writes admin-only
+
+### Frontend Status: ✅ COMPLETE
+
+**Implemented:**
+- CommentProvider, CommentService, CommentModel (backend-loaded architecture)
+- CommentListSection widget (reusable across screens)
+- ActivityFeedProvider, ActivityFeedService, ActivityFeedModel
+- ActivityFeedScreen + Home dashboard integration
+- Author name resolution via MemberProvider
+- SnackBar feedback for operations
+- Integrated in CaseDetailsScreen, TaskDetailsScreen, DocumentDetailsScreen
+
+**Key Decision:**
+- Backend-loaded approach (Cloud Functions) instead of real-time listeners
+- Reason: Complex case access rules, security, architecture consistency, audit trail
+
+### Documentation
+- **Build Card:** `docs/SLICE_16_BUILD_CARD.md`
+
+**Overall:** ✅ **COMPLETE**
+
+---
+
 ## 🔧 Immediate Enhancements (Slice 6b+)
 
 These can be added incrementally to improve AI chat experience:
@@ -1259,14 +1359,36 @@ See **`docs/FEATURE_ROADMAP.md`** for comprehensive roadmap and competitive anal
 ### Priority 3: Competitive Differentiators (Beat Harvey.ai)
 - **Slice 13:** AI Contract Analysis ✅ COMPLETE (clause identification, risk flagging)
 - **Slice 14:** AI Document Summarization ✅ COMPLETE (one-click document summaries)
-- **Slice 15:** Advanced Admin Features (invitations, bulk ops, org settings)
-- **Slice 16:** Reporting Dashboard (case stats, productivity metrics)
+- **Slice 15:** Advanced Admin Features ✅ (invitations, org settings, member profiles, export, stats)
 
-### Priority 4: Full Feature Parity (Enterprise Ready)
-- **Slice 17:** Contact Management (opposing counsel, experts, witnesses)
-- **Slice 18:** Email Integration (capture emails to cases)
-- **Slice 19:** Conflict of Interest Checks (ethical compliance)
-- **Slice 20:** Vector Search / Embeddings (semantic document search)
+---
+
+## 📋 Future Slices (v2.0 Roadmap – MASTER_SPEC_V2.0)
+
+**Source:** `docs/MASTER_SPEC_V2.0.md` §7. Build cards created 2026-01-30. Suggested order: P1 → P2 → Terminology (parallel) → Slice 16 → Slice 17 → Slice 18; then Slices 19–22 and UI Refinement as capacity allows.
+
+### Platform (P1 → P2 → P3)
+- **P1:** Domain Events + Outbox – `docs/SLICE_P1_BUILD_CARD.md`
+- **P2:** Notification Engine – `docs/SLICE_P2_BUILD_CARD.md`
+- **P3:** Deliverability & Compliance Hardening – `docs/SLICE_P3_BUILD_CARD.md`
+
+### Terminology (can run in parallel)
+- **Firm/Matter UI labels** – `docs/TERMINOLOGY_FIRM_MATTER_BUILD_CARD.md`
+
+### Feature Slices (v2.0 numbering)
+- **Slice 16:** Comments + Activity Feed (depends on P1, P2) – `docs/SLICE_16_BUILD_CARD.md`
+- **Slice 17:** Two-Factor Authentication (2FA) – `docs/SLICE_17_BUILD_CARD.md`
+- **Slice 18:** Online Payments (Stripe; product-wise depends on P2) – `docs/SLICE_18_BUILD_CARD.md`
+- **Slice 19:** Client Portal v1 (depends on P2 + permission hooks) – `docs/SLICE_19_BUILD_CARD.md`
+- **Slice 20:** Calendar Sync (Google/Outlook) – `docs/SLICE_20_BUILD_CARD.md`
+- **Slice 21:** Global Search – `docs/SLICE_21_BUILD_CARD.md`
+- **Slice 22:** Matter Intake Workflow – `docs/SLICE_22_BUILD_CARD.md`
+
+### UI & Polish
+- **UI Refinement & Polish** – `docs/SLICE_UI_REFINEMENT_BUILD_CARD.md` (loading/empty/error, responsive, accessibility, design system consistency)
+
+### Legacy numbering (FEATURE_ROADMAP / v1)
+For reference, v1 roadmap used different slice numbers: Slice 16 = Reporting Dashboard, 17 = Contact Management, 18 = Email Integration, 19 = Conflict Checks, 20 = Vector Search. See `docs/FEATURE_ROADMAP.md`. v2.0 slice numbers above take precedence for new work.
 
 ---
 

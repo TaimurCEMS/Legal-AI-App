@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/constants/app_labels.dart';
 import '../../../core/models/org_settings_model.dart';
 import '../../../core/theme/spacing.dart';
 import '../../common/widgets/loading/loading_spinner.dart';
@@ -77,7 +78,7 @@ class _OrganizationSettingsScreenState extends State<OrganizationSettingsScreen>
     if (name.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Organization name is required')),
+          const SnackBar(content: Text('Firm name is required')),
         );
       }
       return;
@@ -132,14 +133,14 @@ class _OrganizationSettingsScreenState extends State<OrganizationSettingsScreen>
 
     if (org == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Organization Settings')),
+        appBar: AppBar(title: const Text(AppLabels.firmSettings)),
         body: const Center(child: Text('No organization selected.')),
       );
     }
 
     if (adminProvider.orgSettingsLoading && adminProvider.orgSettings == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Organization Settings')),
+        appBar: AppBar(title: const Text(AppLabels.firmSettings)),
         body: const Center(child: LoadingSpinner()),
       );
     }
@@ -152,7 +153,7 @@ class _OrganizationSettingsScreenState extends State<OrganizationSettingsScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Organization Settings'),
+        title: const Text(AppLabels.firmSettings),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
@@ -166,7 +167,7 @@ class _OrganizationSettingsScreenState extends State<OrganizationSettingsScreen>
               ErrorMessage(message: adminProvider.orgSettingsError!),
             AppTextField(
               controller: _nameController,
-              label: 'Organization name',
+              label: AppLabels.firmName,
               hint: 'My Law Firm',
             ),
             const SizedBox(height: AppSpacing.sm),

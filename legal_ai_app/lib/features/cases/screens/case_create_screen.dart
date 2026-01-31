@@ -69,7 +69,7 @@ class _CaseCreateScreenState extends State<CaseCreateScreen> {
     final org = context.read<OrgProvider>().selectedOrg;
     if (org == null) {
       setState(() {
-        _error = 'No organization selected.';
+        _error = 'No firm selected.';
       });
       return;
     }
@@ -102,7 +102,7 @@ class _CaseCreateScreenState extends State<CaseCreateScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Case created successfully'),
+            content: const Text('Matter created successfully'),
             backgroundColor: Colors.green,
             duration: Duration(seconds: 2),
           ),
@@ -128,7 +128,7 @@ class _CaseCreateScreenState extends State<CaseCreateScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('New Case'),
+        title: const Text('New Matter'),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -139,7 +139,7 @@ class _CaseCreateScreenState extends State<CaseCreateScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Create Case',
+                  'Create Matter',
                   style: AppTypography.headlineSmall,
                 ),
                 const SizedBox(height: AppSpacing.md),
@@ -185,7 +185,7 @@ class _CaseCreateScreenState extends State<CaseCreateScreen> {
                   children: [
                     Expanded(
                       child: RadioListTile<CaseVisibility>(
-                        title: const Text('Organization-wide'),
+                        title: const Text('Firm-wide'),
                         value: CaseVisibility.orgWide,
                         groupValue: _visibility,
                         onChanged: (v) {
@@ -254,6 +254,14 @@ class _CaseCreateScreenState extends State<CaseCreateScreen> {
 
     final clients = clientProvider.clients;
 
+    // Deduplicate clients by ID to prevent duplicates in dropdown
+    final uniqueClients = <String, ClientModel>{};
+    for (final client in clients) {
+      uniqueClients[client.clientId] = client;
+    }
+    final clientList = uniqueClients.values.toList()
+      ..sort((a, b) => a.name.compareTo(b.name));
+
     return DropdownButtonFormField<String>(
       value: _selectedClientId,
       decoration: const InputDecoration(
@@ -265,7 +273,7 @@ class _CaseCreateScreenState extends State<CaseCreateScreen> {
           value: null,
           child: Text('No client'),
         ),
-        ...clients.map((client) {
+        ...clientList.map((client) {
           return DropdownMenuItem<String>(
             value: client.clientId,
             child: Text(client.name),
